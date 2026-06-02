@@ -1,0 +1,186 @@
+# =============================================================================
+# sources.yaml  --  Data source registry for the ISM replication
+# =============================================================================
+# Every external series used to replicate Lansing & Shapiro (2026) is declared
+# here, with: the provider, the exact identifier/URL, the access method, and the
+# role it plays in the paper. The downloader (src/ism/datasources.py) reads this
+# file, so updating a series ID or URL here is all that's needed to refresh the
+# pipeline. Raw pulls are cached under data/raw/<provider>/ with a fetch-stamp
+# JSON sidecar recording the URL, parameters, and UTC timestamp of download.
+#
+# NOTE ON ACCESS: This sandbox's network allowlist blocks BEA and FRED hosts, so
+# the fetch step is intended to run in the user's own environment (where the API
+# keys below work). The code is environment-agnostic; only network reachability
+# differs.
+# =============================================================================
+
+meta:
+  paper: "Lansing, K. J. & Shapiro, A. H. (2026). Measuring Inflation Shock Momentum. FRBSF WP 2026-10."
+  doi: "https://doi.org/10.24148/wp2026-10"
+  sample: {start: "1959-02", end: "2026-02"}   # category inflation starts 1959m2; residuals/index from 1969m1
+  notes: >
+    Category-level PCE data go back to Feb 1959. The first 120-month rolling
+    AR(1) window is Feb 1959 -> Jan 1969, so the index begins 1969m1, matching
+    the author's published ISM_public.xlsx.
+
+# API keys are read from environment variables (see .env / .env.example).
+# Never commit real keys; .env is gitignored.
+keys:
+  fred: {env: "FRED_API_KEY"}
+  bea:  {env: "BEA_API_KEY"}
+  bls:  {env: "BLS_API_KEY"}
+
+# -----------------------------------------------------------------------------
+# 1. CORE: category-level PCE price & expenditure (the heart of the ISM index)
+# -----------------------------------------------------------------------------
+# Paper, Section 2.1, fn 7: "data on the underlying detail of quantity, price,
+# and expenditure components of the PCE index are available in Tables 2.4.3U,
+# 2.4.4U and 2.4.5U from the 'Underlying Detail' page of the BEA's website.
+# ... We use the fourth level of disaggregation ... 129 categories ... back to
+# 1959."
+pce_categories:
+  provider: bea
+  dataset: "NIUnderlyingDetail"
+  method: "GetData"          # BEA API method
+  frequency: "M"
+  tables:
+    price_index:
+      table_name: "U20404"   # BEA Table 2.4.4U: Price Indexes for PCE by Type of Product (monthly)
+      role: "pi_{i,t} source -> monthly category inflation"
+    nominal_expenditure:
+      table_name: "U20405"   # BEA Table 2.4.5U: PCE by Type of Product (monthly, $)
+      role: "w_{i,t} source -> expenditure weights (Eqs. 6-7)"
+    real_quantity:
+      table_name: "U20403"   # BEA Table 2.4.3U (optional; not required for baseline)
+      role: "optional / cross-check"
+  selection:
+    level: 4                 # fourth level of disaggregation
+    expected_n_categories: 129
+    # The 4th-level line set is derived programmatically from the BEA table
+    # hierarchy (LineNumber / indentation). See pipeline.select_leaf_categories.
+  bulk_fallback:
+    # If the BEA API is unreachable, the same tables can be downloaded as a zip
+    # of CSVs from the BEA "Underlying Detail" page. Record the exact file used.
+    url: "https://apps.bea.gov/national/Release/ZIP/Underlying.zip"
+    files: ["U20404-M.csv", "U20405-M.csv"]
+
+# -----------------------------------------------------------------------------
+# 2. Headline aggregate PCE (Figure 1 overlay; forecast target & control)
+# -----------------------------------------------------------------------------
+headline_pce:
+  provider: fred
+  series_id: "PCEPI"          # PCE price index, monthly, index 2017=100
+  role: "12-month & 3-month PCE inflation (target + control)"
+  transforms: ["yoy_pct", "3m_annualized_pct"]
+
+# -----------------------------------------------------------------------------
+# 3. Control / predictor variables (Table 1 controls; LP controls; Eq. 9 / 15)
+# -----------------------------------------------------------------------------
+controls:
+  inflation_expectations_1y:
+    provider: fred
+    series_id: "MICH"         # Univ. of Michigan: expected 1-yr-ahead inflation, % (from 1978m1)
+    role: "1-year ahead household inflation expectations"
+    proxy_before_1978: "trailing 12-month PCE inflation (paper fn 14; corr 0.89)"
+
+  unemployment_rate:
+    provider: fred
+    series_id: "UNRATE"       # civilian unemployment rate, % (the 'U' in V/U)
+    role: "denominator of V/U ratio"
+
+  vacancies_modern:
+    provider: fred
+    series_id: "JTSJOL"       # JOLTS job openings, level (2000m12+); the 'V' in V/U, modern era
+    role: "numerator of V/U ratio (modern)"
+
+  vacancies_historical:
+    provider: external
+    source: "Barnichon (2010), Composite Help-Wanted Index"
+    url: "https://sites.google.com/site/regisbarnichon/data"
+    role: "vacancy series spliced (print + online HWI) for pre-2000 history (paper fn 15)"
+    note: "Download HWI_index.txt; splice to JOLTS to build the long V/U ratio."
+
+  oil_price_wti:
+    provider: fred
+    series_id: "WTISPLC"      # Spot Crude Oil Price: WTI, monthly avg, $/bbl (from 1946m1)
+    role: "monthly average WTI spot price per barrel"
+
+  sp500:
+    provider: external        # FRED SP500 is licensed to only ~10 yrs; need long history
+    source: "Robert Shiller, Online Data (US Stock Markets 1871-present)"
+    url: "http://www.econ.yale.edu/~shiller/data/ie_data.xls"
+    role: "monthly average S&P 500 stock price index (level)"
+    note: "Use the 'P' (S&P comp price) column, monthly. Alternative: Nasdaq Data Link / multpl."
+
+  real_disposable_income:
+    provider: fred
+    series_id: "DSPIC96"      # Real Disposable Personal Income, chained 2017$, monthly
+    role: "12-month growth rate of real personal disposable income"
+    transforms: ["yoy_pct"]
+
+  treasury_10y:
+    provider: fred
+    series_id: "GS10"         # 10-Year Treasury constant maturity, % (monthly)
+    role: "long leg of yield-curve spread"
+
+  fed_funds_rate:
+    provider: fred
+    series_id: "FEDFUNDS"     # Effective federal funds rate, % (monthly avg)
+    role: "short leg of yield-curve spread"
+    # spread = GS10 - FEDFUNDS
+
+  nber_recession:
+    provider: fred
+    series_id: "USREC"        # NBER recession indicator, monthly {0,1}
+    role: "recession dummy"
+
+# -----------------------------------------------------------------------------
+# 4. External identified shocks (Section 5 validation, Eq. 15)
+# -----------------------------------------------------------------------------
+external_shocks:
+  romer_romer_disinflation:
+    provider: manual
+    source: "Romer & Romer (2024), Lessons from history for successful disinflation, JME 148."
+    role: "attempted-disinflation impulse dates (Eq. 15, Fig. 3a)"
+    # Dates are stated in the paper text (Section 5.1); encoded in config/shocks.yaml.
+    dates:
+      low_commitment:   ["1974-04", "1978-08"]
+      medium_high:      ["1979-10", "1981-05", "1988-12", "2022-09"]   # baseline shock set
+
+  kanzig_oil_supply_news:
+    provider: external
+    source: "Kanzig (2021), The Macroeconomic Effects of Oil Supply News, AER 111(4)."
+    url: "https://www.diegokaenzig.com/research"   # replication files: OilSupplyNewsShock series
+    role: "oil supply news shock (Eq. 15, Fig. 3b)"
+    note: "Monthly OPEC-announcement high-frequency surprise series."
+
+# -----------------------------------------------------------------------------
+# 5. Ground truth (for convergence checks)
+# -----------------------------------------------------------------------------
+ground_truth:
+  author_ism:
+    provider: manual
+    file: "data/raw/ISM_public_author.xlsx"
+    source: "Provided directly by the paper's authors."
+    columns: ["time_month", "ISM Index", "Positive Momentum Component", "Negative Momentum Component"]
+    role: "validate computed ISM / S+ / S- (1969m1 -> 2026m2)"
+
+# -----------------------------------------------------------------------------
+# 6. External files expected on disk (drop-in; loaders read these exact paths)
+# -----------------------------------------------------------------------------
+external_files:
+  shiller_sp500:
+    path: "data/raw/external/ie_data.xls"
+    auto_download: true
+    url: "http://www.econ.yale.edu/~shiller/data/ie_data.xls"
+    loader: "ism.external_data.load_shiller_sp500"
+  barnichon_hwi:
+    path: "data/raw/external/barnichon_hwi.csv"   # 2 cols: date, index
+    auto_download: false
+    url: "https://sites.google.com/site/regisbarnichon/data"
+    loader: "ism.external_data.load_barnichon_hwi"
+  kanzig_oil_shock:
+    path: "data/raw/external/kanzig_oilshock.csv" # 2 cols: date, shock
+    auto_download: false
+    url: "https://www.diegokaenzig.com/research"
+    loader: "ism.external_data.load_kanzig_oil_shock"

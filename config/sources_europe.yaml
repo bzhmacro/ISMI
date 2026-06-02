@@ -1,0 +1,127 @@
+# =============================================================================
+# sources_europe.yaml  --  PROPOSED FRED/BEA -> Eurostat mapping for the EU port
+# =============================================================================
+# This is a PROPOSAL for review. Each entry maps a US series used by the paper to
+# a euro-area equivalent, with a confidence level and notes. Items flagged
+# "VALIDATE" are where I am least certain and would value your sign-off.
+#
+# Geography: default euro area. HICP aggregates exist as EA, EA19, EA20; "EA20"
+# is current, "EA19"/"EA" give longer back-history. Set per run.
+# Frequency: HICP is monthly; some macro controls are only quarterly in the EU
+# (flagged), which will shorten the with-controls regressions unless interpolated.
+# =============================================================================
+
+meta:
+  geo_default: "EA20"   # VALIDATED: euro area (EA20 current; EA19/EA for longer history)
+  api_guide: "https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-getting-started"
+  client: "ism.eurostat.EurostatClient"
+  note: >
+    The category engine is unchanged; only the data plumbing differs. HICP-by-
+    COICOP is the analogue of PCE underlying detail. COICOP codes encode the
+    hierarchy (CP00 > CP01 > CP011 > CP0111), used to pick the disaggregation
+    level just like the BEA line levels.
+
+# -----------------------------------------------------------------------------
+# CORE category data (the heart of the index)
+# -----------------------------------------------------------------------------
+category_prices:
+  us: "BEA 2.4.4U PCE price indexes"
+  eu_dataset: "prc_hicp_midx"           # HICP monthly index
+  filters: {freq: "M", unit: "I15", geo: "EA20"}   # I15 = index 2015=100
+  dimension: "coicop"
+  confidence: high
+  note: "All COICOP codes -> [time x coicop] panel; pick the COICOP level analogous to BEA level-5."
+
+category_weights:
+  us: "BEA 2.4.5U nominal PCE"
+  eu_dataset: "prc_hicp_inw"            # HICP item weights, per mille, ANNUAL
+  filters: {geo: "EA20"}
+  dimension: "coicop"
+  confidence: high
+  note: "Annual weights -> forward-fill to monthly (set each January)."
+
+# -----------------------------------------------------------------------------
+# Headline inflation (target + control)
+# -----------------------------------------------------------------------------
+headline_inflation:
+  us: "PCEPI (yoy, 3m)"
+  eu_dataset: "prc_hicp_midx"           # CP00 all-items index -> compute yoy & 3m
+  filters: {freq: "M", unit: "I15", geo: "EA20", coicop: "CP00"}
+  alt: "prc_hicp_manr (annual rate directly, coicop CP00)"
+  confidence: high
+
+# -----------------------------------------------------------------------------
+# Controls (Table 1 / LP / LASSO)
+# -----------------------------------------------------------------------------
+controls:
+  inflation_expectations_1y:
+    us: "Michigan 1-yr expected inflation (MICH)"
+    eu_dataset: "ei_bsco_m"             # EC Consumer Survey, monthly balances
+    indicator: "price trends over next 12 months (balance)"
+    alt: "ECB Consumer Expectations Survey (CES) quantitative 1y, but only 2020+"
+    confidence: medium
+    note: "VALIDATED: EC Consumer Survey balance (ei_bsco_m). Qualitative balance, scale absorbed in regression."
+
+  unemployment:
+    us: "UNRATE / UNEMPLOY"
+    eu_dataset: "une_rt_m"              # harmonised unemployment RATE, monthly
+    filters: {freq: "M", s_adj: "SA", age: "TOTAL", sex: "T", unit: "PC_ACT", geo: "EA20"}
+    confidence: high
+
+  vacancies:
+    us: "JOLTS job openings (JTSJOL)"
+    eu_dataset: "jvs_q_nace2"           # job vacancy RATE, QUARTERLY
+    confidence: medium
+    note: "VALIDATED: jvs quarterly vacancy rate / unemployment rate, interpolated to monthly. History ~2006-2009+."
+
+  oil_price:
+    us: "WTI spot (WTISPLC)"
+    eu: "Brent crude (global), e.g. FRED DCOILBRENTEU or Eurostat energy prices"
+    confidence: high
+    note: "Oil is a global price; Brent is the natural euro-area reference. Kept from a global source rather than Eurostat."
+
+  equity_index:
+    us: "S&P 500 (Shiller)"
+    eu: "STOXX Europe 600 (price index)  [VALIDATED]"
+    source: "external (STOXX / Stooq / Yahoo); not on Eurostat"
+    confidence: medium
+    note: "VALIDATED: STOXX Europe 600 monthly level from a public source (Stooq/STOXX)."
+
+  real_disposable_income:
+    us: "DSPIC96 (real disposable personal income, yoy)"
+    eu_dataset: "nasq_10_nf_tr"         # sector accounts: household gross disposable income, QUARTERLY
+    deflator: "HICP or household consumption deflator"
+    confidence: medium
+    flag: VALIDATE
+    note: "Quarterly; deflate nominal HDI by HICP for real, take yoy, interpolate to monthly. Confirm deflator choice."
+
+  yield_spread:
+    us: "GS10 - FEDFUNDS"
+    eu_long: "irt_lt_mcby_m"            # EA 10y benchmark gov bond yield, monthly
+    eu_short: "irt_st_m"               # 3-month money market rate (EURIBOR), monthly
+    spread: "irt_lt_mcby_m - irt_st_m"
+    confidence: high
+    note: "Long-term gov bond yield minus 3m money-market rate. Alt short leg: ECB MRO / DFR policy rate."
+
+  recession_dummy:
+    us: "USREC (NBER)"
+    eu: "CEPR Euro Area Business Cycle Dating Committee recession dates (manual)"
+    confidence: high
+    note: "EA recessions: 1974-75, 1980-82, 1992-93, 2008-09, 2011-13, 2020. Encode as a 0/1 monthly dummy."
+
+# -----------------------------------------------------------------------------
+# External identified shocks (Section 5 validation) -- future / VALIDATE
+# -----------------------------------------------------------------------------
+external_shocks:
+  monetary_policy:
+    us: "Romer-Romer attempted-disinflation dates"
+    eu: "ECB monetary-policy surprises (Altavilla et al., EA-MPD) as the demand-shock analogue"
+    confidence: low
+    flag: VALIDATE
+    note: "No direct EA analogue of Romer-Romer narrative dates. EA-MPD high-frequency surprises are the closest; or a narrative set of ECB tightening episodes."
+
+  oil_supply_news:
+    us: "Kanzig (2021) oil supply news shock"
+    eu: "same Kanzig series (global shock)"
+    confidence: high
+    note: "Oil supply news is global; reuse the same shock series for the EU."

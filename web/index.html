@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inflation Shock Momentum — interactive explorer</title>
+  <meta name="description" content="Interactive explorer for the Inflation Shock Momentum (ISM) index (Lansing & Shapiro 2026)." />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header>
+    <h1>Inflation Shock Momentum <span class="muted">— interactive explorer</span></h1>
+    <p class="sub">
+      Replication of Lansing &amp; Shapiro (2026), FRBSF WP 2026-10.
+      Switch the model parameters and watch the index, its components, and its
+      correlation with the authors' published series update live.
+    </p>
+    <p id="demo-banner" class="banner" hidden></p>
+  </header>
+
+  <main>
+    <section class="controls">
+      <div class="control">
+        <label>Benchmark model</label>
+        <div class="seg" id="ar"></div>
+        <small>AR(p) used for the rolling residuals (Eq. 3).</small>
+      </div>
+      <div class="control">
+        <label>Run length <em>k</em></label>
+        <div class="seg" id="k"></div>
+        <small>Consecutive same-signed residuals to flag momentum (Eqs. 4-5).</small>
+      </div>
+      <div class="control">
+        <label>Weighting</label>
+        <div class="seg" id="scheme"></div>
+        <small>extensive = sign only; size = ×|Σ residuals|; stickiness = ×1/(1−ρ̂).</small>
+      </div>
+      <div class="control toggles">
+        <label class="chk"><input type="checkbox" id="t-author" checked /> Author series</label>
+        <label class="chk"><input type="checkbox" id="t-components" /> Components S⁺ / S⁻</label>
+        <label class="chk"><input type="checkbox" id="t-pce" checked /> PCE inflation (12m)</label>
+      </div>
+      <div class="control range">
+        <label>Sample start: <span id="start-label"></span></label>
+        <input type="range" id="start" min="0" max="0" value="0" />
+      </div>
+    </section>
+
+    <section class="readout" id="readout"></section>
+
+    <div id="chart" class="chart"></div>
+
+    <section class="actions">
+      <button id="download">Download current series (CSV)</button>
+      <span class="muted" id="meta"></span>
+    </section>
+
+    <section class="explain">
+      <h2>What am I looking at?</h2>
+      <p>
+        For each of ~130 disaggregated PCE categories we fit a rolling AR(p)
+        benchmark for monthly inflation and keep the latest residual. A category
+        has <strong>positive momentum</strong> when its last <em>k</em> residuals
+        are all positive, <strong>negative</strong> when all negative. The
+        <strong>ISM index</strong> is the expenditure-weighted positive share
+        (S⁺) minus the negative share (S⁻). Positive ISM = broad upward inflation
+        pressure; negative = disinflationary pressure.
+      </p>
+      <p class="muted">
+        Want to feed in your own forecasts of future data, or run the impulse
+        responses and out-of-sample tests? See the notebooks in the repository.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <span>Built from BEA Underlying Detail + FRED. Index correlates ~0.99 with the authors' series.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

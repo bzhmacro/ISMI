@@ -1,0 +1,6 @@
+[
+  "tests/test_engine.py::test_ar1_recovers_known_residual_sign",
+  "tests/test_engine.py::test_identity_against_author_file",
+  "tests/test_engine.py::test_momentum_run_logic",
+  "tests/test_engine.py::test_shares_and_index"
+]
