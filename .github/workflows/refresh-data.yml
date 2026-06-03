@@ -1,0 +1,46 @@
+name: Refresh ISM web data
+
+# Rebuilds web/data/ism.json from the latest BEA/FRED data and commits it,
+# which triggers an automatic Vercel redeploy. Runs monthly and on demand.
+
+on:
+  schedule:
+    - cron: "0 12 3 * *"      # 03rd of each month, 12:00 UTC (after the monthly PCE release)
+  workflow_dispatch: {}        # manual "Run workflow" button
+
+permissions:
+  contents: write              # allow committing the refreshed JSON
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Rebuild web data from latest BEA/FRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          BEA_API_KEY:  ${{ secrets.BEA_API_KEY }}
+        run: python scripts/export_web_data.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git status --porcelain web/data/ism.json | grep -q .; then
+            git add web/data/ism.json
+            git commit -m "data: monthly ISM refresh ($(date -u +%Y-%m-%d))"
+            git push
+            echo "Refreshed and pushed."
+          else
+            echo "No change in web/data/ism.json — nothing to commit."
+          fi

@@ -60,3 +60,31 @@ vercel --prod
 - Toggles overlay the author series, the S⁺/S⁻ components, and 12-month PCE
   inflation; the slider trims the sample start; the readout shows the live
   correlation with the authors' published index.
+
+## Auto-refresh to the latest data (GitHub Action)
+
+`.github/workflows/refresh-data.yml` rebuilds `web/data/ism.json` from the latest
+BEA/FRED data on the 3rd of each month (and on demand via the **Run workflow**
+button), commits it, and pushes — which triggers an automatic Vercel redeploy.
+
+**One-time setup:** in your GitHub repo → **Settings → Secrets and variables →
+Actions → New repository secret**, add:
+- `FRED_API_KEY`
+- `BEA_API_KEY`
+
+The export is self-fetching (it pulls the BEA tables via the API), so the Action
+needs no committed data. The site header shows "Data through YYYY-MM · generated
+… · auto-refreshes monthly".
+
+To refresh manually instead: run `python scripts/export_web_data.py` locally and
+commit `web/data/ism.json`.
+
+## Charts
+
+- **Main** — ISM (replicated) vs the author series, optional S⁺/S⁻ components and
+  a 12-month PCE-inflation overlay; sample-start slider; live correlation.
+- **Last 22 ISM prints** — a bar chart of the most recent 22 monthly values
+  (orange = positive pressure, blue = negative), for a quick read on the trend.
+- **Top drivers** — for the latest month, the categories contributing most to the
+  index (ωᵢ·(M⁺ᵢ−M⁻ᵢ), which sum exactly to the ISM), so you can see *what* is
+  pushing it up or down.

@@ -36,3 +36,9 @@ button#download:hover{border-color:var(--accent)}
 .explain p{color:#cdd9e5}
 footer{color:var(--muted);font-size:.8rem;padding:18px 20px 40px;border-top:1px solid var(--line);margin-top:20px}
 a{color:var(--accent)}
+
+.asof{color:var(--good);font-size:.82rem;margin:0 0 8px;font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.grid2 h2{margin:0 0 6px}
+.chart.small{height:300px}

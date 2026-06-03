@@ -13,9 +13,10 @@
     <h1>Inflation Shock Momentum <span class="muted">— interactive explorer</span></h1>
     <p class="sub">
       Replication of Lansing &amp; Shapiro (2026), FRBSF WP 2026-10.
-      Switch the model parameters and watch the index, its components, and its
-      correlation with the authors' published series update live.
+      Switch the model parameters and watch the index, its recent prints, its
+      drivers, and its correlation with the authors' series update live.
     </p>
+    <p id="asof" class="asof"></p>
     <p id="demo-banner" class="banner" hidden></p>
   </header>
 
@@ -51,6 +52,17 @@
 
     <div id="chart" class="chart"></div>
 
+    <section class="grid2">
+      <div>
+        <h2>Last 22 ISM prints</h2>
+        <div id="bars" class="chart small"></div>
+      </div>
+      <div>
+        <h2>Top drivers <span id="drivers-date" class="muted"></span></h2>
+        <div id="drivers" class="chart small"></div>
+      </div>
+    </section>
+
     <section class="actions">
       <button id="download">Download current series (CSV)</button>
       <span class="muted" id="meta"></span>
@@ -64,12 +76,14 @@
         has <strong>positive momentum</strong> when its last <em>k</em> residuals
         are all positive, <strong>negative</strong> when all negative. The
         <strong>ISM index</strong> is the expenditure-weighted positive share
-        (S⁺) minus the negative share (S⁻). Positive ISM = broad upward inflation
-        pressure; negative = disinflationary pressure.
+        (S⁺) minus the negative share (S⁻). The <em>drivers</em> chart decomposes
+        the latest index value into each category's contribution
+        ω<sub>i</sub>·(M⁺<sub>i</sub>−M⁻<sub>i</sub>), which sum exactly to the index.
       </p>
       <p class="muted">
-        Want to feed in your own forecasts of future data, or run the impulse
-        responses and out-of-sample tests? See the notebooks in the repository.
+        Data refreshes automatically each month via a GitHub Action that re-runs
+        the export and redeploys. Want to feed in your own forecasts or run the
+        impulse responses / out-of-sample tests? See the notebooks in the repo.
       </p>
     </section>
   </main>
