@@ -79,7 +79,12 @@ function setupToggles() {
 
 function setupRange() {
   const r = document.getElementById("start");
-  r.min = 0; r.max = DATA.dates.length - 1; r.value = 0;
+  r.min = 0; r.max = DATA.dates.length - 1;
+  // default to the first month with a computed index (skip the 1959-68 warm-up)
+  const base = (DATA.combos["AR1|k3|extensive"] || Object.values(DATA.combos)[0]).ISM;
+  let first = base.findIndex(v => v != null);
+  if (first < 0) first = 0;
+  STATE.startIdx = first; r.value = first;
   r.oninput = () => { STATE.startIdx = +r.value; render(); };
 }
 
