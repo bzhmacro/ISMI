@@ -45,3 +45,11 @@ Thumbs.db
 .*.swp
 
 # vercel local project link
+*.vercel/
+
+# tests
+.tests/
+tests/
+
+# Claude
+.claude/
