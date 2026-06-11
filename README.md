@@ -35,13 +35,15 @@ ISMI/
 ├── config/
 │   ├── sources.yaml           # registry of EVERY US data source (URLs, series IDs, roles)
 │   ├── sources_europe.yaml    # FRED -> Eurostat mapping for the EU port
-│   └── pce_categories.csv     # the pinned 130 fourth-level PCE categories
+│   ├── pce_categories.csv     # the pinned 130 fourth-level PCE categories
+│   └── cpi_categories.csv     # the pinned ~70 BLS CPI item strata (alt. backbone)
 ├── src/ism/                   # the library (the importable engine + plumbing)
 │   ├── engine.py              # the ISM maths: Eqs (3)-(8). The centerpiece.
 │   ├── transforms.py          # price index -> inflation transforms
 │   ├── datasources.py         # FRED / BEA / BLS clients (retry, caching, provenance)
 │   ├── external_data.py       # Shiller S&P, Barnichon V/U, Kanzig, Romer-Romer, STOXX
-│   ├── pipeline.py            # BEA tables -> category inflation panel + weights
+│   ├── pipeline.py            # BEA tables -> category inflation panel + weights (PCE)
+│   ├── cpi_pipeline.py        # BLS CPI item strata -> panel + weights (alt. backbone)
 │   ├── controls.py            # control / predictor frame
 │   ├── forecasting.py         # Table 1 in-sample regressions
 │   ├── oos_lasso.py           # Table 2 out-of-sample adaptive LASSO + GW test
@@ -61,7 +63,7 @@ ISMI/
 │   └── ISM_europe.ipynb       # euro-area port (Eurostat HICP)
 ├── web/                       # zero-build interactive site (deploy on Vercel)
 │   ├── index.html / app.js / styles.css / vercel.json
-│   └── data/ism.json          # demo data (regenerate with scripts/export_web_data.py)
+│   └── data/ism.json          # precomputed PCE + CPI backbones (regen via scripts/export_web_data.py)
 ├── tests/                     # 23 synthetic unit tests (no network needed)
 ├── docs/                      # methodology.md, differences_report.md, DECISIONS.md
 ├── data/                      # NOT committed (gitignored); see data/README.md
@@ -101,6 +103,10 @@ ism figures
 
 # ...or run the whole pipeline end to end
 ism all
+
+# Alternative price gauge: run the SAME index on BLS CPI instead of BEA PCE
+ism fetch cpi                   # download + cache the BLS CPI item strata
+ism index cpi                   # build the CPI panel -> compute ISM (no author overlay)
 ```
 
 ### Running without installing
@@ -139,7 +145,61 @@ BEA https://apps.bea.gov/API/signup/ · BLS https://data.bls.gov/registrationEng
 3. **Port to other countries/datasets.** Nothing is US-specific in `engine.py`.
    To run on, say, euro-area HICP components: point `sources.yaml` at the new
    category price/expenditure source, implement a small loader returning the same
-   `(inflation_panel, weights)` shape, and the index falls out unchanged.
+   `(inflation_panel, weights)` shape, and the index falls out unchanged. The
+   **CPI backbone** (`src/ism/cpi_pipeline.py`, below) is a worked in-repo example
+   of exactly this — a second price gauge behind the same engine.
+
+## The CPI backbone (alternative price gauge)
+
+The paper builds the ISM on **PCE**. Because `engine.py` only ever sees an
+`(inflation_panel, weights)` pair, the identical momentum machinery runs on the
+**BLS Consumer Price Index** too. `src/ism/cpi_pipeline.py` produces that pair
+from CPI data, and the interactive site exposes a **Price gauge** toggle to flip
+between PCE and CPI live. Run it with `ism index cpi` (or
+`python scripts/export_web_data.py cpi` to refresh just the CPI half of the web
+data — the PCE backbone on disk is preserved).
+
+How the CPI backbone is built, and where it differs from PCE:
+
+- **Prices.** One NSA price index per CPI item stratum, series
+  `CUUR0000<item>` (CPI-U, US city average, *not* seasonally adjusted — the right
+  input for month-over-month inflation, matching how the PCE pipeline treats the
+  BEA price index). Source: BLS, `api.bls.gov` (a key raises the daily cap but is
+  optional), with the full history also available from the BLS flat files under
+  `download.bls.gov/pub/time.series/cu/`.
+
+- **Categories.** `config/cpi_categories.csv` pins a **non-overlapping partition
+  of ~70 item strata** whose relative importances sum to 100% — a complete tiling
+  of the index, the CPI analogue of the paper's "fourth level" PCE cut. It was
+  obtained by walking the BLS relative-importance tree top-down and taking, on
+  each branch, the shallowest node that maps to a published item-stratum (`SE`)
+  series. Because the engine renormalises the weights each month, the index is
+  robust to the exact category cut.
+
+- **Weights.** The CPI has no monthly expenditure series (PCE does — BEA table
+  2.4.5U). We therefore use the **static BLS December-2023 relative importance**,
+  broadcast across all months; the engine renormalises it each month over the
+  categories with a defined signal. This is a documented simplification: PCE
+  weights drift month to month, the CPI RI is refreshed only annually. To use
+  year-varying RI, swap the single `ri_weight` column for one column per year.
+
+- **History.** Most strata reach back to the 1950s–60s; a few begin later
+  (owners' equivalent rent from 1983, telephone/IT services from 1997–98). The
+  engine treats a category as absent until it has a full 120-month window, so the
+  CPI ISM simply has fewer categories early on — exactly how the PCE pipeline
+  handles late-born lines.
+
+- **Publication gaps.** BLS occasionally does not publish a month (e.g. the
+  **October 2025** CPI release was never produced). A single missing interior
+  month would break the month-over-month inflation chain and force the momentum
+  signal to zero for every later month, so `cpi_pipeline` linearly interpolates
+  *interior* gaps in the price index (`limit_area="inside"`, which never
+  fabricates a leading or trailing tail — only bridges holes between two real
+  prints). The interpolated month is documented here and in `sources.yaml`.
+
+- **No author overlay.** The authors publish only the PCE series, so the CPI
+  gauge has no ground-truth overlay; the web app hides the *Author series*
+  control and the correlation read-out for CPI.
 
 ## Validating against ground truth
 

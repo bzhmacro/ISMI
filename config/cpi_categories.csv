@@ -1,0 +1,71 @@
+key,SeriesCode,group,ri_weight,label
+SEFA,CUUR0000SEFA,Food and beverages,0.314,Cereals and cereal products
+SEFB,CUUR0000SEFB,Food and beverages,0.752,Bakery products
+SEFC,CUUR0000SEFC,Food and beverages,0.461,Beef and veal
+SEFD,CUUR0000SEFD,Food and beverages,0.328,Pork
+SEFE,CUUR0000SEFE,Food and beverages,0.244,Other meats
+SEFF,CUUR0000SEFF,Food and beverages,0.314,Poultry
+SEFG,CUUR0000SEFG,Food and beverages,0.257,Fish and seafood
+SEFH,CUUR0000SEFH,Food and beverages,0.119,Eggs
+SEFJ,CUUR0000SEFJ,Food and beverages,0.748,Dairy and related products
+SEFK,CUUR0000SEFK,Food and beverages,0.575,Fresh fruits
+SEFL,CUUR0000SEFL,Food and beverages,0.495,Fresh vegetables
+SEFM,CUUR0000SEFM,Food and beverages,0.34,Processed fruits and vegetables
+SEFN,CUUR0000SEFN,Food and beverages,0.73,Juices and nonalcoholic drinks
+SEFP,CUUR0000SEFP,Food and beverages,0.298,Beverage materials including coffee and tea
+SEFR,CUUR0000SEFR,Food and beverages,0.295,Sugar and sweets
+SEFS,CUUR0000SEFS,Food and beverages,0.252,Fats and oils
+SEFT,CUUR0000SEFT,Food and beverages,1.646,Other foods
+SEFV,CUUR0000SEFV,Food and beverages,5.388,Food away from home
+SEFW,CUUR0000SEFW,Food and beverages,0.477,Alcoholic beverages at home
+SEFX,CUUR0000SEFX,Food and beverages,0.377,Alcoholic beverages away from home
+SEHA,CUUR0000SEHA,Housing,7.671,Rent of primary residence
+SEHB,CUUR0000SEHB,Housing,1.338,Lodging away from home
+SEHC,CUUR0000SEHC,Housing,26.769,Owners' equivalent rent of residences
+SEHD,CUUR0000SEHD,Housing,0.413,Tenants' and household insurance
+SEHE,CUUR0000SEHE,Housing,0.167,Fuel oil and other fuels
+SEHF,CUUR0000SEHF,Housing,3.116,Energy services
+SEHG,CUUR0000SEHG,Housing,1.086,Water and sewer and trash collection services
+SEHH,CUUR0000SEHH,Housing,0.294,Window and floor coverings and other linens
+SEHJ,CUUR0000SEHJ,Housing,0.966,Furniture and bedding
+SEHK,CUUR0000SEHK,Housing,0.224,Appliances
+SEHL,CUUR0000SEHL,Housing,0.514,Other household equipment and furnishings
+SEHM,CUUR0000SEHM,Housing,0.722,"Tools, hardware, outdoor equipment and supplies"
+SEHN,CUUR0000SEHN,Housing,0.804,Housekeeping supplies
+SEHP,CUUR0000SEHP,Housing,0.983,Household operations
+SEAA,CUUR0000SEAA,Apparel,0.488,Men's apparel
+SEAB,CUUR0000SEAB,Apparel,0.147,Boys' apparel
+SEAC,CUUR0000SEAC,Apparel,0.887,Women's apparel
+SEAD,CUUR0000SEAD,Apparel,0.122,Girls' apparel
+SEAE,CUUR0000SEAE,Apparel,0.53,Footwear
+SEAF,CUUR0000SEAF,Apparel,0.099,Infants' and toddlers' apparel
+SEAG,CUUR0000SEAG,Apparel,0.238,Jewelry and watches
+SETA,CUUR0000SETA,Transportation,6.42,New and used motor vehicles
+SETB,CUUR0000SETB,Transportation,3.372,Motor fuel
+SETC,CUUR0000SETC,Transportation,0.469,Motor vehicle parts and equipment
+SETD,CUUR0000SETD,Transportation,1.233,Motor vehicle maintenance and repair
+SETE,CUUR0000SETE,Transportation,2.794,Motor vehicle insurance
+SETF,CUUR0000SETF,Transportation,0.54,Motor vehicle fees
+SETG,CUUR0000SETG,Transportation,1.071,Public transportation
+SEMF,CUUR0000SEMF,Medical care,1.37,Medicinal drugs
+SEMG,CUUR0000SEMG,Medical care,0.118,Medical equipment and supplies
+SEMC,CUUR0000SEMC,Medical care,3.63,Professional services
+SEMD,CUUR0000SEMD,Medical care,2.305,Hospital and related services
+SEME,CUUR0000SEME,Medical care,0.58,Health insurance
+SERA,CUUR0000SERA,Recreation,1.19,Video and audio
+SERB,CUUR0000SERB,Recreation,1.055,"Pets, pet products and services"
+SERC,CUUR0000SERC,Recreation,0.648,Sporting goods
+SERD,CUUR0000SERD,Recreation,0.077,Photography
+SERE,CUUR0000SERE,Recreation,0.356,Other recreational goods
+SERF,CUUR0000SERF,Recreation,1.878,Other recreation services
+SERG,CUUR0000SERG,Recreation,0.102,Recreational reading materials
+SEEA,CUUR0000SEEA,Education and communication,0.082,Educational books and supplies
+SEEB,CUUR0000SEEB,Education and communication,2.406,"Tuition, other school fees, and childcare"
+SEEC,CUUR0000SEEC,Education and communication,0.065,Postage and delivery services
+SEED,CUUR0000SEED,Education and communication,1.578,Telephone services
+SEEE,CUUR0000SEEE,Education and communication,1.774,"Information technology, hardware and services"
+SEGA,CUUR0000SEGA,Other goods and services,0.542,Tobacco and smoking products
+SEGB,CUUR0000SEGB,Other goods and services,0.666,Personal care products
+SEGC,CUUR0000SEGC,Other goods and services,0.629,Personal care services
+SEGD,CUUR0000SEGD,Other goods and services,0.898,Miscellaneous personal services
+SEGE,CUUR0000SEGE,Other goods and services,0.165,Miscellaneous personal goods

@@ -10,8 +10,13 @@ Usage (run from the repo root, with .env containing the API keys):
     ism figures     # Figure 1 + convergence overlay
     ism all         # everything end-to-end
 
+    # CPI backbone (BLS CPI-U item strata instead of BEA PCE). Append the gauge:
+    ism fetch cpi   # download BLS CPI item-stratum indexes (caches to data/raw/bls)
+    ism index cpi   # build the CPI panel -> compute ISM -> save (no author overlay)
+
     # without installing, run the script directly (it self-adds src/ to the path):
     python src/ism/run.py all
+    python src/ism/run.py index cpi
 
 Each step caches its inputs/outputs so re-runs are cheap and auditable. The
 fetch step needs network access to BEA/FRED (run it where those hosts are
@@ -34,16 +39,23 @@ try:
 except Exception:
     pass
 
-from ism.datasources import BeaClient, FredClient, REPO_ROOT
+from ism.datasources import BeaClient, BlsClient, FredClient, REPO_ROOT
 from ism.engine import ISMConfig, compute_ism
-from ism import pipeline, controls as controls_mod, validate, forecasting, figures
+from ism import pipeline, cpi_pipeline, controls as controls_mod, validate, forecasting, figures
 
 
 PROC = REPO_ROOT / "data" / "processed"
 
 
-def cmd_fetch():
-    """Download + cache raw inputs."""
+def cmd_fetch(backbone: str = "pce"):
+    """Download + cache raw inputs for the chosen price gauge."""
+    if backbone == "cpi":
+        print("[fetch] BLS CPI item-stratum indexes (CUUR0000*) ...")
+        cpi_pipeline.build_cpi_category_panel(BlsClient(), force=True)
+        print("[fetch] BLS headline all-items (CUUR0000SA0) ...")
+        cpi_pipeline.headline_cpi_yoy(BlsClient(), force=True)
+        print("[fetch] done. BLS caches under data/raw/bls/.")
+        return
     bea = BeaClient()
     print("[fetch] BEA price table U20404 ...")
     bea.table("U20404")
@@ -54,7 +66,16 @@ def cmd_fetch():
     print("[fetch] done. Raw caches + provenance under data/raw/.")
 
 
-def _load_or_build_panel():
+def _load_or_build_panel(backbone: str = "pce"):
+    if backbone == "cpi":
+        inf_p = PROC / "cpi_category_inflation.parquet"
+        w_p = PROC / "cpi_category_weights.parquet"
+        if inf_p.exists() and w_p.exists():
+            return pd.read_parquet(inf_p), pd.read_parquet(w_p)
+        infl, w = cpi_pipeline.build_cpi_category_panel()
+        PROC.mkdir(parents=True, exist_ok=True)
+        infl.to_parquet(inf_p); w.to_parquet(w_p)
+        return infl, w
     inf_p = PROC / "category_inflation.parquet"
     w_p = PROC / "category_weights.parquet"
     if inf_p.exists() and w_p.exists():
@@ -64,13 +85,20 @@ def _load_or_build_panel():
     return infl, w
 
 
-def cmd_index(cfg: ISMConfig | None = None):
-    infl, w = _load_or_build_panel()
+def cmd_index(cfg: ISMConfig | None = None, backbone: str = "pce"):
+    infl, w = _load_or_build_panel(backbone)
     cfg = cfg or ISMConfig()  # AR(1), W=120, K=3
     result = compute_ism(infl, w, cfg)
     out = result.to_frame()
     PROC.mkdir(parents=True, exist_ok=True)
-    out.to_csv(PROC / "ism_index_replicated.csv")
+    suffix = "_cpi" if backbone == "cpi" else ""
+    out.to_csv(PROC / f"ism_index_replicated{suffix}.csv")
+    if backbone == "cpi":
+        # The paper publishes only the PCE gauge, so there is no author series to
+        # validate against. Report the tail instead.
+        print("[index] computed CPI-backbone ISM (no author ground truth). Recent:")
+        print(out.tail(6).to_string())
+        return result
     print("[index] computed ISM. Convergence vs author ground truth:")
     rep = validate.convergence_report(result)
     print(rep.to_string())
@@ -102,10 +130,16 @@ def cmd_figures():
 def main(argv=None):
     argv = argv or sys.argv[1:]
     cmd = argv[0] if argv else "all"
+    # Optional gauge selector: `ism index cpi` / `ism fetch cpi`, or --backbone=cpi.
+    backbone = "pce"
+    for tok in argv[1:]:
+        t = tok.lower().lstrip("-").replace("backbone=", "")
+        if t in ("pce", "cpi"):
+            backbone = t
     if cmd == "fetch":
-        cmd_fetch()
+        cmd_fetch(backbone)
     elif cmd == "index":
-        cmd_index()
+        cmd_index(backbone=backbone)
     elif cmd == "table1":
         cmd_table1()
     elif cmd == "figures":

@@ -65,6 +65,72 @@ pce_categories:
     files: ["U20404-M.csv", "U20405-M.csv"]
 
 # -----------------------------------------------------------------------------
+# 1b. ALTERNATIVE BACKBONE: category-level CPI (BLS) -- the "CPI gauge"
+# -----------------------------------------------------------------------------
+# The ISM engine is price-gauge-agnostic, so the same momentum machinery can be
+# run on the BLS Consumer Price Index instead of BEA PCE (see src/ism/cpi_pipeline.py
+# and `ism index cpi`). The paper itself uses PCE; this is a portable extension.
+#
+#   * Prices: one NSA price index per CPI item stratum, series CUUR0000<item>
+#     (CPI-U, US city average, not seasonally adjusted -- the right input for
+#     month-over-month inflation, matching how the PCE pipeline treats the BEA
+#     price index).
+#   * Categories: config/cpi_categories.csv pins a NON-OVERLAPPING partition of
+#     ~70 item strata (SE* codes) whose relative importances sum to 100%, i.e. a
+#     complete tiling of the index -- the CPI analogue of PCE's 4th-level cut.
+#   * Weights: the CPI has no monthly expenditure series, so we use the static
+#     BLS December-2023 relative importance broadcast across months (the engine
+#     renormalises each month). Documented simplification vs PCE's time-varying
+#     monthly nominal shares.
+cpi_categories:
+  provider: bls
+  dataset: "CU"                 # Consumer Price Index - All Urban Consumers
+  method: "timeseries/data"     # BLS public API v2 (api.bls.gov); key optional (raises daily cap)
+  frequency: "M"
+  prices:
+    series_pattern: "CUUR0000{item}"   # U=urban, R=NSA, 0000=US city average, {item}=SE stratum code
+    seasonal: "NSA"
+    role: "pi_{i,t} source -> monthly CPI item-stratum inflation"
+  categories:
+    file: "config/cpi_categories.csv"  # cols: key, SeriesCode, group, ri_weight, label
+    n_categories: 70
+    selection: >
+      Greedy top-down cut of the BLS relative-importance tree: on each branch take
+      the shallowest node that maps to a published CPI item-stratum (SE) series.
+      Yields a complete, non-overlapping expenditure-class partition (RIs sum to 100%).
+  weights:
+    kind: "static_relative_importance"
+    vintage: "2023-12"
+    source: "BLS CPI Relative Importance tables (Dec 2023, CPI-U, US city average)"
+    url: "https://www.bls.gov/cpi/tables/relative-importance/2023.xlsx"
+    role: "w_{i,t} source -> static RI vector, broadcast across months, renormalised by the engine"
+    note: >
+      To use year-varying RI, replace the single ri_weight column with one column
+      per year and broadcast the matching year's vector per month.
+  headline_cpi:
+    series_id: "CUUR0000SA0"    # All items, CPI-U, US city average, NSA
+    role: "12-month CPI inflation overlay (CPI analogue of PCEPI / Figure 1)"
+    transforms: ["yoy_pct"]
+  history_note: >
+    Most strata go back to the 1950s-60s; a few begin later (owners' equivalent
+    rent from 1983, telephone/IT services from 1997-98). The engine treats a
+    category as absent until it has a full 120-month window, so the CPI ISM has
+    fewer categories early on -- exactly as the PCE pipeline handles late-born lines.
+  publication_gaps: >
+    BLS occasionally fails to publish a month (e.g. the Oct-2025 CPI release was
+    not produced). A single interior hole would break the month-over-month
+    inflation chain, so cpi_pipeline interpolates interior gaps in the price index
+    (limit_area="inside", never fabricating a leading/trailing tail).
+  bulk_fallback:
+    # If the API daily cap is hit, the full price history is in the BLS flat files.
+    url: "https://download.bls.gov/pub/time.series/cu/"
+    files:
+      - "cu.data.1.AllItems"
+      - "cu.data.11.USFoodBeverage"   # ... through cu.data.18.USOtherGoodsAndServices (major groups)
+    item_titles: "https://download.bls.gov/pub/time.series/cu/cu.item"
+    note: "Send a descriptive User-Agent; keep only periods M01-M12 (M13 is the annual average); value '-' means not available."
+
+# -----------------------------------------------------------------------------
 # 2. Headline aggregate PCE (Figure 1 overlay; forecast target & control)
 # -----------------------------------------------------------------------------
 headline_pce:

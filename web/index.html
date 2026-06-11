@@ -23,6 +23,11 @@
   <main>
     <section class="controls">
       <div class="control">
+        <label>Price gauge</label>
+        <div class="seg" id="backbone"></div>
+        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata.</small>
+      </div>
+      <div class="control">
         <label>Benchmark model</label>
         <div class="seg" id="ar"></div>
         <small>AR(p) used for the rolling residuals (Eq. 3).</small>
@@ -35,12 +40,12 @@
       <div class="control">
         <label>Weighting</label>
         <div class="seg" id="scheme"></div>
-        <small>extensive = sign only; size = ×|Σ residuals|; stickiness = ×1/(1−ρ̂).</small>
+        <small>extensive = sign only; size = ×|Σ residuals|; stickiness = ×1/(1−ρ̂). <span id="weight-note" class="muted"></span></small>
       </div>
       <div class="control toggles">
         <label class="chk"><input type="checkbox" id="t-author" checked /> Author series</label>
         <label class="chk"><input type="checkbox" id="t-components" /> Components S⁺ / S⁻</label>
-        <label class="chk"><input type="checkbox" id="t-pce" checked /> PCE inflation (12m)</label>
+        <label class="chk"><input type="checkbox" id="t-pce" checked /> <span id="t-headline-text">PCE inflation (12m)</span></label>
       </div>
       <div class="control range">
         <label>Sample start: <span id="start-label"></span></label>
@@ -71,7 +76,7 @@
     <section class="explain">
       <h2>What am I looking at?</h2>
       <p>
-        For each of ~130 disaggregated PCE categories we fit a rolling AR(p)
+        For each of <span id="cat-count">~130 disaggregated PCE categories</span> we fit a rolling AR(p)
         benchmark for monthly inflation and keep the latest residual. A category
         has <strong>positive momentum</strong> when its last <em>k</em> residuals
         are all positive, <strong>negative</strong> when all negative. The
@@ -79,6 +84,14 @@
         (S⁺) minus the negative share (S⁻). The <em>drivers</em> chart decomposes
         the latest index value into each category's contribution
         ω<sub>i</sub>·(M⁺<sub>i</sub>−M⁻<sub>i</sub>), which sum exactly to the index.
+      </p>
+      <p class="muted">
+        The same machinery runs on either price gauge: <strong>PCE</strong> (BEA
+        underlying detail, the gauge in the paper, with an author-series overlay)
+        or <strong>CPI</strong> (≈70 BLS item strata weighted by their Dec-2023
+        relative importance). Switch with the <em>Price gauge</em> control. The
+        CPI partition tiles the whole index and the engine renormalises the
+        weights each month, so the index is robust to the exact category cut.
       </p>
       <p class="muted">
         Data refreshes automatically each month via a GitHub Action that re-runs
@@ -89,7 +102,7 @@
   </main>
 
   <footer>
-    <span>Built from BEA Underlying Detail + FRED. Index correlates ~0.99 with the authors' series.</span>
+    <span id="foot-source">Built from BEA Underlying Detail + FRED. Index correlates ~0.99 with the authors' series.</span>
   </footer>
 
   <script src="app.js"></script>

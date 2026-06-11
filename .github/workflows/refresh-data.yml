@@ -1,7 +1,10 @@
 name: Refresh ISM web data
 
-# Rebuilds web/data/ism.json from the latest BEA/FRED data and commits it,
-# which triggers an automatic Vercel redeploy. Runs monthly and on demand.
+# Rebuilds web/data/ism.json (both the PCE and CPI backbones) from the latest
+# BEA/FRED/BLS data and commits it, which triggers an automatic Vercel redeploy.
+# Runs monthly and on demand. If one backbone's source is briefly unavailable,
+# the export keeps the other backbone's previously committed data (see
+# scripts/export_web_data.py), so a partial refresh never drops a gauge.
 
 on:
   schedule:
@@ -26,10 +29,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Rebuild web data from latest BEA/FRED
+      - name: Rebuild web data from latest BEA/FRED/BLS
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           BEA_API_KEY:  ${{ secrets.BEA_API_KEY }}
+          BLS_API_KEY:  ${{ secrets.BLS_API_KEY }}
         run: python scripts/export_web_data.py
 
       - name: Commit if changed
