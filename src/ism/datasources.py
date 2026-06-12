@@ -460,7 +460,7 @@ class BlsClient:
             payload = self._fetch_window(series_id, lo, hi, force)
             data = payload["Results"]["series"][0]["data"]
             recs += [
-                (f"{d['year']}-{d['period'][1:]}-01", float(d["value"]))
+                (f"{d['year']}-{d['period'][1:]}-01", self._parse_value(d["value"]))
                 for d in data
                 if d["period"].startswith("M")  # monthly periods M01..M12
             ]
@@ -482,10 +482,18 @@ class BlsClient:
             lo = hi + 1
         return out
 
+    @staticmethod
+    def _parse_value(v: str) -> float:
+        """Convert a BLS value string to float. BLS uses '-' for missing months."""
+        try:
+            return float(v)
+        except ValueError:
+            return float("nan")
+
     def _records(self, payload: dict) -> list[tuple[str, float]]:
         data = payload["Results"]["series"][0]["data"]
         return [
-            (f"{d['year']}-{d['period'][1:]}-01", float(d["value"]))
+            (f"{d['year']}-{d['period'][1:]}-01", self._parse_value(d["value"]))
             for d in data
             if d["period"].startswith("M")
         ]

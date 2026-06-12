@@ -55,7 +55,7 @@ ISMI/
 ├── scripts/                   # runnable helpers
 │   ├── build_and_validate.py  # build the US index + convergence check
 │   ├── finalize_categories.py # pin config/pce_categories.csv from BEA hierarchy
-│   └── export_web_data.py     # precompute web/data/ism.json (27 param combos)
+│   └── export_web_data.py     # export raw panels + baseline to web/data/ism.json
 ├── notebooks/                 # guided, runnable analyses
 │   ├── ISM_replication.ipynb  # Figure 1 + Table 1 (core)
 │   ├── ISM_expand.ipynb       # Figures 2-3 + Table 2
@@ -63,8 +63,9 @@ ISMI/
 │   └── ISM_europe.ipynb       # euro-area port (Eurostat HICP)
 ├── web/                       # zero-build interactive site (deploy on Vercel)
 │   ├── index.html / app.js / styles.css / vercel.json
-│   └── data/ism.json          # precomputed PCE + CPI backbones (regen via scripts/export_web_data.py)
-├── tests/                     # 23 synthetic unit tests (no network needed)
+│   ├── engine.js / worker.js  # the ISM maths IN THE BROWSER (parity-tested JS port)
+│   └── data/ism.json          # raw PCE + CPI panels + baseline (regen via scripts/export_web_data.py)
+├── tests/                     # 25 synthetic unit tests incl. Python<->JS parity (no network)
 ├── docs/                      # methodology.md, differences_report.md, DECISIONS.md
 ├── data/                      # NOT committed (gitignored); see data/README.md
 ├── .env.example  pyproject.toml  requirements.txt  pytest.ini  LICENSE

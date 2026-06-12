@@ -2,7 +2,14 @@
 
 A zero-build static website to explore the Inflation Shock Momentum index under
 different model parameters. No framework, no build step — just HTML + JS +
-Plotly (from CDN) + a precomputed JSON.
+Plotly (from CDN) + one JSON file.
+
+**The index is computed client-side.** `data/ism.json` ships the *raw* category
+inflation and weight panels, and a Web Worker recomputes the full pipeline
+(rolling AR(p) regressions → momentum runs → weighted shares) whenever a
+control changes. That makes every parameter a live dial — window length,
+run length, AR order, weighting scheme, ρ̂ cap, even the category set —
+instead of a precomputed grid.
 
 ## Files
 
@@ -10,24 +17,44 @@ Plotly (from CDN) + a precomputed JSON.
 web/
 ├── index.html      # layout + controls
 ├── styles.css
-├── app.js          # loads data/ism.json, selects combo, plots, correlates
-├── data/ism.json   # precomputed series (DEMO synthetic data ships by default)
+├── app.js          # UI: loads data, drives the worker, plots, correlates
+├── engine.js       # the ISM maths in JS — parity-tested port of src/ism/engine.py
+├── worker.js       # Web Worker wrapper; caches residual panels per (gauge, AR, W)
+├── data/ism.json   # raw panels + one precomputed baseline combo (instant first paint)
 └── vercel.json
 ```
 
-## Refresh the data (use real BEA data)
+`engine.js` must stay in sync with the Python engine. The contract is enforced
+by `tests/test_web_engine_parity.py`, which runs both implementations on the
+same synthetic panel (including missing data and rank-deficient windows) and
+asserts the residuals, momentum and index match. `tests/web_smoke.cjs` boots
+the whole app headlessly (jsdom) and drives every control.
 
-The repo ships a **synthetic demo** `data/ism.json` so the site renders out of the
-box. To replace it with the real, validated index:
+## Performance notes
+
+- The worker assembles each window's normal equations from prefix sums of
+  lagged cross-products, so a full AR(1) pass over 130 categories × ~800
+  months is ~30 ms; the worst case (AR(12), W=240) is ~150 ms.
+- Residual panels are cached per (gauge, AR order, W); changes to k, the
+  scheme, the ρ̂ cap or the category set re-aggregate in ~5–10 ms.
+- Rank-deficient windows (e.g. a price index flat for 10 straight years) are
+  solved min-norm via a pseudo-inverse fallback, matching `numpy.lstsq`.
+
+## Refresh the data
 
 ```bash
-# from the repo root, with BEA data already cached (see ISM_replication.ipynb)
-python scripts/export_web_data.py      # writes web/data/ism.json (27 param combos)
+# from the repo root, with BEA/BLS data already cached (see ISM_replication.ipynb)
+python scripts/export_web_data.py      # writes web/data/ism.json (schema v3)
 ```
 
-This precomputes the ISM / S⁺ / S⁻ series for AR(1/3/12) × k(2/3/4) ×
-weighting(extensive/size/stickiness), plus the author series and 12-month PCE
-inflation. Commit the regenerated `web/data/ism.json`.
+This exports the raw panels for both gauges (PCE + CPI), the author overlay,
+12-month headline inflation, and one precomputed baseline combo
+(AR1 | k=3 | extensive) used for instant first paint. Commit the regenerated
+`web/data/ism.json`.
+
+Backward compatibility: if the app is served an old v2 `ism.json` (27
+precomputed combos, no panels) or the worker cannot start, it degrades
+gracefully to the precomputed combos and hides the live-only controls.
 
 ## Run locally
 
@@ -35,7 +62,8 @@ inflation. Commit the regenerated `web/data/ism.json`.
 cd web
 python -m http.server 8000      # then open http://localhost:8000
 ```
-(Any static server works; opening index.html via file:// will fail the fetch.)
+(Any static server works; opening index.html via file:// will fail the fetch
+and Workers — serve it.)
 
 ## Deploy to Vercel
 
@@ -53,11 +81,16 @@ vercel --prod
 
 ## What the controls do
 
-- **Benchmark model** — AR(p) used for the rolling residuals (Eq. 3).
-- **Run length k** — consecutive same-signed residuals that flag momentum (Eqs. 4-5).
+- **Price gauge** — PCE (BEA underlying detail, the paper's gauge) or CPI (BLS item strata).
+- **Benchmark model** — AR(p) for the rolling residuals (Eq. 3), plus the
+  **rolling window W** slider (60–240 months; paper baseline 120).
+- **Run length k** — consecutive same-signed residuals that flag momentum
+  (Eqs. 4-5); slider 2–8 (paper baseline 3).
 - **Weighting** — `extensive` (sign only, the paper's baseline), `size`
-  (× |Σ of the last k residuals|), `stickiness` (× 1/(1−ρ̂)).
-- Toggles overlay the author series, the S⁺/S⁻ components, and 12-month PCE
+  (× |Σ of the last k residuals|), `stickiness` (× 1/(1−ρ̂), with a live ρ̂-cap slider).
+- **Categories** — untick categories (searchable list) to drop them; weights
+  renormalise over the rest. Try filtering "gasoline" or "food".
+- Toggles overlay the author series, the S⁺/S⁻ components, and 12-month headline
   inflation; the slider trims the sample start; the readout shows the live
   correlation with the authors' published index.
 
@@ -74,17 +107,17 @@ Actions → New repository secret**, add:
 
 The export is self-fetching (it pulls the BEA tables via the API), so the Action
 needs no committed data. The site header shows "Data through YYYY-MM · generated
-… · auto-refreshes monthly".
+… · index recomputed live in your browser".
 
 To refresh manually instead: run `python scripts/export_web_data.py` locally and
 commit `web/data/ism.json`.
 
 ## Charts
 
-- **Main** — ISM (replicated) vs the author series, optional S⁺/S⁻ components and
-  a 12-month PCE-inflation overlay; sample-start slider; live correlation.
+- **Main** — ISM (recomputed live) vs the author series, optional S⁺/S⁻ components
+  and a 12-month headline-inflation overlay; sample-start slider; live correlation.
 - **Last 22 ISM prints** — a bar chart of the most recent 22 monthly values
-  (orange = positive pressure, blue = negative), for a quick read on the trend.
-- **Top drivers** — for the latest month, the categories contributing most to the
-  index (ωᵢ·(M⁺ᵢ−M⁻ᵢ), which sum exactly to the ISM), so you can see *what* is
-  pushing it up or down.
+  (orange = positive pressure, blue = negative); click a bar to inspect that month.
+- **Top drivers** — for the selected (or latest) month, the categories contributing
+  most to the index (ωᵢ·(M⁺ᵢ−M⁻ᵢ), which sum exactly to the ISM), so you can see
+  *what* is pushing it up or down.

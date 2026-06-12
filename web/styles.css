@@ -40,6 +40,27 @@ footer{color:var(--muted);font-size:.8rem;padding:18px 20px 40px;border-top:1px 
 a{color:var(--accent)}
 
 .asof{color:var(--good);font-size:.82rem;margin:0 0 8px;font-weight:600}
+.status{min-height:1.2em;margin:0 0 6px;font-size:.8rem;color:var(--muted)}
+.status.warn{color:#f0d28a}
+.subctl{margin-top:8px}
+.subctl .mini{font-weight:500;font-size:.76rem;color:var(--muted);margin-bottom:2px}
+.subctl input[type=range]{width:100%}
+.control.cats details{margin-top:2px}
+.control.cats summary{cursor:pointer;font-size:.82rem;color:var(--accent)}
+.control.cats input[type=search]{width:100%;margin:8px 0 6px;background:#0d141b;
+  border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 10px;font-size:.8rem}
+.catlist{max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;
+  background:#0d141b;padding:6px}
+.catrow{display:flex;align-items:center;gap:8px;font-size:.78rem;padding:2px 4px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catrow:hover{background:#16202b}
+.catrow.hidden{display:none}
+.catrow input{flex:none}
+.catrow span{overflow:hidden;text-overflow:ellipsis}
+.catbtns{display:flex;gap:8px;margin-top:6px}
+.catbtns button{background:#0d141b;border:1px solid var(--line);color:var(--ink);
+  border-radius:8px;padding:4px 10px;cursor:pointer;font-size:.76rem}
+.catbtns button:hover{border-color:var(--accent)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
 @media (max-width:760px){.grid2{grid-template-columns:1fr}}
 .grid2 h2{margin:0 0 6px}

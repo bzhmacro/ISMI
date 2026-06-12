@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inflation Shock Momentum — interactive explorer</title>
-  <meta name="description" content="Interactive explorer for the Inflation Shock Momentum (ISM) index (Lansing & Shapiro 2026)." />
+  <meta name="description" content="Interactive explorer for the Inflation Shock Momentum (ISM) index (Lansing & Shapiro 2026). The index is recomputed live in your browser." />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
@@ -13,8 +13,9 @@
     <h1>Inflation Shock Momentum <span class="muted">— interactive explorer</span></h1>
     <p class="sub">
       Replication of Lansing &amp; Shapiro (2026), FRBSF WP 2026-10.
-      Switch the model parameters and watch the index, its recent prints, its
-      drivers, and its correlation with the authors' series update live.
+      The index is <strong>recomputed live in your browser</strong> from the raw
+      category panels — drag any parameter and watch the index, its recent
+      prints, its drivers, and its correlation with the authors' series update.
     </p>
     <p id="asof" class="asof"></p>
     <p id="demo-banner" class="banner" hidden></p>
@@ -30,16 +31,25 @@
       <div class="control">
         <label>Benchmark model</label>
         <div class="seg" id="ar"></div>
-        <small>AR(p) used for the rolling residuals (Eq. 3).</small>
+        <div class="subctl" id="W-ctl">
+          <label class="mini">rolling window <b id="W-label">120</b> months</label>
+          <input type="range" id="W" min="60" max="240" step="6" value="120" />
+        </div>
+        <small>AR(p) estimated on a rolling W-month window (Eq. 3).</small>
       </div>
       <div class="control">
-        <label>Run length <em>k</em></label>
-        <div class="seg" id="k"></div>
+        <label>Run length <em>k</em> = <span id="k-label">3</span></label>
+        <div class="seg" id="k" hidden></div>
+        <input type="range" id="k-slider" min="2" max="8" step="1" value="3" />
         <small>Consecutive same-signed residuals to flag momentum (Eqs. 4-5).</small>
       </div>
       <div class="control">
         <label>Weighting</label>
         <div class="seg" id="scheme"></div>
+        <div class="subctl" id="rho-ctl" hidden>
+          <label class="mini">ρ̂ cap <b id="rho-label">0.90</b></label>
+          <input type="range" id="rho" min="0.5" max="0.99" step="0.01" value="0.9" />
+        </div>
         <small>extensive = sign only; size = ×|Σ residuals|; stickiness = ×1/(1−ρ̂). <span id="weight-note" class="muted"></span></small>
       </div>
       <div class="control toggles">
@@ -51,7 +61,22 @@
         <label>Sample start: <span id="start-label"></span></label>
         <input type="range" id="start" min="0" max="0" value="0" />
       </div>
+      <div class="control cats" id="cats-ctl">
+        <label>Categories <span class="muted" id="cat-summary"></span></label>
+        <details id="cat-details">
+          <summary>choose categories…</summary>
+          <input type="search" id="cat-search" placeholder="filter, e.g. gasoline" autocomplete="off" />
+          <div class="catlist" id="catlist"></div>
+          <div class="catbtns">
+            <button type="button" id="cat-all">include all</button>
+            <button type="button" id="cat-none">exclude shown</button>
+          </div>
+        </details>
+        <small>Untick to drop a category; weights renormalise over the rest.</small>
+      </div>
     </section>
+
+    <p id="status" class="status"></p>
 
     <section class="readout" id="readout"></section>
 
@@ -84,6 +109,14 @@
         (S⁺) minus the negative share (S⁻). The <em>drivers</em> chart decomposes
         the latest index value into each category's contribution
         ω<sub>i</sub>·(M⁺<sub>i</sub>−M⁻<sub>i</sub>), which sum exactly to the index.
+      </p>
+      <p class="muted">
+        Everything is computed <strong>client-side</strong>: the site ships the raw
+        category inflation and weight panels, and a Web Worker re-runs the full
+        rolling-regression pipeline (a parity-tested port of the Python engine)
+        whenever you move a control. That is why the window length W, the run
+        length k, the ρ̂ cap and the category set are continuous dials rather
+        than a precomputed grid.
       </p>
       <p class="muted">
         The same machinery runs on either price gauge: <strong>PCE</strong> (BEA
