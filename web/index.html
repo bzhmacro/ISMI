@@ -26,7 +26,7 @@
       <div class="control">
         <label>Price gauge</label>
         <div class="seg" id="backbone"></div>
-        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata.</small>
+        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata; UK CPI = ONS COICOP classes.</small>
       </div>
       <div class="control">
         <label>Benchmark model</label>
@@ -119,12 +119,15 @@
         than a precomputed grid.
       </p>
       <p class="muted">
-        The same machinery runs on either price gauge: <strong>PCE</strong> (BEA
-        underlying detail, the gauge in the paper, with an author-series overlay)
-        or <strong>CPI</strong> (≈70 BLS item strata weighted by their Dec-2023
-        relative importance). Switch with the <em>Price gauge</em> control. The
-        CPI partition tiles the whole index and the engine renormalises the
-        weights each month, so the index is robust to the exact category cut.
+        The same machinery runs on any price gauge: <strong>PCE</strong> (BEA
+        underlying detail, the gauge in the paper, with an author-series overlay),
+        <strong>CPI</strong> (≈70 BLS item strata weighted by their Dec-2023
+        relative importance) or <strong>UK CPI</strong> (≈85 ONS COICOP classes
+        from MM23, weighted by the annual ONS CPI weights; history starts 1988 so
+        the W=120 baseline yields an index from ~1998). Switch with the
+        <em>Price gauge</em> control. Each partition tiles its whole index and
+        the engine renormalises the weights each month, so the index is robust
+        to the exact category cut.
       </p>
       <p class="muted">
         Data refreshes automatically each month via a GitHub Action that re-runs

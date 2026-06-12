@@ -35,6 +35,7 @@ ISMI/
 ├── config/
 │   ├── sources.yaml           # registry of EVERY US data source (URLs, series IDs, roles)
 │   ├── sources_europe.yaml    # FRED -> Eurostat mapping for the EU port
+│   ├── sources_uk.yaml        # FRED/BEA/BLS -> ONS mapping for the UK CPI port
 │   ├── pce_categories.csv     # the pinned 130 fourth-level PCE categories
 │   └── cpi_categories.csv     # the pinned ~70 BLS CPI item strata (alt. backbone)
 ├── src/ism/                   # the library (the importable engine + plumbing)
@@ -51,6 +52,8 @@ ISMI/
 │   ├── appendix.py            # appendix exhibits (run probs, weighted momentum, ...)
 │   ├── eurostat.py            # Eurostat JSON-stat client (EU port)
 │   ├── eu_pipeline.py         # HICP -> ISM for the euro area
+│   ├── ons.py                 # ONS client: MM23 bulk CSV + /generator (UK port)
+│   ├── uk_pipeline.py         # ONS CPI COICOP classes -> ISM for the UK
 │   ├── figures.py / validate.py / run.py
 ├── scripts/                   # runnable helpers
 │   ├── build_and_validate.py  # build the US index + convergence check
@@ -64,7 +67,7 @@ ISMI/
 ├── web/                       # zero-build interactive site (deploy on Vercel)
 │   ├── index.html / app.js / styles.css / vercel.json
 │   ├── engine.js / worker.js  # the ISM maths IN THE BROWSER (parity-tested JS port)
-│   └── data/ism.json          # raw PCE + CPI panels + baseline (regen via scripts/export_web_data.py)
+│   └── data/ism.json          # raw PCE + CPI + UK CPI panels + baseline (regen via scripts/export_web_data.py)
 ├── tests/                     # 25 synthetic unit tests incl. Python<->JS parity (no network)
 ├── docs/                      # methodology.md, differences_report.md, DECISIONS.md
 ├── data/                      # NOT committed (gitignored); see data/README.md

@@ -2,10 +2,10 @@
 export_web_data.py
 ==================
 
-Export the RAW category panels (inflation + expenditure weights) for both
-price backbones -- PCE (BEA underlying detail) and CPI (BLS item strata) --
-plus ONE precomputed baseline combo, into the compact JSON the static website
-consumes:  web/data/ism.json.
+Export the RAW category panels (inflation + expenditure weights) for the
+price backbones -- PCE (BEA underlying detail), CPI (BLS item strata) and
+UK CPI (ONS COICOP classes) -- plus ONE precomputed baseline combo, into the
+compact JSON the static website consumes:  web/data/ism.json.
 
 Since schema v3 the website computes the ISM index CLIENT-SIDE (web/engine.js,
 a parity-tested port of src/ism/engine.py), so users can vary every parameter
@@ -22,24 +22,28 @@ cap, category exclusions). This script therefore ships:
 Output schema (v3, backbone-aware)::
 
     { "meta": {..., "schema": 3, "ui": {...},
-               "default_backbone": "pce", "backbones": ["pce","cpi"]},
+               "default_backbone": "pce", "backbones": ["pce","cpi","uk"]},
       "backbones": {
         "pce": { "label","source_note","n_categories","note","dates",
                  "categories","author","headline":{"label","series"},
                  "panel","combos","drivers" },
-        "cpi": { ... , "author": null } } }
+        "cpi": { ... , "author": null },
+        "uk":  { ... , "author": null } } }
 
 The PCE backbone self-fetches the BEA tables via BeaClient (cached); the CPI
-backbone self-fetches the BLS item strata via BlsClient (cached).  Each backbone
-is built independently and a failure in one (e.g. BEA host blocked) does not
-abort the other -- the website simply hides any backbone that is absent.
+backbone self-fetches the BLS item strata via BlsClient (cached); the UK
+backbone self-fetches the ONS MM23 bulk CSV via OnsClient (cached).  Each
+backbone is built independently and a failure in one (e.g. BEA host blocked)
+does not abort the other -- the website simply hides any backbone that is
+absent.
 
 The parity contract between this exporter's maths and the browser engine is
 enforced by tests/test_web_engine_parity.py.
 
-    python scripts/export_web_data.py            # both backbones
+    python scripts/export_web_data.py            # all backbones (pce, cpi, uk)
     python scripts/export_web_data.py pce         # only PCE
     python scripts/export_web_data.py cpi         # only CPI
+    python scripts/export_web_data.py uk          # only UK CPI (ONS MM23)
 """
 from __future__ import annotations
 
@@ -58,6 +62,8 @@ from ism.engine import ISMConfig, residual_panel, momentum_signals  # noqa: E402
 from ism.datasources import BeaClient, FredClient, BlsClient         # noqa: E402
 from ism.transforms import monthly_inflation, yoy_inflation          # noqa: E402
 from ism import cpi_pipeline                                         # noqa: E402
+from ism import uk_pipeline                                          # noqa: E402
+from ism.ons import OnsClient                                        # noqa: E402
 
 AR_ORDERS = (1, 3, 12)
 SCHEMES = ("extensive", "size", "stickiness")
@@ -177,6 +183,16 @@ def build_cpi_panel():
     return infl, weights, cat_list
 
 
+def build_uk_panel():
+    infl, weights, labels = uk_pipeline.build_uk_cpi_panel(OnsClient())
+    # labels are SHOUTING in MM23; title-case them for the UI, keep the code.
+    def pretty(code, lab):
+        lab = lab.title() if lab.isupper() else lab
+        return f"{lab} ({code})"
+    cat_list = [(k, pretty(k, labels[k])) for k in infl.columns]
+    return infl, weights, cat_list
+
+
 # ---------------------------------------------------------------------------
 # the core: baseline combo (for instant paint) + raw panels (for the browser)
 # ---------------------------------------------------------------------------
@@ -243,6 +259,17 @@ def build_backbone(name):
             note = ("ISM computed in the browser from BLS CPI item strata; "
                     "weights = Dec-2023 relative importance (renormalised monthly).")
             weight_note = "weights = BLS Dec-2023 relative importance (static, renormalised monthly)"
+        elif name == "uk":
+            infl, weights, categories = build_uk_panel()
+            label, source_note = "UK CPI", "ONS MM23 consumer price inflation series (COICOP class level, NSA)"
+            head_label = "UK CPI inflation (12m, %)"
+            headline = uk_pipeline.headline_uk_cpi_yoy(OnsClient())
+            author = None  # no published author ISM for the UK
+            note = ("ISM computed in the browser from ONS CPI COICOP classes "
+                    "(MM23); weights = annual ONS CPI weights (per mille), "
+                    "forward-filled monthly and renormalised. History starts "
+                    "1988, so the W=120 baseline yields an index from ~1998.")
+            weight_note = "weights = ONS annual CPI weights (per mille), ffilled monthly, renormalised"
         else:
             raise ValueError(name)
     except Exception as exc:   # e.g. BEA host blocked, or BLS unavailable
@@ -277,7 +304,7 @@ def build_backbone(name):
 
 def main(argv=None):
     argv = argv or sys.argv[1:]
-    wanted = [a.lower() for a in argv] or ["pce", "cpi"]
+    wanted = [a.lower() for a in argv] or ["pce", "cpi", "uk"]
 
     dest = ROOT / "web" / "data" / "ism.json"
 
@@ -307,9 +334,9 @@ def main(argv=None):
 
     default = (prev_default if prev_default in backbones
                else "pce" if "pce" in backbones else next(iter(backbones)))
-    # Stable order: pce first, then cpi, then anything else.
-    order = [b for b in ("pce", "cpi") if b in backbones] + \
-            [b for b in backbones if b not in ("pce", "cpi")]
+    # Stable order: pce first, then cpi, then uk, then anything else.
+    order = [b for b in ("pce", "cpi", "uk") if b in backbones] + \
+            [b for b in backbones if b not in ("pce", "cpi", "uk")]
     out = {
         "meta": {
             "schema": 3,

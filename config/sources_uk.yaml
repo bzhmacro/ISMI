@@ -1,0 +1,126 @@
+# =============================================================================
+# sources_uk.yaml  --  FRED/BEA/BLS -> ONS mapping for the UK CPI port
+# =============================================================================
+# Mirrors sources_europe.yaml. Each entry maps a US series used by the paper to
+# a UK equivalent, with a confidence level and notes. Items flagged "VALIDATE"
+# are the least certain and await sign-off (see also docs/DECISIONS if pinned).
+#
+# Primary source: ONS "Consumer price inflation time series" (MM23). The old
+# api.ons.gov.uk timeseries API was RETIRED on 25/11/2024; we use the bulk CSV
+# download (one file carries the full COICOP index + weight panels + headline)
+# plus the per-series /generator?format=csv endpoint for labour-market series.
+# =============================================================================
+
+meta:
+  geo: "GB"
+  landing: "https://www.ons.gov.uk/economy/inflationandpriceindices"
+  mm23_csv: "https://www.ons.gov.uk/file?uri=/economy/inflationandpriceindices/datasets/consumerpriceindices/current/mm23.csv"
+  client: "ism.ons.OnsClient"
+  note: >
+    The category engine is unchanged; only the data plumbing differs. UK CPI is
+    constructed on HICP methodology and is published by COICOP, so the COICOP
+    class (xx.x.x) is the analogue of the BEA level-4/5 cut and of the EU port's
+    4-digit COICOP cut. NSA, like the US CPI backbone.
+
+# -----------------------------------------------------------------------------
+# CORE category data (the heart of the index)
+# -----------------------------------------------------------------------------
+category_prices:
+  us: "BEA 2.4.4U PCE price indexes / BLS CUUR0000* item strata"
+  uk: "MM23 'CPI INDEX xx.x.x' series, COICOP class level"
+  selection: "leaf codes capped at class depth (xx.x.x); deeper xx.x.x.x sub-classes exist but only from 2015-01, too short for the 120m rolling window"
+  coverage: "84 leaves; 67 from 1988-01, the rest 1990-2015 (engine treats late-born categories as absent until a full window, as on the US side)"
+  confidence: high
+
+category_weights:
+  us: "BEA 2.4.5U nominal PCE (monthly) / BLS Dec-2023 relative importance (static)"
+  uk: "MM23 'CPI WEIGHTS xx.x.x' series, annual per-mille -> forward-filled to monthly from January, renormalised over available leaves"
+  confidence: high
+  note: >
+    Year-varying (better than the static US CPI backbone weights). Since 2017
+    ONS double-updates weights (Jan and Feb basket); MM23 carries one value per
+    year, a documented simplification. Class leaves sum to ~925-957 per mille
+    depending on year; the engine renormalises monthly, exactly as it already
+    does for the US CPI partition.
+
+# -----------------------------------------------------------------------------
+# Headline inflation (target + control)
+# -----------------------------------------------------------------------------
+headline_inflation:
+  us: "PCEPI / CUUR0000SA0 (yoy, 3m)"
+  uk: "MM23 'CPI INDEX 00: ALL ITEMS 2015=100' (CDID D7BT) -> compute yoy & 3m"
+  alt: "'CPI ANNUAL RATE 00' (D7G7) directly; we derive from the index for consistency with the US side"
+  confidence: high
+
+# -----------------------------------------------------------------------------
+# Controls (Table 1 / LP / LASSO) -- notebook only; NOT needed for the web app
+# -----------------------------------------------------------------------------
+controls:
+  inflation_expectations_1y:
+    us: "Michigan 1-yr expected inflation (MICH)"
+    uk: "Bank of England / Ipsos Inflation Attitudes Survey, median expected inflation next 12m (QUARTERLY, 1999+), interpolated to monthly"
+    alt: "Citi/YouGov 1y (longer monthly, but proprietary)"
+    confidence: medium
+    flag: VALIDATE
+    note: "Quarterly + short history shortens with-controls regressions. Supplied as a local file (data/raw/external/uk_infl_expectations.csv); no stable ONS endpoint."
+
+  unemployment:
+    us: "UNRATE / UNEMPLOY"
+    uk: "ONS MGSX (LFS unemployment rate 16+, SA, monthly, 1971+); level = MGSC"
+    endpoint: "https://www.ons.gov.uk/generator?format=csv&uri=/employmentandlabourmarket/peoplenotinwork/unemployment/timeseries/mgsx/lms"
+    confidence: high
+
+  vacancies:
+    us: "JOLTS (JTSJOL) spliced to Barnichon (1951+) HWI"
+    uk: "ONS AP2Y (vacancy stock, thousands, monthly, 2001+) / MGSC unemployment level -> V/U"
+    confidence: medium
+    note: "No UK analogue of the Barnichon splice -> V/U starts 2001 (vs 1951 US). Acceptable: the UK panel itself only supports ISM from ~1998."
+
+  oil_price:
+    us: "WTI spot (WTISPLC)"
+    uk: "Brent crude (global), FRED MCOILBRENTEU (monthly) or DCOILBRENTEU"
+    confidence: high
+    note: "Oil is a global price; Brent is the natural UK reference."
+
+  equity_index:
+    us: "S&P 500 (Shiller)"
+    uk: "FTSE All-Share (preferred) or FTSE 100, monthly close, from a local file data/raw/external/ftse.csv"
+    fallback: "Shiller S&P 500 -- USER-APPROVED default when no FTSE file is present (correlation with FTSE is high; Stooq/Yahoo are blocked from the build sandbox)"
+    confidence: medium
+    note: "TRADE-OFF (review): controls built in the sandbox use the S&P 500. Drop data/raw/external/ftse.csv (date,close) to switch to FTSE; loader prefers it automatically."
+
+  real_disposable_income:
+    us: "DSPIC96 (real disposable personal income, yoy)"
+    uk: "ONS real households' disposable income (QUARTERLY, sector accounts) -> yoy, interpolated to monthly"
+    confidence: medium
+    flag: VALIDATE
+    note: "Quarterly only. Left to the notebook, as real disposable income is on the EU side."
+
+  yield_spread:
+    us: "GS10 - FEDFUNDS"
+    uk: "FRED IRLTLT01GBM156N (10y gilt benchmark, OECD MEI, 1960+) minus IR3TIB01GBM156N (3m interbank, 1986+)"
+    alt: "Bank of England IADB zero-coupon 10y + Bank Rate"
+    confidence: high
+    note: "Spread history limited by the 3m leg (1986+); fine given the panel starts 1988."
+
+  recession_dummy:
+    us: "USREC (NBER)"
+    uk: "Technical recessions (2+ consecutive quarters of negative GDP growth, ONS quarterly GDP) encoded as a 0/1 monthly dummy (manual list in ism.uk_pipeline)"
+    confidence: medium
+    note: "No UK NBER/CEPR-style dating committee. Dates: 1973Q3-74Q1, 1975Q2-Q3, 1980Q1-81Q1, 1990Q3-91Q3, 2008Q2-09Q2, 2020Q1-Q2, 2023Q3-Q4."
+
+# -----------------------------------------------------------------------------
+# External identified shocks (Section 5 validation) -- future / VALIDATE
+# -----------------------------------------------------------------------------
+external_shocks:
+  monetary_policy:
+    us: "Romer-Romer attempted-disinflation dates"
+    uk: "Cloyne & Hurtgen (2016) narrative UK monetary policy shocks (1975-2007)"
+    confidence: low
+    flag: VALIDATE
+    note: "Closest UK analogue of the Romer-Romer narrative approach; series ends 2007. Alt: BoE high-frequency surprises (Braun-Miranda-Agrippino-style)."
+
+  oil_supply_news:
+    us: "Kanzig (2021) oil supply news shock"
+    uk: "same Kanzig series (global shock)"
+    confidence: high
