@@ -113,6 +113,72 @@ JP_CPI_WEIGHTS_2020 = {
 }
 
 
+# Official English names for the 47 medium groups, transcribed from the same
+# e-Stat 2020-base CPI Item Information List (Appendix 1, statInfId 000032177686,
+# English "Items" column). Used for the web labels so the gauge reads in English
+# like the other ports; build_jp_cpi_panel falls back to the Japanese e-Stat name
+# for any code not present here.
+JP_CPI_LABELS_EN = {
+    # 0002 Food
+    "0003": "Cereals",
+    "0008": "Fish & seafood",
+    "0013": "Meats",
+    "0016": "Dairy products & eggs",
+    "0021": "Vegetables & seaweeds",
+    "0027": "Fruits",
+    "0030": "Oils, fats & seasonings",
+    "0033": "Cakes & candies",
+    "0034": "Cooked food",
+    "0037": "Beverages",
+    "0041": "Alcoholic beverages",
+    "0042": "Meals outside the home",
+    # 0045 Housing
+    "0046": "Rent",
+    "0051": "Repairs & maintenance",
+    # 0054 Fuel, light & water
+    "0056": "Electricity",
+    "0057": "Gas",
+    "0058": "Other fuel & light",
+    "0059": "Water & sewerage charges",
+    # 0060 Furniture & household utensils
+    "0061": "Household durable goods",
+    "0066": "Interior furnishings",
+    "0070": "Bedding",
+    "0073": "Domestic utensils",
+    "0077": "Domestic non-durable goods",
+    "0081": "Domestic services",
+    # 0082 Clothes & footwear
+    "0083": "Clothes",
+    "0089": "Shirts, sweaters & underwear",
+    "0098": "Footwear",
+    "0103": "Other clothing",
+    "0106": "Services related to clothing",
+    # 0107 Medical care
+    "0108": "Medicines & health fortification",
+    "0109": "Medical supplies & appliances",
+    "0110": "Medical services",
+    # 0111 Transportation & communication
+    "0112": "Public transportation",
+    "0113": "Private transportation",
+    "0117": "Communication",
+    # 0118 Education
+    "0119": "School fees",
+    "0120": "School textbooks & reference books for study",
+    "0121": "Tutorial fees",
+    # 0122 Culture & recreation
+    "0123": "Recreational durable goods",
+    "0128": "Recreational goods",
+    "0134": "Books & other reading materials",
+    "0138": "Recreational services",
+    # 0145 Miscellaneous
+    "0146": "Personal care services",
+    "0147": "Toilet articles",
+    "0151": "Personal effects",
+    "0155": "Tobacco",
+    "0156": "Other miscellaneous",
+}
+
+
 def select_cat01_partition(classes: pd.DataFrame,
                            majors: Optional[list] = None) -> tuple[pd.DataFrame, str]:
     """Tile the CPI by medium groups (中分類) = direct children of the majors.
@@ -155,6 +221,7 @@ def build_jp_cpi_panel(client: Optional[EstatClient] = None,
     else:
         sel, level_used = select_cat01_partition(classes)
     labels = dict(zip(sel["code"], sel["name"].str.replace(r"^\d+\s*", "", regex=True)))
+    labels = {c: JP_CPI_LABELS_EN.get(c, labels[c]) for c in labels}
     print(f"[jp] cat01 cut = {level_used}: {len(sel)} categories")
 
     # --- find the index (and weights) presentation items ----------------------
