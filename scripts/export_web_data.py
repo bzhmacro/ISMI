@@ -40,10 +40,11 @@ absent.
 The parity contract between this exporter's maths and the browser engine is
 enforced by tests/test_web_engine_parity.py.
 
-    python scripts/export_web_data.py            # all backbones (pce, cpi, uk)
+    python scripts/export_web_data.py            # all backbones (pce cpi uk fr de jp)
     python scripts/export_web_data.py pce         # only PCE
-    python scripts/export_web_data.py cpi         # only CPI
     python scripts/export_web_data.py uk          # only UK CPI (ONS MM23)
+    python scripts/export_web_data.py fr de       # France + Germany (Eurostat HICP v2)
+    python scripts/export_web_data.py jp          # Japan (e-Stat; needs ESTAT_APP_ID)
 """
 from __future__ import annotations
 
@@ -64,6 +65,10 @@ from ism.transforms import monthly_inflation, yoy_inflation          # noqa: E40
 from ism import cpi_pipeline                                         # noqa: E402
 from ism import uk_pipeline                                          # noqa: E402
 from ism.ons import OnsClient                                        # noqa: E402
+from ism.eurostat import (EurostatClient, hicp_labels,               # noqa: E402
+                          hicp_price_panel, hicp_weights,
+                          monthly_weights_from_annual, HICP_ALL_ITEMS)
+from ism.eu_pipeline import select_coicop_leaves                     # noqa: E402
 
 AR_ORDERS = (1, 3, 12)
 SCHEMES = ("extensive", "size", "stickiness")
@@ -193,6 +198,30 @@ def build_uk_panel():
     return infl, weights, cat_list
 
 
+def build_euro_panel(geo):
+    """HICP (ECOICOP v2) -> (inflation, weights, categories, headline_yoy).
+
+    Same construction as ism.eu_pipeline.build_hicp_panel, but also returns
+    the labelled category list and the all-items yoy for the web payload.
+    """
+    client = EurostatClient()
+    price = hicp_price_panel(client, geo=geo)
+    headline = yoy_inflation(price[HICP_ALL_ITEMS])
+    leaves = select_coicop_leaves(price)
+    price = price[leaves].dropna(how="all", axis=1)
+    annual = hicp_weights(client, geo=geo)
+    wm = monthly_weights_from_annual(annual, price.index)
+    cols = [c for c in price.columns if c in wm.columns]
+    price, wm = price[cols], wm[cols]
+    infl = monthly_inflation(price)
+    weights = wm.where(price.notna())
+    weights = weights.div(weights.sum(axis=1).replace(0, np.nan), axis=0)
+    common = infl.index.intersection(weights.index)
+    labels = hicp_labels(client, geo=geo)
+    cat_list = [(c, f"{labels.get(c, c)} ({c})") for c in cols]
+    return infl.loc[common], weights.loc[common], cat_list, headline
+
+
 # ---------------------------------------------------------------------------
 # the core: baseline combo (for instant paint) + raw panels (for the browser)
 # ---------------------------------------------------------------------------
@@ -270,6 +299,36 @@ def build_backbone(name):
                     "forward-filled monthly and renormalised. History starts "
                     "1988, so the W=120 baseline yields an index from ~1998.")
             weight_note = "weights = ONS annual CPI weights (per mille), ffilled monthly, renormalised"
+        elif name in ("fr", "de"):
+            geo = name.upper()
+            country = {"fr": "France", "de": "Germany"}[name]
+            infl, weights, categories, headline = build_euro_panel(geo)
+            label = f"{geo} HICP"
+            source_note = f"Eurostat HICP ECOICOP v2 (prc_hicp_minr / prc_hicp_iw, geo={geo}, NSA)"
+            head_label = f"{country} HICP inflation (12m, %)"
+            author = None
+            note = (f"ISM computed in the browser from {country}'s HICP by COICOP "
+                    "(Eurostat, ECOICOP v2, class-level leaves); weights = annual "
+                    "HICP item weights, forward-filled monthly and renormalised. "
+                    "History starts 1996, so the W=120 baseline yields an index "
+                    "from ~2006.")
+            weight_note = "weights = annual Eurostat HICP item weights (per mille), ffilled monthly, renormalised"
+        elif name == "jp":
+            # Requires a free e-Stat application ID (ESTAT_APP_ID in .env);
+            # without it this backbone is skipped with a clear message.
+            from ism import jp_pipeline
+            from ism.estat import EstatClient
+            client = EstatClient()
+            infl, weights, labels = jp_pipeline.build_jp_cpi_panel(client)
+            categories = [(k, f"{labels[k]} ({k})") for k in infl.columns]
+            label, source_note = "JP CPI", "Statistics Bureau of Japan CPI via e-Stat (2020-base, table 0003427113, NSA)"
+            head_label = "Japan CPI inflation (12m, %)"
+            headline = jp_pipeline.headline_jp_cpi_yoy(client)
+            author = None
+            note = ("ISM computed in the browser from Japan's CPI item "
+                    "classification (e-Stat); weights = per-base CPI weights "
+                    "(fixed between base revisions), renormalised monthly.")
+            weight_note = "weights = CPI weights per base revision (static within base, renormalised monthly)"
         else:
             raise ValueError(name)
     except Exception as exc:   # e.g. BEA host blocked, or BLS unavailable
@@ -304,7 +363,7 @@ def build_backbone(name):
 
 def main(argv=None):
     argv = argv or sys.argv[1:]
-    wanted = [a.lower() for a in argv] or ["pce", "cpi", "uk"]
+    wanted = [a.lower() for a in argv] or ["pce", "cpi", "uk", "fr", "de", "jp"]
 
     dest = ROOT / "web" / "data" / "ism.json"
 
@@ -334,9 +393,10 @@ def main(argv=None):
 
     default = (prev_default if prev_default in backbones
                else "pce" if "pce" in backbones else next(iter(backbones)))
-    # Stable order: pce first, then cpi, then uk, then anything else.
-    order = [b for b in ("pce", "cpi", "uk") if b in backbones] + \
-            [b for b in backbones if b not in ("pce", "cpi", "uk")]
+    # Stable order: US gauges first, then the country ports, then anything else.
+    KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp")
+    order = [b for b in KNOWN if b in backbones] + \
+            [b for b in backbones if b not in KNOWN]
     out = {
         "meta": {
             "schema": 3,

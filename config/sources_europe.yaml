@@ -15,6 +15,14 @@ meta:
   geo_default: "EA20"   # VALIDATED: euro area (EA20 current; EA19/EA for longer history)
   api_guide: "https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-getting-started"
   client: "ism.eurostat.EurostatClient"
+  # Per-country ports: the SAME datasets carry every member state -- set geo to
+  # "FR", "DE", ... (verified: FR/DE have full back-series 1996+ and weights).
+  ecoicop2_migration: >
+    Jan-2026: Eurostat FROZE the ECOICOP-v1 datasets (prc_hicp_midx at 2025-12,
+    prc_hicp_inw at 2025) and moved to ECOICOP v2 codes: prc_hicp_minr (index),
+    prc_hicp_iw (item weights), dimension coicop -> coicop18, all-items CP00 ->
+    TOTAL, new base unit I25 (I15 still served). v2 ships recalculated
+    back-series to 1996. ism.eurostat reads the v2 codes since 2026-06.
   note: >
     The category engine is unchanged; only the data plumbing differs. HICP-by-
     COICOP is the analogue of PCE underlying detail. COICOP codes encode the

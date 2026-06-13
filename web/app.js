@@ -556,7 +556,7 @@ function renderRecentBars(res) {
   const layout = {
     paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG, font: { color: INK, size: 11 },
     margin: { l: 40, r: 10, t: 6, b: 60 },
-    xaxis: { tickangle: -60, gridcolor: "transparent" },
+    xaxis: { type: "category", tickangle: -60, gridcolor: "transparent" },
     yaxis: { title: "ISM", gridcolor: GRID, zeroline: true, zerolinecolor: "#3a4b5c" },
   };
   Plotly.react("bars",
@@ -570,7 +570,7 @@ function renderRecentBars(res) {
   if (el.on && !el._ismClickBound) {
     el._ismClickBound = true;
     el.on("plotly_click", data => {
-      const date = data.points[0].x;
+      const date = String(data.points[0].x).slice(0, 7);  // normalise "2026-04-01" → "2026-04"
       STATE.selectedDate = (STATE.selectedDate === date) ? null : date;
       const { res: cur } = currentResult();
       if (!cur) return;

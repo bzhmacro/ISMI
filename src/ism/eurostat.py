@@ -98,6 +98,18 @@ class EurostatClient:
         "geo":"EA","coicop":"CP00"}). A dimension may be repeated by passing a list
         value, which is expanded to multiple query params.
         """
+        payload = self.payload(code, filters, force=force)
+        df = parse_jsonstat(payload)
+        if "time" in df.columns:
+            df["date"] = _eu_time_to_timestamp(df["time"])
+        return df
+
+    def payload(self, code: str, filters: Optional[Dict[str, Any]] = None, force: bool = False) -> Dict[str, Any]:
+        """Fetch (cached) and return the raw JSON-stat payload for a dataset.
+
+        Useful when the caller needs dimension metadata (e.g. category labels)
+        in addition to the values; `dataset()` is built on top of this.
+        """
         filters = filters or {}
         # stable cache key
         key = code + "_" + "_".join(f"{k}-{','.join(v) if isinstance(v, list) else v}"
@@ -105,48 +117,70 @@ class EurostatClient:
         key = "".join(ch if ch.isalnum() or ch in "-_" else "" for ch in key)[:150]
         cache = self.cache_dir / f"{key}.json"
         if cache.exists() and not force:
-            payload = json.loads(cache.read_text())
-        else:
-            params = [("format", "JSON"), ("lang", "EN")]
-            for k, v in filters.items():
-                for vv in (v if isinstance(v, list) else [v]):
-                    params.append((k, vv))
-            resp = _request("GET", f"{EUROSTAT_BASE}/{code}", provider="EUROSTAT", params=params, timeout=120)
-            payload = resp.json()
-            cache.write_text(json.dumps(payload))
-            (cache.with_suffix(".fetch.json")).write_text(json.dumps(
-                {"dataset": code, "filters": filters}))
-        df = parse_jsonstat(payload)
-        if "time" in df.columns:
-            df["date"] = _eu_time_to_timestamp(df["time"])
-        return df
+            return json.loads(cache.read_text())
+        params = [("format", "JSON"), ("lang", "EN")]
+        for k, v in filters.items():
+            for vv in (v if isinstance(v, list) else [v]):
+                params.append((k, vv))
+        resp = _request("GET", f"{EUROSTAT_BASE}/{code}", provider="EUROSTAT", params=params, timeout=120)
+        payload = resp.json()
+        cache.write_text(json.dumps(payload))
+        (cache.with_suffix(".fetch.json")).write_text(json.dumps(
+            {"dataset": code, "filters": filters}))
+        return payload
+
+    def dimension_labels(self, code: str, dim: str, filters: Optional[Dict[str, Any]] = None,
+                         force: bool = False) -> Dict[str, str]:
+        """{category code: human label} for one dimension of a dataset."""
+        payload = self.payload(code, filters, force=force)
+        return dict(payload["dimension"][dim]["category"].get("label", {}))
 
 
 # ---------------------------------------------------------------------------
 # HICP category panel + weights (the euro-area analogue of the PCE panel)
 # ---------------------------------------------------------------------------
+# ECOICOP version 2 (Jan 2026): Eurostat FROZE the v1 datasets (prc_hicp_midx /
+# prc_hicp_inw) at 2025-12 and now publishes under new codes with a renamed
+# COICOP dimension and an all-items code of "TOTAL" (was "CP00"). The v2
+# datasets carry recalculated back-series to 1996, so we read v2 only.
+HICP_INDEX_DATASET = "prc_hicp_minr"     # was prc_hicp_midx (frozen 2025-12)
+HICP_WEIGHT_DATASET = "prc_hicp_iw"      # was prc_hicp_inw  (frozen 2025)
+HICP_COICOP_DIM = "coicop18"             # was "coicop"
+HICP_ALL_ITEMS = "TOTAL"                 # was "CP00"
+
+
 def hicp_price_panel(client: EurostatClient, geo: str = "EA20", unit: str = "I15", force: bool = False) -> pd.DataFrame:
     """Monthly HICP index panel [time x COICOP] for a geography (default euro area).
 
-    Pulls prc_hicp_midx for all COICOP codes. The COICOP code structure encodes
-    the hierarchy (CP00 -> CP01 -> CP011 -> CP0111 ...), the analogue of the BEA
-    line levels used to choose the disaggregation level.
+    Pulls prc_hicp_minr (ECOICOP v2; back-series to 1996) for all COICOP codes.
+    The CP-code structure still encodes the hierarchy (CP01 -> CP011 -> CP0111
+    ...), the analogue of the BEA line levels used to choose the disaggregation
+    level; the all-items aggregate is now "TOTAL".
     """
-    df = client.dataset("prc_hicp_midx", {"freq": "M", "unit": unit, "geo": geo}, force=force)
-    wide = df.pivot_table(index="date", columns="coicop", values="value", aggfunc="first").sort_index()
+    df = client.dataset(HICP_INDEX_DATASET, {"freq": "M", "unit": unit, "geo": geo}, force=force)
+    dim = HICP_COICOP_DIM if HICP_COICOP_DIM in df.columns else "coicop"
+    wide = df.pivot_table(index="date", columns=dim, values="value", aggfunc="first").sort_index()
     return wide
 
 
 def hicp_weights(client: EurostatClient, geo: str = "EA20", force: bool = False) -> pd.DataFrame:
-    """Annual HICP item weights [year x COICOP] (per mille) from prc_hicp_inw.
+    """Annual HICP item weights [year x COICOP] (per mille) from prc_hicp_iw (v2).
 
     HICP weights are annual; the caller forward-fills them to monthly to match the
     price panel before passing to the engine.
     """
-    df = client.dataset("prc_hicp_inw", {"geo": geo}, force=force)
+    df = client.dataset(HICP_WEIGHT_DATASET, {"geo": geo}, force=force)
+    dim = HICP_COICOP_DIM if HICP_COICOP_DIM in df.columns else "coicop"
     tcol = "time" if "time" in df.columns else df.columns[0]
     df["year"] = df[tcol].astype(str).str[:4].astype(int)
-    return df.pivot_table(index="year", columns="coicop", values="value", aggfunc="first").sort_index()
+    return df.pivot_table(index="year", columns=dim, values="value", aggfunc="first").sort_index()
+
+
+def hicp_labels(client: EurostatClient, geo: str = "EA20", force: bool = False) -> Dict[str, str]:
+    """{COICOP code: label} for the HICP index dataset (one cheap call)."""
+    return client.dimension_labels(HICP_INDEX_DATASET, HICP_COICOP_DIM,
+                                   {"freq": "M", "geo": geo, "lastTimePeriod": "1"},
+                                   force=force)
 
 
 def monthly_weights_from_annual(annual_w: pd.DataFrame, month_index: pd.DatetimeIndex) -> pd.DataFrame:

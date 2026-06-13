@@ -1,0 +1,128 @@
+# =============================================================================
+# sources_japan.yaml  --  FRED/BEA/BLS -> e-Stat mapping for the Japan CPI port
+# =============================================================================
+# Mirrors sources_europe.yaml / sources_uk.yaml. Items flagged "VALIDATE" need
+# a first authenticated run (or sign-off) to pin exact e-Stat codes.
+#
+# ACCESS: the e-Stat API requires a FREE application ID. Register at
+#   https://www.e-stat.go.jp/api/  (My Page -> API)
+# and set ESTAT_APP_ID=... in .env. Without it the jp backbone is skipped
+# gracefully (exporter prints why); everything else still builds.
+# =============================================================================
+
+meta:
+  geo: "JP"
+  api_guide: "https://www.e-stat.go.jp/api/api-info/api-guide"
+  client: "ism.estat.EstatClient"
+  app_id_env: "ESTAT_APP_ID"
+  note: >
+    The category engine is unchanged; only the data plumbing differs. Japan's
+    CPI item classification is flat 4-digit codes (cat01) whose hierarchy is
+    carried by the @level attribute in the API's CLASS_INF metadata -- the
+    pipeline selects a level dynamically (the analogue of the BEA line level /
+    COICOP-depth cut), rather than pinning a CSV.
+
+# -----------------------------------------------------------------------------
+# CORE category data (the heart of the index)
+# -----------------------------------------------------------------------------
+category_prices:
+  us: "BEA 2.4.4U PCE price indexes / BLS CUUR0000* item strata"
+  jp_table: "0003427113"   # 2020-base CPI, Japan (zenkoku), monthly, by item (cat01)
+  jp_source: "e-Stat getStatsData, statsCode 00200573 (Statistics Bureau CPI)"
+  selection: "cat01 level chosen from CLASS_INF metadata; default = sub-group (chu-bunrui) level, ~50 categories"
+  confidence: medium
+  flag: VALIDATE
+  note: >
+    Table id pinned from the official API news (cpi-info202107). The 2020-base
+    DB carries linked back-series for upper classification levels; exact
+    per-level history (chu-bunrui widely cited back to 1970) is confirmed on
+    the first authenticated run -- the pipeline prints the time range and
+    category count it actually got. Item level (~580 series) only spans the
+    current base; the sub-group cut is the right depth-vs-history trade-off,
+    as class level was for the UK.
+
+category_weights:
+  us: "BEA 2.4.5U nominal PCE / BLS relative importance"
+  jp: "CPI weights (per 10000) -- fixed per 5-year base revision (Laspeyres)"
+  retrieval: "tab dimension of the same table if present, else the companion weights table discovered via getMetaInfo; else static vector pinned after first run"
+  confidence: medium
+  flag: VALIDATE
+  note: >
+    Japan's CPI is fixed-base: weights change only at base revisions (..., 2015,
+    2020), so static-per-base weights broadcast across months -- the same
+    simplification as the US CPI backbone's Dec-2023 relative importance. The
+    engine renormalises monthly over available categories.
+
+# -----------------------------------------------------------------------------
+# Headline inflation (target + control)
+# -----------------------------------------------------------------------------
+headline_inflation:
+  us: "PCEPI / CUUR0000SA0 (yoy, 3m)"
+  jp: "cat01 0001 'Sogo' (all items) from the same table -> compute yoy & 3m"
+  alt: "0002* all items less fresh food ('core') is the BoJ's preferred gauge -- a UI option later"
+  confidence: high
+
+# -----------------------------------------------------------------------------
+# Controls (Table 1 / LP / LASSO) -- notebook only; NOT needed for the web app
+# -----------------------------------------------------------------------------
+controls:
+  inflation_expectations_1y:
+    us: "Michigan 1-yr expected inflation (MICH)"
+    jp: "Cabinet Office Consumer Confidence Survey, 1-year price expectations (monthly, 2004+); BoJ Tankan output-price DI (quarterly, longer) as alt"
+    confidence: medium
+    flag: VALIDATE
+
+  unemployment:
+    us: "UNRATE"
+    jp: "LFS unemployment rate, FRED LRUNTTTTJPM156S (monthly, SA, 1955+)"
+    confidence: high
+
+  vacancies:
+    us: "JOLTS / Barnichon V/U"
+    jp: "Active job openings-to-applicants ratio (yuko kyujin bairitsu, MHLW, monthly 1963+) -- Japan's standard labour-tightness gauge, used directly in place of V/U"
+    confidence: medium
+    note: "Different construction (openings/applicants at PES offices, not vacancies/unemployed) but the canonical Japanese analogue with long history. FRED: JPNJVR or via e-Stat."
+
+  oil_price:
+    us: "WTI spot (WTISPLC)"
+    jp: "Brent/global crude (FRED MCOILBRENTEU) or Japan CIF crude import price"
+    confidence: high
+
+  equity_index:
+    us: "S&P 500 (Shiller)"
+    jp: "Nikkei 225 (FRED NIKKEI225, daily from 1949 -> monthly mean)"
+    fallback: "Shiller S&P 500 per the standing user rule, but Nikkei is freely on FRED so the fallback should rarely bind"
+    confidence: high
+
+  real_disposable_income:
+    us: "DSPIC96"
+    jp: "Cabinet Office SNA household disposable income (QUARTERLY) deflated by CPI -> yoy, interpolated"
+    confidence: medium
+    flag: VALIDATE
+
+  yield_spread:
+    us: "GS10 - FEDFUNDS"
+    jp: "10y JGB yield (FRED IRLTLT01JPM156N, 1989+) minus uncollateralised overnight call rate (FRED IRSTCI01JPM156N, 1985+)"
+    alt: "BoJ time-series portal for longer 10y history (1986+) / discount rate for pre-1985"
+    confidence: medium
+    note: "Spread history starts ~1989 -- fine if the panel cut starts 1970 but shortens with-controls regressions."
+
+  recession_dummy:
+    us: "USREC (NBER)"
+    jp: "Cabinet Office ESRI official business-cycle reference dates (Japan HAS an official dating committee) -- manual list in ism.jp_pipeline"
+    confidence: high
+
+# -----------------------------------------------------------------------------
+# External identified shocks (Section 5 validation) -- future / VALIDATE
+# -----------------------------------------------------------------------------
+external_shocks:
+  monetary_policy:
+    us: "Romer-Romer attempted-disinflation dates"
+    jp: "no canonical JP narrative series; candidates: Braun-Shioji style high-frequency surprises, or BoJ tightening episodes (manual)"
+    confidence: low
+    flag: VALIDATE
+
+  oil_supply_news:
+    us: "Kanzig (2021) oil supply news shock"
+    jp: "same Kanzig series (global shock)"
+    confidence: high

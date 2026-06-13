@@ -41,7 +41,7 @@ from .transforms import monthly_inflation, yoy_inflation, threemonth_inflation
 # COICOP leaf selection (analogue of the BEA level cut)
 # ---------------------------------------------------------------------------
 def select_coicop_leaves(price_panel: pd.DataFrame, max_digits: Optional[int] = 4,
-                         exclude=("CP00",)) -> list[str]:
+                         exclude=("CP00", "TOTAL")) -> list[str]:
     """Return the leaf COICOP codes of the available tree.
 
     Keeps codes matching CP<digits> (drops analytic aggregates like GD, SERV,
@@ -130,7 +130,9 @@ def build_eu_controls(client: EurostatClient, geo: str = "EA20",
 
     # Headline HICP -> yoy & 3m (high confidence)
     try:
-        cp00 = hicp_price_panel(client, geo=geo)["CP00"]
+        panel = hicp_price_panel(client, geo=geo)
+        # ECOICOP v2 names the all-items aggregate TOTAL (v1: CP00)
+        cp00 = panel["TOTAL"] if "TOTAL" in panel.columns else panel["CP00"]
         out["hicp_yoy"] = yoy_inflation(cp00).rename("hicp_yoy")
         out["hicp_3m"] = threemonth_inflation(cp00).rename("hicp_3m")
     except Exception as e:
