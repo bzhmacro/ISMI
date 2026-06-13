@@ -55,7 +55,7 @@ ISMI/
 │   ├── eu_pipeline.py         # HICP -> ISM for the euro area
 │   ├── ons.py                 # ONS client: MM23 bulk CSV + /generator (UK port)
 │   ├── uk_pipeline.py         # ONS CPI COICOP classes -> ISM for the UK
-│   ├── estat.py               # e-Stat API client (Japan port; free ESTAT_APP_ID)
+│   ├── estat.py               # e-Stat API client (Japan port; free ESTAT_API_ID)
 │   ├── jp_pipeline.py         # Japan CPI by item -> ISM (e-Stat 2020-base table)
 │   ├── figures.py / validate.py / run.py
 ├── scripts/                   # runnable helpers

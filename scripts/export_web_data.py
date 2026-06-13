@@ -44,7 +44,7 @@ enforced by tests/test_web_engine_parity.py.
     python scripts/export_web_data.py pce         # only PCE
     python scripts/export_web_data.py uk          # only UK CPI (ONS MM23)
     python scripts/export_web_data.py fr de       # France + Germany (Eurostat HICP v2)
-    python scripts/export_web_data.py jp          # Japan (e-Stat; needs ESTAT_APP_ID)
+    python scripts/export_web_data.py jp          # Japan (e-Stat; needs ESTAT_API_ID)
 """
 from __future__ import annotations
 
@@ -314,7 +314,7 @@ def build_backbone(name):
                     "from ~2006.")
             weight_note = "weights = annual Eurostat HICP item weights (per mille), ffilled monthly, renormalised"
         elif name == "jp":
-            # Requires a free e-Stat application ID (ESTAT_APP_ID in .env);
+            # Requires a free e-Stat application ID (ESTAT_API_ID in .env);
             # without it this backbone is skipped with a clear message.
             from ism import jp_pipeline
             from ism.estat import EstatClient

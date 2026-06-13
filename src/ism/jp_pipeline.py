@@ -19,7 +19,7 @@ weights) pair and the Japan control block, per config/sources_japan.yaml.
                      spread, Brent) — Japan's equity series needs no S&P
                      fallback since NIKKEI225 is freely on FRED
 
-NOTE: e-Stat requires a free application ID (ESTAT_APP_ID in .env). All entry
+NOTE: e-Stat requires a free application ID (ESTAT_API_ID in .env). All entry
 points fail with a clear message without one; the web exporter skips the jp
 backbone gracefully. Codes marked VALIDATE in the config (the weights tab id,
 the exact level codes) are confirmed on the first authenticated run — this

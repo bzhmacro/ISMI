@@ -6,7 +6,7 @@
 #
 # ACCESS: the e-Stat API requires a FREE application ID. Register at
 #   https://www.e-stat.go.jp/api/  (My Page -> API)
-# and set ESTAT_APP_ID=... in .env. Without it the jp backbone is skipped
+# and set ESTAT_API_ID=... in .env. Without it the jp backbone is skipped
 # gracefully (exporter prints why); everything else still builds.
 # =============================================================================
 
@@ -14,7 +14,7 @@ meta:
   geo: "JP"
   api_guide: "https://www.e-stat.go.jp/api/api-info/api-guide"
   client: "ism.estat.EstatClient"
-  app_id_env: "ESTAT_APP_ID"
+  app_id_env: "ESTAT_API_ID"
   note: >
     The category engine is unchanged; only the data plumbing differs. Japan's
     CPI item classification is flat 4-digit codes (cat01) whose hierarchy is

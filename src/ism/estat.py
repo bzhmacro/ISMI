@@ -7,7 +7,7 @@ Japanese analogue of our FRED/BEA/BLS/Eurostat/ONS clients. This is the data
 backbone for porting the ISM index to Japan (see config/sources_japan.yaml).
 
 ACCESS: e-Stat requires a free application ID — register at
-https://www.e-stat.go.jp/api/ and set ``ESTAT_APP_ID`` in .env. Every fetch
+https://www.e-stat.go.jp/api/ and set ``ESTAT_API_ID`` in .env. Every fetch
 method raises a clear error if the key is missing, and callers (the exporter,
 the jp pipeline) degrade gracefully.
 
@@ -67,20 +67,20 @@ class EstatClient:
     """Minimal e-Stat REST client (cached + provenance), mirroring the others."""
 
     def __init__(self, app_id: Optional[str] = None, cache_dir: Path = RAW_JP):
-        self.app_id = app_id or os.environ.get("ESTAT_APP_ID")
+        self.app_id = app_id or os.environ.get("ESTAT_API_ID")
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _check_key(self):
         if not self.app_id:
             raise ApiError("ESTAT", "missing application ID: register (free) at "
-                           "https://www.e-stat.go.jp/api/ and set ESTAT_APP_ID in .env")
+                           "https://www.e-stat.go.jp/api/ and set ESTAT_API_ID in .env")
 
     def _get(self, endpoint: str, params: Dict[str, Any], cache_name: str,
              force: bool = False) -> Dict[str, Any]:
         cache = self.cache_dir / f"{cache_name}.json"
         if cache.exists() and not force:
-            return json.loads(cache.read_text())
+            return json.loads(cache.read_text(encoding="utf-8"))
         self._check_key()
         q = {"appId": self.app_id, "lang": "J", **params}
         resp = _request("GET", f"{ESTAT_BASE}/{endpoint}", provider="ESTAT",
@@ -91,10 +91,10 @@ class EstatClient:
         if status not in (0, "0"):
             raise ApiError("ESTAT", f"{endpoint} status {status}: "
                            f"{root.get('RESULT', {}).get('ERROR_MSG', '')}")
-        cache.write_text(json.dumps(payload, ensure_ascii=False))
+        cache.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         (cache.with_suffix(".fetch.json")).write_text(json.dumps(
             {"endpoint": endpoint, "params": {k: v for k, v in params.items()}},
-            ensure_ascii=False))
+            ensure_ascii=False), encoding="utf-8")
         return payload
 
     # -- metadata -------------------------------------------------------------
@@ -132,7 +132,7 @@ class EstatClient:
         key = "".join(ch if ch.isalnum() or ch in "-_" else "" for ch in key)[:150]
         cache = self.cache_dir / f"data_{key}.parts.json"
         if cache.exists() and not force:
-            parts = json.loads(cache.read_text())
+            parts = json.loads(cache.read_text(encoding="utf-8"))
         else:
             parts, start = [], 1
             for _ in range(max_pages):
@@ -148,7 +148,7 @@ class EstatClient:
                 if not nxt:
                     break
                 start = int(nxt)
-            cache.write_text(json.dumps(parts, ensure_ascii=False))
+            cache.write_text(json.dumps(parts, ensure_ascii=False), encoding="utf-8")
             for p in self.cache_dir.glob(f"tmp_{key}_*"):
                 p.unlink(missing_ok=True)
         return self._parts_to_frame(parts)
