@@ -321,14 +321,18 @@ def build_backbone(name):
             client = EstatClient()
             infl, weights, labels = jp_pipeline.build_jp_cpi_panel(client)
             categories = [(k, f"{labels[k]} ({k})") for k in infl.columns]
-            label, source_note = "JP CPI", "Statistics Bureau of Japan CPI via e-Stat (2020-base, table 0003427113, NSA)"
+            label, source_note = "JP CPI", "Statistics Bureau of Japan CPI via e-Stat (2020-base, table 0003427113, NSA; medium-group/中分類 partition)"
             head_label = "Japan CPI inflation (12m, %)"
             headline = jp_pipeline.headline_jp_cpi_yoy(client)
             author = None
-            note = ("ISM computed in the browser from Japan's CPI item "
-                    "classification (e-Stat); weights = per-base CPI weights "
-                    "(fixed between base revisions), renormalised monthly.")
-            weight_note = "weights = CPI weights per base revision (static within base, renormalised monthly)"
+            note = ("ISM computed in the browser from Japan's CPI medium-group "
+                    "(中分類) classification (e-Stat 2020-base) — a true tiling of "
+                    "the index built by walking the item tree from the 10 major "
+                    "groups. Weights = the static 2020-base CPI weights (per 10000, "
+                    "Laspeyres; e-Stat Annual Report item list, statInfId "
+                    "000032177686), broadcast across months and renormalised — the "
+                    "same fixed-base treatment as the US CPI backbone.")
+            weight_note = "weights = static 2020-base CPI medium-group weights (per 10000), renormalised monthly"
         else:
             raise ValueError(name)
     except Exception as exc:   # e.g. BEA host blocked, or BLS unavailable

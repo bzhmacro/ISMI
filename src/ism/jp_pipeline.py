@@ -8,11 +8,14 @@ API (2020-base table 0003427113). The momentum engine is unchanged
 weights) pair and the Japan control block, per config/sources_japan.yaml.
 
   category prices  : 2020-base CPI by item (cat01), Japan, monthly, NSA
-  category cut     : a cat01 LEVEL chosen from the table's CLASS_INF metadata
-                     (default: the sub-group / chu-bunrui level — the
-                     depth-vs-history trade-off, like class level for the UK)
-  category weights : CPI weights (fixed per base revision; static broadcast,
-                     same simplification as the US CPI backbone)
+  category cut     : the medium groups (中分類) = direct children of the 10 major
+                     groups, walked from the cat01 parent tree (a true tiling;
+                     the @level attribute is unreliable — see
+                     select_cat01_partition)
+  category weights : static 2020-base CPI weights (per 10000, Laspeyres) from the
+                     e-Stat Annual Report item list (statInfId 000032177686);
+                     broadcast + renormalised monthly, same fixed-base treatment
+                     as the US CPI backbone
   headline         : cat01 0001 "Sogo" (all items)
   recession dummy  : Cabinet Office ESRI official reference dates
   controls         : FRED-based where possible (unemployment, Nikkei, JGB-call
@@ -21,9 +24,7 @@ weights) pair and the Japan control block, per config/sources_japan.yaml.
 
 NOTE: e-Stat requires a free application ID (ESTAT_API_ID in .env). All entry
 points fail with a clear message without one; the web exporter skips the jp
-backbone gracefully. Codes marked VALIDATE in the config (the weights tab id,
-the exact level codes) are confirmed on the first authenticated run — this
-module discovers them from metadata and prints what it chose.
+backbone gracefully.
 """
 
 from __future__ import annotations
@@ -65,6 +66,69 @@ def select_cat01_level(classes: pd.DataFrame, level: Optional[str] = None,
     return sel, str(level)
 
 
+# The 10 CPI major groups (大分類) of the 2020-base table. The cat01 dimension
+# packs THREE overlapping hierarchies into one flat code space — the major-group
+# tree, a goods/services recut (財 / サービス) and supplementary 再掲 /
+# seasonally-adjusted (季節調整済) aggregates — and its @level attribute is NOT
+# consistent across them, so no single @level is a clean partition (a level cut
+# double-counts and even mixes in seasonally-adjusted duplicates of the same
+# series). We instead tile the index by the medium groups (中分類) = the direct
+# children of these majors: mutually exclusive, exhaustive (every one of the
+# ~580 items rolls up to exactly one), and the analogue of the UK COICOP-class /
+# euro class-level cut used by the other country ports.
+JP_MAJOR_GROUPS = ["0002", "0045", "0054", "0060", "0082",
+                   "0107", "0111", "0118", "0122", "0145"]
+
+
+# Static 2020-base CPI weights (per 10000, Laspeyres) for the 47 medium groups,
+# transcribed from the e-Stat 2020-base CPI Item Information List (Annual Report
+# Appendix 1, statInfId 000032177686, "総合/Japan" weight column). Japan's CPI is
+# fixed-base, so these are constant between base revisions; the engine broadcasts
+# them across months and renormalises over the categories with a live signal --
+# the same static-weights treatment as the US CPI backbone's Dec-2023 relative
+# importance. The 10 major groups sum to exactly 10000; the 47 medium groups sum
+# to 10004, a few units off only through integer rounding of the published shares
+# (immaterial, since weights are renormalised each month).
+JP_CPI_WEIGHTS_2020 = {
+    # 0002 食料
+    "0003": 214, "0008": 199, "0013": 249, "0016": 126, "0021": 285, "0027": 105, "0030": 121, "0033": 236, "0034": 352, "0037": 163, "0041": 119, "0042": 460,
+    # 0045 住居
+    "0046": 1833, "0051": 316,
+    # 0054 光熱・水道
+    "0056": 341, "0057": 151, "0058": 38, "0059": 163,
+    # 0060 家具・家事用品
+    "0061": 132, "0066": 21, "0070": 27, "0073": 74, "0077": 105, "0081": 28,
+    # 0082 被服及び履物
+    "0083": 152, "0089": 105, "0098": 48, "0103": 29, "0106": 20,
+    # 0107 保健医療
+    "0108": 128, "0109": 91, "0110": 259,
+    # 0111 交通・通信
+    "0112": 167, "0113": 885, "0117": 441,
+    # 0118 教育
+    "0119": 213, "0120": 7, "0121": 84,
+    # 0122 教養娯楽
+    "0123": 77, "0128": 206, "0134": 110, "0138": 518,
+    # 0145 諸雑費
+    "0146": 110, "0147": 161, "0151": 63, "0155": 39, "0156": 233,
+}
+
+
+def select_cat01_partition(classes: pd.DataFrame,
+                           majors: Optional[list] = None) -> tuple[pd.DataFrame, str]:
+    """Tile the CPI by medium groups (中分類) = direct children of the majors.
+
+    Walks the parent tree rather than trusting @level (which interleaves
+    several overlapping hierarchies). Returns (subset, cut_name).
+    """
+    majors = majors or JP_MAJOR_GROUPS
+    cl = classes.dropna(subset=["code"]).copy()
+    sel = cl[cl["parent"].isin(majors)]
+    if sel.empty:
+        raise ValueError("no medium-group children found for the CPI major "
+                         "groups — the e-Stat table schema may have changed")
+    return sel, "medium-group(chu-bunrui)"
+
+
 def build_jp_cpi_panel(client: Optional[EstatClient] = None,
                        table_id: str = CPI_2020_TABLE,
                        level: Optional[str] = None,
@@ -86,9 +150,12 @@ def build_jp_cpi_panel(client: Optional[EstatClient] = None,
 
     # --- choose the category cut from metadata --------------------------------
     classes = client.class_frame(table_id, "cat01", force=force)
-    sel, level_used = select_cat01_level(classes, level=level)
+    if level is not None:
+        sel, level_used = select_cat01_level(classes, level=level)
+    else:
+        sel, level_used = select_cat01_partition(classes)
     labels = dict(zip(sel["code"], sel["name"].str.replace(r"^\d+\s*", "", regex=True)))
-    print(f"[jp] cat01 level {level_used}: {len(sel)} categories")
+    print(f"[jp] cat01 cut = {level_used}: {len(sel)} categories")
 
     # --- find the index (and weights) presentation items ----------------------
     tabs = client.class_frame(table_id, "tab", force=force)
@@ -122,10 +189,16 @@ def build_jp_cpi_panel(client: Optional[EstatClient] = None,
                 .pivot_table(index="date", columns="cat01", values="value", aggfunc="first")
                 .sort_index()
                 .reindex(price.index).ffill().bfill())
+    elif set(price.columns) <= set(JP_CPI_WEIGHTS_2020):
+        wvec = pd.Series({c: float(JP_CPI_WEIGHTS_2020[c]) for c in price.columns})
+        w = pd.DataFrame([wvec.values] * len(price.index),
+                         index=price.index, columns=price.columns)
+        print(f"[jp] weights: static 2020-base CPI medium-group weights "
+              f"(per 10000; sum {int(wvec.sum())}), broadcast + renormalised monthly")
     else:
-        print("[jp] WARNING: no weights tab found -> UNIFORM weights "
-              "(unweighted diffusion). Pin a weights table id in "
-              "config/sources_japan.yaml after inspecting getMetaInfo.")
+        missing = sorted(set(price.columns) - set(JP_CPI_WEIGHTS_2020))
+        print(f"[jp] WARNING: static weight vector missing {len(missing)} codes "
+              f"{missing[:6]} -> UNIFORM weights (unweighted diffusion)")
         w = pd.DataFrame(1.0, index=price.index, columns=price.columns)
 
     cols = [c for c in price.columns if c in w.columns]

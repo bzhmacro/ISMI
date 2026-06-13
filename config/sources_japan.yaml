@@ -29,29 +29,45 @@ category_prices:
   us: "BEA 2.4.4U PCE price indexes / BLS CUUR0000* item strata"
   jp_table: "0003427113"   # 2020-base CPI, Japan (zenkoku), monthly, by item (cat01)
   jp_source: "e-Stat getStatsData, statsCode 00200573 (Statistics Bureau CPI)"
-  selection: "cat01 level chosen from CLASS_INF metadata; default = sub-group (chu-bunrui) level, ~50 categories"
-  confidence: medium
-  flag: VALIDATE
+  selection: "medium-group (chu-bunrui) = direct children of the 10 major groups, walked from the cat01 parent tree; 47 categories"
+  confidence: high
+  flag: CONFIRMED
   note: >
-    Table id pinned from the official API news (cpi-info202107). The 2020-base
-    DB carries linked back-series for upper classification levels; exact
-    per-level history (chu-bunrui widely cited back to 1970) is confirmed on
-    the first authenticated run -- the pipeline prints the time range and
-    category count it actually got. Item level (~580 series) only spans the
-    current base; the sub-group cut is the right depth-vs-history trade-off,
-    as class level was for the UK.
+    Table id pinned from the official API news (cpi-info202107). CONFIRMED on
+    the first authenticated run (2026-06): the cat01 dimension packs THREE
+    overlapping hierarchies into one flat code space -- the major-group tree, a
+    goods/services recut (財 / サービス) and supplementary 再掲 / seasonally-
+    adjusted aggregates -- and its @level attribute is NOT consistent across
+    them, so no single @level is a clean partition (a level cut double-counts and
+    even pulls in seasonally-adjusted duplicates). We therefore tile the index by
+    the medium groups (中分類) = the direct children of the 10 major groups, walked
+    from the parent tree: mutually exclusive and exhaustive (all ~580 items roll
+    up to exactly one; 47 categories, monthly back to 1970-01). See
+    ism.jp_pipeline.select_cat01_partition. Item level (~580 series) only spans
+    the current base; the medium-group cut is the right depth-vs-history
+    trade-off, as the class level was for the UK.
 
 category_weights:
   us: "BEA 2.4.5U nominal PCE / BLS relative importance"
   jp: "CPI weights (per 10000) -- fixed per 5-year base revision (Laspeyres)"
   retrieval: "tab dimension of the same table if present, else the companion weights table discovered via getMetaInfo; else static vector pinned after first run"
-  confidence: medium
-  flag: VALIDATE
+  jp_source: "e-Stat 2020-base CPI Annual Report, Appendix 1 'List of CPI Items' (statInfId 000032177686), 総合/Japan weight column (per 10000)"
+  confidence: high
+  flag: CONFIRMED
   note: >
-    Japan's CPI is fixed-base: weights change only at base revisions (..., 2015,
-    2020), so static-per-base weights broadcast across months -- the same
-    simplification as the US CPI backbone's Dec-2023 relative importance. The
-    engine renormalises monthly over available categories.
+    CONFIRMED + WIRED (2026-06). Table 0003427113 exposes only three tabs (指数
+    index, 前月比, 前年同月比) -- there is NO weights tab, and a getStatsList search
+    under statsCode 00200573 surfaces no 2020-base weights DB table. The official
+    weights live in FILE datasets (Annual Report appendices, PDF only). We pin the
+    static 2020-base 中分類 weight vector (per 10000, Laspeyres) transcribed from
+    the CPI Item Information List (Appendix 1, statInfId 000032177686) into
+    ism.jp_pipeline.JP_CPI_WEIGHTS_2020, broadcast across months and renormalised
+    monthly -- the same fixed-base treatment as the US CPI backbone's Dec-2023
+    relative importance. Validation: the 10 major groups sum to exactly 10000 and
+    each major reconciles with the sum of its medium-group children to within the
+    integer-rounding of the published shares (47 mediums sum to 10004). The COICOP
+    weights appendix (Appendix 5, statInfId 000032177690) is a DIFFERENT
+    classification (外食/酒類 sit elsewhere) and is NOT used.
 
 # -----------------------------------------------------------------------------
 # Headline inflation (target + control)
