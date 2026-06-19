@@ -28,6 +28,39 @@ ISM_t = S⁺_t − S⁻_t          (net positive momentum share)
 A positive ISM means broad-based upward inflation pressure; negative means
 disinflationary pressure. See `docs/methodology.md` for the full maths→code map.
 
+## Second model: Supply/Demand decomposition (Shapiro 2022-18)
+
+The repo now also replicates **Shapiro (2024), "Decomposing Supply and Demand
+Driven Inflation," FRBSF WP 2022-18** — the framework behind the FRBSF
+"Supply- and Demand-Driven PCE Inflation" series. Unlike the momentum index
+(price only), this model needs category **quantity** as well as price, so it adds
+BEA table **2.4.3U** (`U20403`, real quantity) to the existing 2.4.4U/2.4.5U
+pulls and runs on PCE (headline and core).
+
+For each category we estimate a rolling reduced-form VAR of log price and log
+quantity on 12 lags of both (10-yr window), keep the one-step residuals, and sign
+each category-month: **demand-driven** when the price and quantity surprises move
+the same way, **supply-driven** when they move opposite ways. Aggregating with
+expenditure (Laspeyres) weights gives the supply/demand-driven **contributions**
+to inflation (Eq. 15) and the **shares** of the basket under each shock type
+(Eq. 14); the y/y version is the running 12-month product. A *precision cut*
+(`precision_cut=0.1`) reproduces the FRBSF published variant, which adds an
+"ambiguous" bucket.
+
+```bash
+python scripts/build_decomp.py     # build headline+core, save series, validate vs FRBSF
+python scripts/export_decomp_data.py   # refresh the website's decomp payload
+#   add --proxy to either if BEA U20403 is unavailable (quantity = nominal/price)
+```
+
+Key files: `src/ism/decomp_engine.py` (the maths, Eqs. 8-15), `decomp_pipeline.py`
+(BEA → log price/quantity + weights, headline/core), `decomp_validate.py`
+(vs the FRBSF published CSVs), `decomp_shocks.py` + `decomp_projection.py`
+(Section 4 local projections), `web/decomp_engine.js` (parity-tested browser
+twin), and `notebooks/decomp_replication.ipynb`. The interactive site has a
+top-level **Model** toggle to switch between the momentum index and this
+decomposition. Full maths→code map: `docs/decomp_methodology.md`.
+
 ## Repository layout
 
 ```

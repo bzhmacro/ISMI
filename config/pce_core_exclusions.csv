@@ -1,0 +1,8 @@
+key,group,label,note
+DFOFR,food,Food purchased for off-premises consumption,BEA core PCE excludes off-premises food (groceries)
+DNBVR,food,Nonalcoholic beverages purchased for off-premises consumption,part of BEA off-premises food & nonalcoholic beverages (DTFDR)
+DFFDR,food,Food produced and consumed on farms,small off-premises food line excluded from core
+DGASR,energy,Gasoline and other motor fuel,energy good (under BEA Gasoline and other energy goods)
+DOILR,energy,Fuel oil,energy good
+DLPFR,energy,Other fuels,energy good (propane / kerosene / firewood)
+DELGR,energy,Electricity and gas,household energy service

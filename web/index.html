@@ -3,25 +3,35 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inflation Shock Momentum — interactive explorer</title>
-  <meta name="description" content="Interactive explorer for the Inflation Shock Momentum (ISM) index (Lansing & Shapiro 2026). The index is recomputed live in your browser." />
+  <title>FRBSF inflation models — interactive explorer</title>
+  <meta name="description" content="Interactive explorer for two FRBSF inflation models — the Inflation Shock Momentum index (Lansing & Shapiro 2026) and the Supply/Demand decomposition (Shapiro 2022-18). Both recomputed live in your browser." />
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .modelbar { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .modelbar .seg button { font-weight:600; }
+    #decomp-view .banner { color:#f0d28a; }
+  </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
   <header>
-    <h1>Inflation Shock Momentum <span class="muted">— interactive explorer</span></h1>
-    <p class="sub">
-      Replication of Lansing &amp; Shapiro (2026), FRBSF WP 2026-10.
-      The index is <strong>recomputed live in your browser</strong> from the raw
-      category panels — drag any parameter and watch the index, its recent
-      prints, its drivers, and its correlation with the authors' series update.
+    <h1>FRBSF inflation models <span class="muted">— interactive explorer</span></h1>
+    <div class="modelbar">
+      <label>Model</label>
+      <div class="seg" id="model"></div>
+    </div>
+    <p class="sub" id="model-sub">
+      Replication of Lansing &amp; Shapiro (2026): the share of categories with
+      sustained inflation surprises, recomputed live in your browser.
     </p>
-    <p id="asof" class="asof"></p>
-    <p id="demo-banner" class="banner" hidden></p>
   </header>
 
   <main>
+    <!-- ===================== MODEL 1: ISM ===================== -->
+    <div id="ism-view">
+    <p id="asof" class="asof"></p>
+    <p id="demo-banner" class="banner" hidden></p>
+
     <section class="controls">
       <div class="control">
         <label>Price gauge</label>
@@ -77,9 +87,7 @@
     </section>
 
     <p id="status" class="status"></p>
-
     <section class="readout" id="readout"></section>
-
     <div id="chart" class="chart"></div>
 
     <section class="grid2">
@@ -106,43 +114,116 @@
         has <strong>positive momentum</strong> when its last <em>k</em> residuals
         are all positive, <strong>negative</strong> when all negative. The
         <strong>ISM index</strong> is the expenditure-weighted positive share
-        (S⁺) minus the negative share (S⁻). The <em>drivers</em> chart decomposes
-        the latest index value into each category's contribution
-        ω<sub>i</sub>·(M⁺<sub>i</sub>−M⁻<sub>i</sub>), which sum exactly to the index.
+        (S⁺) minus the negative share (S⁻).
       </p>
       <p class="muted">
         Everything is computed <strong>client-side</strong>: the site ships the raw
-        category inflation and weight panels, and a Web Worker re-runs the full
-        rolling-regression pipeline (a parity-tested port of the Python engine)
-        whenever you move a control. That is why the window length W, the run
-        length k, the ρ̂ cap and the category set are continuous dials rather
-        than a precomputed grid.
-      </p>
-      <p class="muted">
-        The same machinery runs on any price gauge: <strong>PCE</strong> (BEA
-        underlying detail, the gauge in the paper, with an author-series overlay),
-        <strong>CPI</strong> (≈70 BLS item strata weighted by their Dec-2023
-        relative importance), <strong>UK CPI</strong> (≈85 ONS COICOP classes
-        from MM23, annual ONS weights; data from 1988 → index from ~1998),
-        <strong>FR / DE HICP</strong> (≈130 Eurostat ECOICOP-v2 class leaves,
-        annual HICP item weights; data from 1996 → index from ~2006) and, when
-        exported with an e-Stat key, <strong>JP CPI</strong>. Switch with the
-        <em>Price gauge</em> control. Each partition tiles its whole index and
-        the engine renormalises the weights each month, so the index is robust
-        to the exact category cut.
-      </p>
-      <p class="muted">
-        Data refreshes automatically each month via a GitHub Action that re-runs
-        the export and redeploys. Want to feed in your own forecasts or run the
-        impulse responses / out-of-sample tests? See the notebooks in the repo.
+        category panels, and a Web Worker re-runs the rolling-regression pipeline
+        (a parity-tested port of the Python engine) whenever you move a control.
       </p>
     </section>
+    </div>
+
+    <!-- ================ MODEL 2: SUPPLY/DEMAND DECOMPOSITION ================ -->
+    <div id="decomp-view" hidden>
+    <p id="d-demo-banner" class="banner" hidden></p>
+
+    <section class="controls">
+      <div class="control">
+        <label>Scope</label>
+        <div class="seg" id="d-scope"></div>
+        <small>Headline = all PCE categories; Core = excludes food &amp; energy.</small>
+      </div>
+      <div class="control">
+        <label>VAR lags <em>J</em></label>
+        <div class="seg" id="d-lags"></div>
+        <div class="subctl">
+          <label class="mini">rolling window <b id="d-W-label">120</b> months</label>
+          <input type="range" id="d-W" min="60" max="240" step="6" value="120" />
+        </div>
+        <small>Reduced-form VAR of log price &amp; log quantity on J lags of both, rolling W months (Eqs. 12-13).</small>
+      </div>
+      <div class="control">
+        <label>Precision cut <span id="d-cut-label">0 (binary)</span></label>
+        <input type="range" id="d-cut" min="0" max="0.3" step="0.05" value="0" />
+        <small>0 = binary labels (working-paper baseline). 0.10 marks near-zero residuals "ambiguous" — the FRBSF published variant (Fig. 5).</small>
+      </div>
+      <div class="control">
+        <label>View</label>
+        <div class="seg" id="d-view"></div>
+        <small>Contributions to inflation (pp, stacked, summing to the total) or the share of the basket under each shock type (Eq. 14).</small>
+      </div>
+      <div class="control toggles">
+        <label class="chk"><input type="checkbox" id="d-t-author" checked /> FRBSF series</label>
+        <label class="chk"><input type="checkbox" id="d-t-headline" checked /> Total &amp; published inflation</label>
+      </div>
+      <div class="control range">
+        <label>Sample start: <span id="d-start-label"></span></label>
+        <input type="range" id="d-start" min="0" max="0" value="0" />
+      </div>
+      <div class="control cats">
+        <label>Categories <span class="muted" id="d-cat-summary"></span></label>
+        <details>
+          <summary>choose categories…</summary>
+          <input type="search" id="d-cat-search" placeholder="filter, e.g. gasoline" autocomplete="off" />
+          <div class="catlist" id="d-catlist"></div>
+        </details>
+        <small>Untick to drop a category; weights renormalise over the rest.</small>
+      </div>
+    </section>
+
+    <p id="d-status" class="status"></p>
+    <section class="readout" id="d-readout"></section>
+    <div id="d-chart" class="chart"></div>
+
+    <section class="grid2">
+      <div>
+        <h2>Last 22 months (supply vs demand)</h2>
+        <div id="d-bars" class="chart small"></div>
+      </div>
+      <div>
+        <h2>Top category drivers <span id="d-drivers-date" class="muted"></span></h2>
+        <div id="d-drivers" class="chart small"></div>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="d-download">Download current series (CSV)</button>
+      <span class="muted" id="d-meta"></span>
+    </section>
+
+    <section class="explain">
+      <h2>What am I looking at?</h2>
+      <p>
+        For each PCE category we estimate a rolling reduced-form VAR of its log
+        price and log quantity on <em>J</em> lags of both (Eqs. 12-13), and keep
+        the one-step residuals. A category-month is <strong>demand-driven</strong>
+        when the price and quantity surprises move the <em>same</em> way
+        (both up or both down), and <strong>supply-driven</strong> when they move
+        <em>opposite</em> ways. The <strong>supply/demand contributions</strong>
+        to inflation are the expenditure-weighted (Laspeyres) sums of those
+        categories' inflation (Eq. 15); the year-over-year version is the running
+        12-month product. Raising the <em>precision cut</em> moves near-zero
+        residuals into an <strong>ambiguous</strong> bucket — the variant FRBSF
+        publishes.
+      </p>
+      <p class="muted">
+        The decomposition needs category <em>quantity</em> as well as price, which
+        only the BEA PCE underlying detail provides monthly — so this model runs
+        on PCE (headline and core). Everything is recomputed
+        <strong>client-side</strong> by a parity-tested port of the Python engine;
+        drag <em>J</em>, the window, the precision cut or the category set and
+        watch it update. <span id="d-note" class="muted"></span>
+      </p>
+    </section>
+    </div>
   </main>
 
   <footer>
-    <span id="foot-source">Built from BEA Underlying Detail + FRED. Index correlates ~0.99 with the authors' series.</span>
+    <span id="foot-source">ISM: BEA Underlying Detail + FRED (corr ~0.99 vs authors). Decomposition: Shapiro (2022-18), validated vs the FRBSF published series.</span>
   </footer>
 
   <script src="app.js"></script>
+  <script src="decomp_app.js"></script>
 </body>
 </html>
