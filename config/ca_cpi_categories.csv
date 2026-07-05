@@ -1,0 +1,120 @@
+member_id_cpi,member_id_w,key,label,depth,parent_id
+6,5,P6,Fresh or frozen meat (excluding poultry),4,5
+10,9,P10,Fresh or frozen poultry,4,5
+13,12,P13,Processed meat,4,5
+17,16,P17,Fish,4,16
+20,19,P20,Seafood and other marine products,4,16
+22,21,P22,Dairy products,4,21
+28,27,P28,Eggs,4,21
+30,29,P30,Bakery products,4,29
+34,33,P34,Cereal products (excluding baby food),4,29
+40,39,P40,Fresh fruit,4,39
+45,44,P45,Preserved fruit and fruit preparations,4,39
+48,47,P48,Nuts and seeds,4,39
+50,49,P50,Fresh vegetables,4,49
+55,54,P55,Preserved vegetables and vegetable preparations,4,49
+59,58,P59,Sugar and confectionery,4,58
+62,61,P62,Edible fats and oils,4,58
+65,64,P65,Coffee and tea,4,58
+68,67,P68,"Condiments, spices and vinegars",4,58
+69,68,P69,Other food preparations,4,58
+74,73,P74,Non-alcoholic beverages,4,58
+76,75,P76,Food purchased from table-service restaurants,3,75
+77,76,P77,Food purchased from fast food and take-out restaurants,3,75
+78,77,P78,Food purchased from cafeterias and other restaurants,3,75
+81,80,P81,Rent,3,80
+82,81,P82,Tenants' insurance premiums,3,80
+83,82,P83,"Tenants' maintenance, repairs and other expenses",3,80
+85,84,P85,Mortgage interest cost,3,84
+86,85,P86,Homeowners' replacement cost,3,84
+87,86,P87,Property taxes and other special charges,3,84
+88,87,P88,Homeowners' home and mortgage insurance,3,84
+89,88,P89,Homeowners' maintenance and repairs,3,84
+90,89,P90,Other owned accommodation expenses,3,84
+92,91,P92,Electricity,3,91
+93,92,P93,Water,3,91
+94,93,P94,Natural gas,3,91
+95,94,P95,Fuel oil and other fuels,3,91
+99,98,P99,Telephone services,4,98
+100,99,P100,Postal and other communications services,4,98
+102,103,P102,Child care services,4,101
+103,104,P103,Housekeeping services,4,101
+105,106,P105,Detergents and soaps (other than personal care),4,104
+106,107,P106,Other household cleaning products,4,104
+108,109,P108,Paper supplies,4,107
+109,110,P109,Plastic and aluminum foil supplies,4,107
+111,112,P111,Pet food and supplies,4,110
+112,113,P112,"Seeds, plants and cut flowers",4,110
+113,114,P113,Other horticultural goods,4,110
+114,115,P114,Other household supplies,4,110
+115,116,P115,Other household services,4,110
+118,120,P118,Furniture,4,117
+122,124,P122,Household textiles,4,117
+127,129,P127,Household appliances,4,126
+132,134,P132,"Non-electric kitchen utensils, tableware and cookware",4,126
+135,135,P135,Tools and other household equipment,4,126
+138,138,P138,Services related to household furnishings and equipment,3,116
+141,142,P141,Women's clothing,3,140
+148,143,P148,Men's clothing,3,140
+155,144,P155,Children's clothing,3,140
+162,146,P162,Women's footwear (excluding athletic),3,161
+163,147,P163,Men's footwear (excluding athletic),3,161
+164,148,P164,Children's footwear (excluding athletic),3,161
+165,149,P165,Athletic footwear,3,161
+168,153,P168,Watches,3,166
+169,154,P169,Jewellery,3,166
+171,155,P171,"Clothing material, notions and services",2,139
+179,163,P179,Purchase and leasing of passenger vehicles,4,178
+182,166,P182,Rental of passenger vehicles,4,178
+184,168,P184,Gasoline,4,183
+185,169,P185,"Passenger vehicle parts, maintenance and repairs",4,183
+188,172,P188,Other passenger vehicle operating expenses,4,183
+196,180,P196,City bus and subway transportation,4,195
+197,181,P197,Taxi and other local and commuter transportation services,4,195
+199,183,P199,Air transportation,4,198
+200,184,P200,"Rail, highway bus and other inter-city transportation",4,198
+204,188,P204,Medicinal and pharmaceutical products,4,310
+207,192,P207,Other health care goods,4,310
+209,191,P209,Eye care goods,4,310
+210,195,P210,Dental care services,4,311
+211,196,P211,Other health care services,4,311
+214,199,P214,Personal soap,4,213
+215,200,P215,Toiletry items and cosmetics,4,213
+216,201,P216,Oral-hygiene products,4,213
+217,202,P217,Other personal care supplies and equipment,4,213
+218,203,P218,Personal care services,3,212
+222,207,P222,Sporting and exercise equipment,4,221
+224,209,P224,Digital computing equipment and devices,4,221
+227,213,P227,Other recreational equipment,4,221
+229,216,P229,Purchase of recreational vehicles and outboard motors,4,228
+230,217,P230,Operation of recreational vehicles,4,228
+234,221,P234,Audio equipment,4,233
+236,222,P236,Video equipment,4,233
+241,227,P241,Traveller accommodation,4,240
+242,228,P242,Travel tours,4,240
+244,230,P244,Spectator entertainment (excluding video and audio subscription services),4,243
+245,231,P245,Video and audio subscription services,4,243
+246,232,P246,Use of recreational facilities and services,4,243
+249,235,P249,Tuition fees,4,248
+250,236,P250,School textbooks and supplies,4,248
+251,237,P251,"Other lessons, courses and education services",4,248
+253,239,P253,Newspapers,4,252
+254,240,P254,Magazines and periodicals,4,252
+255,241,P255,Books and reading material (excluding textbooks),4,252
+259,245,P259,Beer served in licensed establishments,4,258
+260,246,P260,Wine served in licensed establishments,4,258
+261,247,P261,Liquor served in licensed establishments,4,258
+263,249,P263,Beer purchased from stores,4,262
+264,250,P264,Wine purchased from stores,4,262
+265,251,P265,Liquor purchased from stores,4,262
+267,253,P267,Cigarettes,3,266
+268,285,P268,Other tobacco products and smokers' supplies,3,266
+297,100,P297,Internet access services,4,98
+298,117,P298,Financial services,4,110
+301,194,P301,Eye care services,4,311
+304,208,P304,"Toys, games (excluding video games) and hobby supplies",4,221
+305,212,P305,Photographic equipment and supplies,4,221
+306,214,P306,Recreational services,4,221
+308,224,P308,Purchase of digital media,4,233
+367,287,P367,Recreational cannabis,2,256
+369,289,P369,Clothing accessories,3,166

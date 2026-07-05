@@ -36,7 +36,7 @@
       <div class="control">
         <label>Price gauge</label>
         <div class="seg" id="backbone"></div>
-        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata; UK = ONS; FR/DE = Eurostat HICP; JP = e-Stat.</small>
+        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata; UK = ONS; FR/DE = Eurostat HICP; JP = e-Stat; CA = Statistics Canada.</small>
       </div>
       <div class="control">
         <label>Benchmark model</label>
@@ -132,16 +132,16 @@
       <div class="control">
         <label>Scope</label>
         <div class="seg" id="d-scope"></div>
-        <small>Headline = all PCE categories; Core = excludes food &amp; energy.</small>
+        <small>US = monthly BEA PCE (headline / core, ex food &amp; energy). Quarterly national-accounts ports: Canada (StatCan HCE, total / goods / services, Bank of Canada SAP 2026-33), UK (ONS Consumer Trends), France (INSEE), Germany (Eurostat, by durability), Japan (Cabinet Office SNA, by type).</small>
       </div>
       <div class="control">
         <label>VAR lags <em>J</em></label>
         <div class="seg" id="d-lags"></div>
         <div class="subctl">
-          <label class="mini">rolling window <b id="d-W-label">120</b> months</label>
+          <label class="mini">rolling window <b id="d-W-label">120</b> <span id="d-W-unit">months</span></label>
           <input type="range" id="d-W" min="60" max="240" step="6" value="120" />
         </div>
-        <small>Reduced-form VAR of log price &amp; log quantity on J lags of both, rolling W months (Eqs. 12-13).</small>
+        <small>Reduced-form VAR of log price &amp; log quantity on J lags of both, rolling W periods (Eqs. 12-13).</small>
       </div>
       <div class="control">
         <label>Precision cut <span id="d-cut-label">0 (binary)</span></label>
@@ -178,7 +178,7 @@
 
     <section class="grid2">
       <div>
-        <h2>Last 22 months (supply vs demand)</h2>
+        <h2>Last 22 periods (supply vs demand)</h2>
         <div id="d-bars" class="chart small"></div>
       </div>
       <div>
@@ -208,9 +208,16 @@
         publishes.
       </p>
       <p class="muted">
-        The decomposition needs category <em>quantity</em> as well as price, which
-        only the BEA PCE underlying detail provides monthly — so this model runs
-        on PCE (headline and core). Everything is recomputed
+        The decomposition needs category <em>quantity</em> as well as price. For
+        the US, only the BEA PCE underlying detail provides this monthly (headline
+        and core). Other countries publish it in their <em>quarterly</em>
+        national accounts, so the same estimator (4 lags, 40-quarter window) runs
+        on those via the Scope selector: <strong>Canada</strong> (Bank of Canada
+        variant, Kang–Sekkel–Taskin–Yang SAP 2026-33; total / goods / services),
+        <strong>UK</strong> (ONS Consumer Trends), <strong>France</strong> (INSEE),
+        <strong>Germany</strong> (Eurostat, by durability) and
+        <strong>Japan</strong> (Cabinet Office SNA, by type). Everything is
+        recomputed
         <strong>client-side</strong> by a parity-tested port of the Python engine;
         drag <em>J</em>, the window, the precision cut or the category set and
         watch it update. <span id="d-note" class="muted"></span>

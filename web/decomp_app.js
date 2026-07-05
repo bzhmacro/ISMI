@@ -43,9 +43,10 @@
     if (model === "decomp") {
       ism.hidden = true; dec.hidden = false;
       if (sub) sub.textContent =
-        "Decomposing PCE inflation into supply- and demand-driven contributions " +
-        "(Shapiro 2022-18). Each category-month is signed from the reduced-form " +
-        "price & quantity residuals; recomputed live in your browser.";
+        "Decomposing inflation into supply- and demand-driven contributions " +
+        "(Shapiro 2022-18; Canada: Bank of Canada SAP 2026-33). Each category-" +
+        "period is signed from the reduced-form price & quantity residuals; " +
+        "recomputed live in your browser.";
       if (!D.inited) init();
       else requestCompute(0);
     } else {
@@ -89,6 +90,14 @@
   function ui() { return (DATA.meta && DATA.meta.ui) || {}; }
   function exSet() { return (EXCLUDED[D.scope] = EXCLUDED[D.scope] || new Set()); }
 
+  // per-scope frequency + baseline params (12/12/120 monthly US, 4/4/40 quarterly CA)
+  function sconf() {
+    const s = scope() || {};
+    const bp = s.baseline_params || {};
+    return { ppy: s.ppy || 12, J0: bp.J || 12, W0: bp.W || 120, ui: s.ui || ui(),
+             quarterly: (s.ppy || 12) === 4 };
+  }
+
   // ---- worker ------------------------------------------------------------
   function setupWorker() {
     if (typeof Worker === "undefined") return;
@@ -116,7 +125,8 @@
     return `${D.scope}|J${D.J}|W${D.W}|c${D.precisionCut}|x${ex}`;
   }
   function isBaseline() {
-    return D.J === 12 && D.W === 120 && D.precisionCut === 0 && exSet().size === 0;
+    const c = sconf();
+    return D.J === c.J0 && D.W === c.W0 && D.precisionCut === 0 && exSet().size === 0;
   }
 
   // result selection: fresh worker result > precomputed baseline
@@ -148,7 +158,7 @@
     DEB = setTimeout(() => {
       REQ += 1; REQ_KEY = key;
       WORKER.postMessage({ type: "compute", id: REQ, scope: D.scope,
-        params: { J: D.J, W: D.W, h: 0, precisionCut: D.precisionCut, excluded: [...exSet()] } });
+        params: { J: D.J, W: D.W, h: 0, ppy: sconf().ppy, precisionCut: D.precisionCut, excluded: [...exSet()] } });
       setStatus("computing…");
     }, delay);
   }
@@ -169,18 +179,27 @@
 
   function buildScopeSeg() {
     const names = (DATA.meta && DATA.meta.scopes) || ["headline"];
-    seg("d-scope", names, D.scope, n => n[0].toUpperCase() + n.slice(1),
+    const label = n => (DATA.scopes[n] && DATA.scopes[n].tab) || (n[0].toUpperCase() + n.slice(1));
+    seg("d-scope", names, D.scope, label,
         n => { D.scope = n; D.selectedDate = null; applyScope(); requestCompute(0); });
+  }
+
+  // J-lags seg + W slider depend on the scope's frequency (monthly vs quarterly),
+  // so they are (re)built on every scope switch from that scope's ui/baseline.
+  function applyScopeParams() {
+    const c = sconf();
+    D.J = c.J0; D.W = c.W0;
+    seg("d-lags", c.ui.var_lags || [3, 12, 24], D.J, v => `${v} lags`,
+        v => { D.J = v; D.selectedDate = null; requestCompute(0); });
+    const W = $("d-W"), wcfg = c.ui.window || { min: 60, max: 240, step: 6, default: 120 };
+    W.min = wcfg.min; W.max = wcfg.max; W.step = wcfg.step; W.value = D.W;
+    $("d-W-label").textContent = D.W;
+    const unit = $("d-W-unit"); if (unit) unit.textContent = c.quarterly ? "quarters" : "months";
+    W.oninput = () => { D.W = +W.value; $("d-W-label").textContent = D.W; D.selectedDate = null; requestCompute(180); };
   }
 
   function buildParamControls() {
     const u = ui();
-    seg("d-lags", u.var_lags || [3, 12, 24], D.J, v => `${v} lags`,
-        v => { D.J = v; D.selectedDate = null; requestCompute(0); });
-    const W = $("d-W"), wcfg = u.window || { min: 60, max: 240, step: 6, default: 120 };
-    W.min = wcfg.min; W.max = wcfg.max; W.step = wcfg.step; W.value = D.W;
-    $("d-W-label").textContent = D.W;
-    W.oninput = () => { D.W = +W.value; $("d-W-label").textContent = D.W; D.selectedDate = null; requestCompute(180); };
     const C = $("d-cut"), ccfg = u.precision_cut || { min: 0, max: 0.3, step: 0.05, default: 0 };
     C.min = ccfg.min; C.max = ccfg.max; C.step = ccfg.step; C.value = D.precisionCut;
     $("d-cut-label").textContent = D.precisionCut === 0 ? "0 (binary)" : D.precisionCut.toFixed(2);
@@ -205,6 +224,7 @@
 
   function applyScope() {
     const s = scope();
+    applyScopeParams();
     X = s.dates.map(d => new Date(d + "-01"));
     const a = $("d-t-author"), hasA = !!s.author;
     if (a) { a.disabled = !hasA; const lab = a.closest(".chk"); if (lab) { lab.style.opacity = hasA ? "" : ".4"; lab.title = hasA ? "" : "No FRBSF author overlay in this data file"; } if (!hasA) a.checked = false; D.author = a.checked; }
@@ -260,12 +280,13 @@
     const x = sliceFrom(X);
 
     let sup, dem, amb, tot, yLabel, isShare = false;
+    const perLabel = sconf().quarterly ? "quarterly" : "monthly";
     if (D.view === "shares") {
-      sup = res.sh_supply; dem = res.sh_demand; amb = res.sh_ambiguous; tot = null; yLabel = "share of PCE basket"; isShare = true;
+      sup = res.sh_supply; dem = res.sh_demand; amb = res.sh_ambiguous; tot = null; yLabel = "share of basket"; isShare = true;
     } else if (D.view === "contrib_monthly") {
-      sup = res.supply; dem = res.demand; amb = res.ambiguous; tot = res.total; yLabel = "contribution to monthly inflation (pp)";
+      sup = res.supply; dem = res.demand; amb = res.ambiguous; tot = res.total; yLabel = `contribution to ${perLabel} inflation (pp)`;
     } else {
-      sup = res.supply_yoy; dem = res.demand_yoy; amb = res.ambiguous_yoy; tot = res.total_yoy; yLabel = "contribution to 12-month inflation (pp)";
+      sup = res.supply_yoy; dem = res.demand_yoy; amb = res.ambiguous_yoy; tot = res.total_yoy; yLabel = "contribution to year-over-year inflation (pp)";
     }
 
     const hasAmb = D.precisionCut > 0 || (amb && amb.some(v => v != null && Math.abs(v) > 1e-9));
@@ -279,9 +300,9 @@
                   stackgroup: stack, line: { width: 0.5, color: AMB }, fillcolor: "rgba(201,180,88,0.7)" });
     if (!isShare && D.headline) {
       const hy = s.headline_yoy && D.view !== "contrib_monthly" ? s.headline_yoy : null;
-      const totName = D.view === "contrib_monthly" ? "Total (monthly)" : "Total (y/y)";
+      const totName = D.view === "contrib_monthly" ? `Total (${perLabel})` : "Total (y/y)";
       traces.push({ x, y: sliceFrom(tot), name: totName, type: "scatter", mode: "lines", line: { color: TOT, width: 1.4 } });
-      if (hy) traces.push({ x, y: sliceFrom(hy), name: "Published PCE inflation", type: "scatter", mode: "lines", line: { color: "#d05ce3", width: 1, dash: "dot" } });
+      if (hy) traces.push({ x, y: sliceFrom(hy), name: "Published inflation", type: "scatter", mode: "lines", line: { color: "#d05ce3", width: 1, dash: "dot" } });
     }
     if (D.author && scope().author) {
       const aS = authorSeries(s, "supply"), aD = authorSeries(s, "demand");
@@ -309,7 +330,7 @@
     const lsup = last(sup), ldem = last(dem);
     const aS = authorSeries(s, "supply");
     const corr = aS ? pearson(sliceFrom(sup), sliceFrom(aS)) : NaN;
-    const spec = `PCE ${D.scope} · ${D.J} lags · W=${D.W} · ${D.precisionCut === 0 ? "binary" : "cut " + D.precisionCut.toFixed(2)}` + (exSet().size ? ` · −${exSet().size} cats` : "");
+    const spec = `${s.tab || s.label || D.scope} · ${D.J} lags · W=${D.W} · ${D.precisionCut === 0 ? "binary" : "cut " + D.precisionCut.toFixed(2)}` + (exSet().size ? ` · −${exSet().size} cats` : "");
     const stats = [
       ["Latest supply", lsup == null ? "—" : lsup.toFixed(2)],
       ["Latest demand", ldem == null ? "—" : ldem.toFixed(2)],
@@ -377,7 +398,7 @@
         rows.push([s.dates[i], res.supply[i], res.demand[i], res.ambiguous[i], res.total[i], res.supply_yoy[i], res.demand_yoy[i], res.total_yoy[i], res.sh_supply[i], res.sh_demand[i]]);
       const csv = rows.map(r => r.map(v => v == null ? "" : v).join(",")).join("\n");
       const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-      a.download = `decomp_pce_${D.scope}_J${D.J}_W${D.W}_cut${D.precisionCut}.csv`; a.click();
+      a.download = `decomp_${D.scope}_J${D.J}_W${D.W}_cut${D.precisionCut}.csv`; a.click();
     };
   }
 

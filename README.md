@@ -61,6 +61,55 @@ twin), and `notebooks/decomp_replication.ipynb`. The interactive site has a
 top-level **Model** toggle to switch between the momentum index and this
 decomposition. Full maths→code map: `docs/decomp_methodology.md`.
 
+### Country ports of the decomposition (Canada, UK, France, Germany, Japan)
+
+The same estimator runs on **quarterly national-accounts** household consumption
+for several countries (`src/ism/decomp_ports.py`, registered in `PORTS`), which
+supply category **quantity** as well as price. All use the quarterly baseline
+(`QUARTERLY_BASELINE`: 4 lags, 40-quarter window, `periods_per_year=4`) and appear
+as scopes in the decomposition site's **Scope** selector:
+
+| scope | source | cross-section | from | cache shipped |
+|-------|--------|--------------:|------|---------------|
+| `ca` / `ca_goods` / `ca_services` | StatCan 36-10-0124 HCE | ~96 leaves | 1961 | no (run `fetch_statcan.py`) |
+| `uk` | ONS Consumer Trends (`ct.csv`) | ~105 COICOP classes | 1955 | yes |
+| `fr` | INSEE quarterly accounts (A17) | ~17 products | 1949 | yes |
+| `de` | Eurostat `namq_10_fcs` by durability | 4 categories | 1991 | no (self-fetch; no key) |
+| `jp` | Cabinet Office SNA HCE by type (e-Stat) | 4 form categories | 1994 | no (self-fetch; needs `ESTAT_API_ID`) |
+
+There is no published supply/demand series for these countries, so they are
+validated by internal coherence (`ism.decomp_validate.sanity_quarterly_decomp`)
+rather than a ground-truth comparison. Japan's quarterly SNA offers only four
+"form" categories (durable / semi-durable / non-durable goods, services), so its
+decomposition is deliberately coarse — a broad goods-vs-services signal (see
+`docs/DECISIONS.md`).
+
+**Canada** follows the Bank of Canada variant —
+
+> Kang, H., Sekkel, R., Taskin, T. & Yang, J. (2026). **Supply and Demand-Driven
+> inflation: Decomposition and policy implications.** Bank of Canada Staff
+> Analytical Paper 2026-33. https://doi.org/10.34989/sap-2026-33
+
+— which applies Shapiro (2022) to Statistics Canada's **quarterly** detailed
+household final consumption expenditure (table 36-10-0124, real + nominal), i.e.
+the reduced-form VAR uses **4 lags on a 40-quarter rolling window**
+(`DecompConfig(var_lags=4, window=40, periods_per_year=4)`, exposed as
+`ism.decomp_ports.QUARTERLY_BASELINE`), with the y/y series a running product of
+the last **four** quarters. Scopes: total / goods / services (paper Figs. 2–4).
+The decomposition website's **Scope** selector now carries these Canada scopes
+alongside US headline/core, using per-scope frequency (12 monthly / 4 quarterly).
+
+```bash
+python scripts/fetch_statcan.py          # populate data/raw/statcan/ (run locally; www150 is blocked from CI)
+python scripts/build_decomp.py           # US headline+core + Canada total/goods/services, validate vs the BoC facts
+python scripts/export_decomp_data.py     # refresh the website's decomp payload (all scopes it can build)
+```
+
+Canada also has an **ISM momentum** backbone (StatCan CPI by product,
+`src/ism/ca_pipeline.py`) selectable as the `ca` price gauge on the momentum page.
+Sources and conventions: `config/sources_canada.yaml`; port decisions:
+`docs/DECISIONS.md`.
+
 ## Repository layout
 
 ```
@@ -70,6 +119,9 @@ ISMI/
 │   ├── sources_europe.yaml    # FRED -> Eurostat mapping for the EU port
 │   ├── sources_uk.yaml        # FRED/BEA/BLS -> ONS mapping for the UK CPI port
 │   ├── sources_japan.yaml     # FRED/BEA/BLS -> e-Stat mapping for the Japan CPI port
+│   ├── sources_canada.yaml    # US -> StatCan mapping (CA ISM CPI + quarterly HCE decomposition)
+│   ├── ca_hce_categories.csv  # pinned StatCan 36-10-0124 HCE leaves (decomposition; G/S tags)
+│   ├── ca_cpi_categories.csv  # pinned StatCan 18-10-0004 CPI leaves (ISM; + 18-10-0007 weight ids)
 │   ├── pce_categories.csv     # the pinned 130 fourth-level PCE categories
 │   └── cpi_categories.csv     # the pinned ~70 BLS CPI item strata (alt. backbone)
 ├── src/ism/                   # the library (the importable engine + plumbing)
@@ -90,10 +142,14 @@ ISMI/
 │   ├── uk_pipeline.py         # ONS CPI COICOP classes -> ISM for the UK
 │   ├── estat.py               # e-Stat API client (Japan port; free ESTAT_API_ID)
 │   ├── jp_pipeline.py         # Japan CPI by item -> ISM (e-Stat 2020-base table)
+│   ├── statcan.py             # Statistics Canada client (36-10-0124 HCE, 18-10-0004/07 CPI)
+│   ├── ca_pipeline.py         # StatCan CPI by product -> ISM for Canada
+│   ├── decomp_ports.py        # quarterly national-accounts ports of the decomposition (ca/uk/fr/de)
 │   ├── figures.py / validate.py / run.py
 ├── scripts/                   # runnable helpers
 │   ├── build_and_validate.py  # build the US index + convergence check
 │   ├── finalize_categories.py # pin config/pce_categories.csv from BEA hierarchy
+│   ├── fetch_statcan.py       # rebuild the Canadian data caches (data/raw/statcan/)
 │   └── export_web_data.py     # export raw panels + baseline to web/data/ism.json
 ├── notebooks/                 # guided, runnable analyses
 │   ├── ISM_replication.ipynb  # Figure 1 + Table 1 (core)
@@ -103,7 +159,7 @@ ISMI/
 ├── web/                       # zero-build interactive site (deploy on Vercel)
 │   ├── index.html / app.js / styles.css / vercel.json
 │   ├── engine.js / worker.js  # the ISM maths IN THE BROWSER (parity-tested JS port)
-│   └── data/ism.json          # raw panels + baselines, all gauges: pce cpi uk fr de [jp] (regen via scripts/export_web_data.py)
+│   └── data/ism.json          # raw panels + baselines, all gauges: pce cpi uk fr de jp ca (regen via scripts/export_web_data.py)
 ├── tests/                     # 25 synthetic unit tests incl. Python<->JS parity (no network)
 ├── docs/                      # methodology.md, differences_report.md, DECISIONS.md
 ├── data/                      # NOT committed (gitignored); see data/README.md

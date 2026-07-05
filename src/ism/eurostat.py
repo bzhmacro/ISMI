@@ -188,3 +188,62 @@ def monthly_weights_from_annual(annual_w: pd.DataFrame, month_index: pd.Datetime
     w = annual_w.copy()
     w.index = pd.to_datetime(w.index.astype(str) + "-01-01")
     return w.reindex(month_index.union(w.index)).sort_index().ffill().reindex(month_index)
+
+
+# ---------------------------------------------------------------------------
+# Quarterly household consumption by DURABILITY (the decomposition port's data)
+# ---------------------------------------------------------------------------
+# Eurostat national accounts dataset namq_10_fcs, "Final consumption aggregates
+# by durability", quarterly, seasonally + calendar adjusted (SCA). The four
+# household leaves (na_item) are durable / semi-durable / non-durable goods and
+# services -- the same coarse four-way split used by the Japan SNA port. Both
+# nominal (CP_MEUR) and chain-linked real (CLV20_MEUR) are available, so an
+# implicit deflator and a real quantity can be formed per category. Works for
+# ANY EU/EEA geo (geo="DE", "FR", "IT", "ES", ...). Input for
+# ism.decomp_ports.build_de_panels (and portable to other EU countries).
+NAMQ_FCS_DATASET = "namq_10_fcs"
+EU_HCE_DURABILITY = {                # na_item -> (key, English label)
+    "P311_S14": ("durable", "Durable goods"),
+    "P312_S14": ("semidurable", "Semi-durable goods"),
+    "P313_S14": ("nondurable", "Non-durable goods"),
+    "P314_S14": ("services", "Services"),
+}
+
+
+def _eu_quarter_to_timestamp(code) -> Optional[pd.Timestamp]:
+    """Eurostat quarterly period code 'YYYY-Qn' -> quarter-start Timestamp."""
+    s = str(code)
+    if "-Q" in s:
+        y, q = s.split("-Q", 1)
+        if y.isdigit() and q.isdigit() and 1 <= int(q) <= 4:
+            return pd.Timestamp(int(y), 3 * int(q) - 2, 1)
+    return None
+
+
+def eu_hce_panels(client: Optional[EurostatClient] = None, geo: str = "DE",
+                  ref_unit: str = "CLV20_MEUR", force: bool = False):
+    """(nominal, volume, labels) for quarterly HCE by durability (Eurostat namq_10_fcs).
+
+    nominal = current-price (CP_MEUR); volume = chain-linked real (`ref_unit`,
+    default 2020-referenced CLV). Four durability leaves, SCA. Same
+    (nominal, volume, labels) contract as the other quarterly decomposition
+    ports; `geo` selects the country (DE, FR, IT, ES, NL, ...).
+    """
+    client = client or EurostatClient()
+
+    def _wide(unit: str) -> pd.DataFrame:
+        df = client.dataset(NAMQ_FCS_DATASET,
+                            {"freq": "Q", "geo": geo, "s_adj": "SCA", "unit": unit},
+                            force=force)
+        df = df[df["na_item"].isin(EU_HCE_DURABILITY)].copy()
+        df["d"] = df["time"].map(_eu_quarter_to_timestamp)
+        df = df.dropna(subset=["d"])
+        df["key"] = df["na_item"].map(lambda k: EU_HCE_DURABILITY[k][0])
+        return df.pivot_table(index="d", columns="key", values="value",
+                              aggfunc="first").sort_index()
+
+    nominal = _wide("CP_MEUR")
+    volume = _wide(ref_unit)
+    labels = {key: lab for key, lab in EU_HCE_DURABILITY.values()}
+    cols = [c for c in nominal.columns if c in volume.columns]
+    return nominal[cols], volume[cols], {c: labels[c] for c in cols}

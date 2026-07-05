@@ -163,6 +163,8 @@ def _request(
     provider: str,
     params: Optional[dict] = None,
     json_body: Optional[dict] = None,
+    headers: Optional[dict] = None,
+    data: Optional[dict] = None,
     timeout: int = DEFAULT_TIMEOUT,
     retries: int = DEFAULT_RETRIES,
     backoff: float = DEFAULT_BACKOFF,
@@ -178,7 +180,8 @@ def _request(
     for attempt in range(retries + 1):
         try:
             resp = sess.request(
-                method, url, params=params, json=json_body, timeout=timeout
+                method, url, params=params, json=json_body,
+                headers=headers, data=data, timeout=timeout
             )
         except Exception as exc:  # network-layer failure (no HTTP response)
             last_exc = exc

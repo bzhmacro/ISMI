@@ -46,6 +46,13 @@ from .datasources import REPO_ROOT, _request, _write_provenance
 ONS_BASE = "https://www.ons.gov.uk"
 MM23_URL = (f"{ONS_BASE}/file?uri=/economy/inflationandpriceindices/"
             "datasets/consumerpriceindices/current/mm23.csv")
+# Consumer Trends time-series bulk CSV (same wide layout as MM23): quarterly
+# household final consumption expenditure by COICOP — nominal (CP) + chained
+# volume (CVM) + implied deflators (IDEF), SA and NSA, quarterly from 1985 Q1
+# at class level. Input for the UK supply/demand decomposition port
+# (ism.decomp_ports.build_uk_panels; see config/sources_uk.yaml).
+CT_URL = (f"{ONS_BASE}/file?uri=/economy/nationalaccounts/satelliteaccounts/"
+          "datasets/consumertrends/current/ct.csv")
 RAW_ONS = REPO_ROOT / "data" / "raw" / "ons"
 
 _MONTHS = {m: i + 1 for i, m in enumerate(
@@ -55,6 +62,13 @@ _MONTHS = {m: i + 1 for i, m in enumerate(
 # titles look like "CPI INDEX 01.1.1 : BREAD & CEREALS 2015=100" or
 # "CPI INDEX 12.7.0.2 Legal services and accountancy 2015=100" (no colon)
 _TITLE_RE = re.compile(r"^CPI (INDEX|WEIGHTS) (\d\d(?:\.\d){0,3})\s*:?\s*(.*)$")
+
+# Consumer Trends titles look like
+#   "01.1.1 Food Bread and cereals CP SA £m"            (nominal)
+#   "01.1.1 Food Bread and cereals CVM NAYear SA £m"    (chained volume)
+#   "01.1.1 Food Bread and cereals IDEF NSA 2023=100"   (implied deflator)
+_CT_TITLE_RE = re.compile(
+    r"^(\d\d(?:\.\d)*)\s+(.*?)\s+(CP|CVM(?: NAYear)?|IDEF)\s+(SA|NSA)\s+(?:-\s+)?(£m|\d{4}=100)$")
 
 
 def _parse_title(title: str):
@@ -73,6 +87,14 @@ def _month_stamp(label: str) -> Optional[pd.Timestamp]:
     if not m or m.group(2) not in _MONTHS:
         return None
     return pd.Timestamp(int(m.group(1)), _MONTHS[m.group(2)], 1)
+
+
+def _quarter_stamp(label: str) -> Optional[pd.Timestamp]:
+    """'1985 Q1' -> Timestamp('1985-01-01') (quarter start); else None."""
+    m = re.fullmatch(r"(\d{4}) Q([1-4])", str(label).strip())
+    if not m:
+        return None
+    return pd.Timestamp(int(m.group(1)), 3 * int(m.group(2)) - 2, 1)
 
 
 class OnsClient:
@@ -99,6 +121,26 @@ class OnsClient:
             _write_provenance(cache, MM23_URL, {})
         df = pd.read_csv(cache, index_col=0, low_memory=False)
         self._mm23 = df
+        return df
+
+    # -- bulk Consumer Trends (quarterly HCE by COICOP) -----------------------
+    def ct(self, force: bool = False) -> pd.DataFrame:
+        """The full Consumer Trends bulk CSV (ct.csv), Title-indexed.
+
+        Same wide layout as MM23: one column per series, rows = CDID/units
+        header block then period labels (annual '1997', quarterly '1985 Q1').
+        Carries CP (nominal £m), CVM (chained volume £m) and IDEF (implied
+        deflator) for every COICOP division/group/class, SA and NSA.
+        """
+        if getattr(self, "_ct", None) is not None and not force:
+            return self._ct
+        cache = self.cache_dir / "ct.csv"
+        if force or not cache.exists():
+            resp = _request("GET", CT_URL, provider="ONS", timeout=180)
+            cache.write_bytes(resp.content)
+            _write_provenance(cache, CT_URL, {})
+        df = pd.read_csv(cache, index_col=0, low_memory=False)
+        self._ct = df
         return df
 
     # -- single series (generator endpoint) ----------------------------------
@@ -209,3 +251,81 @@ def uk_headline_index(client: OnsClient, force: bool = False) -> pd.Series:
     title = next(t for t in mm23.columns
                  if str(t).upper().startswith("CPI INDEX 00"))
     return _monthly_block(mm23, [title]).iloc[:, 0].dropna().rename("uk_cpi")
+
+
+# ---------------------------------------------------------------------------
+# Consumer Trends -> quarterly HCE panels (for the supply/demand decomposition)
+# ---------------------------------------------------------------------------
+def _quarterly_block(ct: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    """Extract the quarterly rows of ct.csv for `cols` -> [quarter x col]."""
+    stamps = ct.index.to_series().map(_quarter_stamp)
+    block = ct.loc[stamps.notna(), cols].apply(pd.to_numeric, errors="coerce")
+    block.index = stamps[stamps.notna()].to_numpy()
+    return block.sort_index()
+
+
+def ct_catalogue(ct: pd.DataFrame) -> pd.DataFrame:
+    """COICOP-coded Consumer Trends columns -> tidy catalogue.
+
+    Columns: code, label, measure ('cp' | 'cvm' | 'idef'), adj ('SA' | 'NSA'),
+    title, cdid. Non-COICOP analytic series (durability splits, tourism and
+    national-concept adjustments) carry no leading numeric code and are
+    excluded by construction.
+    """
+    rows = []
+    cdid = ct.iloc[0] if ct.index[0] == "CDID" else None
+    for title in ct.columns:
+        m = _CT_TITLE_RE.match(str(title).strip())
+        if not m:
+            continue
+        code, label, measure, adj = m.group(1), m.group(2), m.group(3), m.group(4)
+        rows.append({
+            "code": code,
+            "label": label.strip(),
+            "measure": "cvm" if measure.startswith("CVM") else measure.lower(),
+            "adj": adj,
+            "title": title,
+            "cdid": None if cdid is None else str(cdid.get(title, "")).strip(),
+        })
+    return pd.DataFrame(rows)
+
+
+def uk_hce_panels(client: OnsClient, adj: str = "SA", max_depth: int = 2,
+                  force: bool = False):
+    """Quarterly (nominal, volume) HCE panels [quarter x COICOP] + labels.
+
+    The UK analogue of BEA 2.4.5U / 2.4.3U for the supply/demand decomposition:
+    `nominal` is current-price expenditure (CP, £m) and `volume` the chained
+    volume measure (CVM, £m), for the leaf COICOP codes present in BOTH
+    measures (144 class-level leaves, quarterly from 1985 Q1). `adj="SA"`
+    mirrors the seasonally adjusted BEA/StatCan inputs; "NSA" is available for
+    robustness. Deflator (price) construction happens in ism.decomp_ports.
+    """
+    if adj not in ("SA", "NSA"):
+        raise ValueError("adj must be 'SA' or 'NSA'")
+    ct = client.ct(force=force)
+    cat = ct_catalogue(ct)
+    cat = cat[cat["adj"] == adj]
+    cp = cat[cat["measure"] == "cp"].drop_duplicates("code").set_index("code")
+    cvm = cat[cat["measure"] == "cvm"].drop_duplicates("code").set_index("code")
+    both = sorted(set(cp.index) & set(cvm.index))
+    leaves = select_coicop_leaves(both, max_depth=max_depth)
+    nominal = _quarterly_block(ct, cp.loc[leaves, "title"].tolist())
+    nominal.columns = leaves
+    volume = _quarterly_block(ct, cvm.loc[leaves, "title"].tolist())
+    volume.columns = leaves
+    labels = {c: cp.loc[c, "label"] for c in leaves}
+    return nominal, volume, labels
+
+
+def uk_hce_deflator_yoy(client: OnsClient, adj: str = "SA",
+                        force: bool = False) -> Optional[pd.Series]:
+    """Y/y % change of the total-HCE implied deflator (context series)."""
+    ct = client.ct(force=force)
+    cands = [t for t in ct.columns
+             if str(t).startswith("0 ") and "IDEF" in str(t)
+             and f" {adj} " in str(t)]
+    if not cands:
+        return None
+    s = _quarterly_block(ct, [cands[0]]).iloc[:, 0].dropna()
+    return (100.0 * (s / s.shift(4) - 1.0)).rename("uk_hce_deflator_yoy")

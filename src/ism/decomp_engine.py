@@ -108,6 +108,11 @@ class DecompConfig:
     min_obs:
         Minimum finite observations required in a window to estimate it.
         Defaults to the full window.
+    periods_per_year:
+        Observation frequency: 12 (monthly, US baseline) or 4 (quarterly — the
+        Bank of Canada variant of Kang–Sekkel–Taskin–Yang, SAP 2026-33, and the
+        national-accounts country ports). Controls the y/y aggregation horizon
+        and the rolling-SD floor; the estimation equations are frequency-free.
     """
 
     var_lags: int = 12
@@ -116,6 +121,7 @@ class DecompConfig:
     spec: str = "levels"
     precision_cut: float = 0.0
     min_obs: Optional[int] = None
+    periods_per_year: int = 12
 
     def __post_init__(self):
         if self.min_obs is None:
@@ -240,14 +246,17 @@ class Labels:
     ambiguous: pd.DataFrame # residual(s) too close to zero (precision_cut > 0)
 
 
-def _rolling_resid_sd(resid: pd.DataFrame, window: int) -> pd.DataFrame:
+def _rolling_resid_sd(resid: pd.DataFrame, window: int,
+                      periods_per_year: int = 12) -> pd.DataFrame:
     """Per-category rolling standard deviation of a residual panel.
 
     Used for the precision (ambiguous) labeling: σ^*_i in |ν^*| < c·σ^*_i. We
-    use the trailing `window`-month sample SD of the collected residuals, the
+    use the trailing `window`-period sample SD of the collected residuals, the
     natural "category-specific standard deviation" referenced in the paper.
+    The min-periods floor is one year of observations (12 monthly, 4 quarterly)
+    or window//4, whichever is larger.
     """
-    mp = min(window, max(12, window // 4))
+    mp = min(window, max(periods_per_year, window // 4))
     return resid.rolling(window=window, min_periods=mp).std()
 
 
@@ -271,8 +280,8 @@ def classify_labels(
 
     amb = np.zeros_like(defined)
     if cfg.precision_cut and cfg.precision_cut > 0:
-        sp = _rolling_resid_sd(resid_p, cfg.window).to_numpy(dtype=float)
-        sq = _rolling_resid_sd(resid_q, cfg.window).to_numpy(dtype=float)
+        sp = _rolling_resid_sd(resid_p, cfg.window, cfg.periods_per_year).to_numpy(dtype=float)
+        sq = _rolling_resid_sd(resid_q, cfg.window, cfg.periods_per_year).to_numpy(dtype=float)
         c = cfg.precision_cut
         near = (np.abs(p) < c * sp) | (np.abs(q) < c * sq)
         amb = near & defined
@@ -391,17 +400,24 @@ def contributions(
 # ----------------------------------------------------------------------------
 # Section 3.1: year-over-year contributions (running 12-month product)
 # ----------------------------------------------------------------------------
-def yoy_contribution(monthly_contrib: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
-    """12-month contribution = running product of the last 12 monthly ones.
+def yoy_contribution(monthly_contrib: pd.Series | pd.DataFrame,
+                     periods: int = 12) -> pd.Series | pd.DataFrame:
+    """Year-over-year contribution = running product of one year of periods.
 
-        π^j_{t,t-12} = Π_{k=0..11} (1 + π^j_{t-k}) - 1          (×100, in pp)
+        π^j_{t,t-P} = Π_{k=0..P-1} (1 + π^j_{t-k}) - 1          (×100, in pp)
 
-    `monthly_contrib` is in percentage points (e.g. a column from
-    `contributions`). Returns the same shape, in percentage points, NaN until 12
-    months are available.
+    with P = `periods` (12 for monthly panels, 4 for the quarterly country
+    ports). `monthly_contrib` is in percentage points (e.g. a column from
+    `contributions`). Returns the same shape, in percentage points, NaN until a
+    full year is available.
+
+    Note: BoC SAP 2026-33 *sums* the last four q/q contributions instead of
+    compounding. For inflation of a few percent the difference is second-order;
+    we keep the compounded (Shapiro Section 3.1) convention across frequencies
+    so US and country ports remain comparable (see docs/DECISIONS.md).
     """
     g = 1.0 + monthly_contrib / 100.0
-    prod = g.rolling(12, min_periods=12).apply(np.prod, raw=True)
+    prod = g.rolling(periods, min_periods=periods).apply(np.prod, raw=True)
     return 100.0 * (prod - 1.0)
 
 
@@ -454,7 +470,8 @@ def compute_decomp(
     resid_p, resid_q = rolling_var_residuals(log_price, log_quantity, cfg)
     labels = classify_labels(resid_p, resid_q, cfg)
     contrib = contributions(inflation, weights, labels)
-    contrib_yoy = yoy_contribution(contrib[["supply", "demand", "ambiguous", "total"]])
+    contrib_yoy = yoy_contribution(contrib[["supply", "demand", "ambiguous", "total"]],
+                                   periods=cfg.periods_per_year)
     shares = shock_shares(labels, weights)
     return DecompResult(
         contrib=contrib,

@@ -144,3 +144,94 @@ def validate_decomp(computed: pd.DataFrame, scope: str = "headline",
         rows.append({"series": col, "n": int(len(a)), "corr": round(corr, 4),
                      "rmse": round(rmse, 4), "mae": round(mae, 4)})
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Canada (Bank of Canada SAP 2026-33) — qualitative validation
+# ---------------------------------------------------------------------------
+# The BoC paper ships no machine-readable series, so we validate the Canadian
+# decomposition against the stated facts of Kang–Sekkel–Taskin–Yang (2026):
+#   * post-pandemic total PCE inflation peaked "near 6 percent in 2022";
+#   * "Both supply- and demand-side forces contributed to the increase,
+#      although supply-driven inflation accounted for the larger share";
+#   * "Demand-driven inflation turned negative during the pandemic";
+#   * inflation returned "toward the 2 percent target by early 2025".
+def validate_ca_decomp(contrib_yoy: pd.DataFrame) -> pd.DataFrame:
+    """Check the Canada y/y contributions against the BoC paper's stated facts.
+
+    `contrib_yoy` has columns supply / demand / total (percentage points),
+    indexed by quarter (quarter-start timestamps). Returns a report DataFrame
+    with one row per check: metric, value, expected range, and pass/fail.
+    """
+    df = contrib_yoy.dropna(subset=["total"])
+    rows = []
+
+    def _add(check, value, lo, hi):
+        ok = (value is not None) and (lo <= value <= hi)
+        rows.append({"check": check,
+                     "value": None if value is None else round(float(value), 2),
+                     "expected": f"[{lo}, {hi}]", "pass": bool(ok)})
+
+    # 1) post-pandemic peak total inflation, 2021-2023, near 6%
+    post = df.loc[(df.index >= "2021-01-01") & (df.index <= "2023-12-31"), "total"]
+    peak = float(post.max()) if len(post) else None
+    _add("post-pandemic peak total y/y (~6%)", peak, 4.5, 8.0)
+
+    # 2) at the peak quarter, supply contribution exceeds demand
+    if len(post):
+        pk = post.idxmax()
+        sup_pk = float(df.loc[pk, "supply"]); dem_pk = float(df.loc[pk, "demand"])
+        _add("supply − demand at peak (>0, supply larger)", sup_pk - dem_pk, 0.0, 10.0)
+
+    # 3) demand-driven inflation went negative during the pandemic (2020-2021)
+    pan = df.loc[(df.index >= "2020-01-01") & (df.index <= "2021-06-30"), "demand"]
+    dmin = float(pan.min()) if len(pan) else None
+    _add("min demand y/y in pandemic (<0)", dmin, -10.0, 0.0)
+
+    # 4) most recent total inflation eased toward target (<= ~3.5%)
+    latest = float(df["total"].iloc[-1]) if len(df) else None
+    _add("latest total y/y (eased toward target)", latest, -1.0, 3.5)
+
+    return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Generic sanity checks for the quarterly country ports (UK / France / Germany)
+# ---------------------------------------------------------------------------
+# No published supply/demand series exists for these countries, so instead of a
+# ground-truth comparison we assert the decomposition is internally coherent and
+# lands in a plausible range: the supply+demand+ambiguous split reconstructs the
+# total, and the post-pandemic peak of aggregate y/y inflation is elevated but
+# not absurd.
+def sanity_quarterly_decomp(contrib, contrib_yoy) -> pd.DataFrame:
+    """Internal-coherence sanity checks for a country port's decomposition.
+
+    `contrib` is the per-quarter contribution frame (supply/demand/ambiguous/
+    total), `contrib_yoy` its running-4-quarter version. Returns a report
+    DataFrame with metric / value / expected / pass columns.
+    """
+    rows = []
+
+    def _add(check, value, lo, hi):
+        ok = (value is not None) and (lo <= value <= hi)
+        rows.append({"check": check,
+                     "value": None if value is None else round(float(value), 3),
+                     "expected": f"[{lo}, {hi}]", "pass": bool(ok)})
+
+    c = contrib.dropna(subset=["total"])
+    # 1) split reconstructs the total (max abs residual over the sample ~ 0)
+    if len(c):
+        resid = (c[["supply", "demand", "ambiguous"]].sum(axis=1) - c["total"]).abs().max()
+        _add("max |supply+demand+ambiguous − total|", float(resid), 0.0, 1e-6)
+
+    y = contrib_yoy.dropna(subset=["total"])
+    # 2) post-pandemic peak y/y inflation is elevated but plausible
+    post = y.loc[(y.index >= "2021-01-01") & (y.index <= "2023-12-31"), "total"]
+    if len(post):
+        _add("post-pandemic peak total y/y", float(post.max()), 3.0, 20.0)
+    # 3) some quarters are supply- and some demand-led (not a degenerate split)
+    if len(y):
+        share_sup = float((y["supply"] > y["demand"]).mean())
+        _add("share of quarters supply>demand", share_sup, 0.05, 0.95)
+
+    return pd.DataFrame(rows)

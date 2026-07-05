@@ -1,0 +1,106 @@
+# =============================================================================
+# sources.yaml  --  Data source registry  (TEMPLATE; rename roles to your paper)
+# =============================================================================
+# Every external input used to replicate the paper is declared here, with: the
+# provider, the exact identifier/URL, the access method, and the role it plays.
+# The downloader (src/pkg/datasources.py) reads this file, so updating a series
+# ID or URL here is all that's needed to refresh the pipeline. Raw pulls are
+# cached under data/raw/<provider>/ with a <id>.fetch.json provenance sidecar.
+# =============================================================================
+
+meta:
+  paper: "Author, A. & Author, B. (YEAR). Title. Venue / WP no."
+  doi: "https://doi.org/REPLACE"
+  sample: {start: "1959-02", end: "2026-02"}
+  notes: >
+    Explain anything non-obvious about the sample: e.g. why the index begins
+    later than the data (the first W-month rolling window), or interpolated gaps.
+
+# Names of the ENV VARS holding API keys -- never the keys themselves (.env is
+# gitignored; commit .env.example with empty values).
+keys:
+  fred: {env: "FRED_API_KEY"}
+  bea:  {env: "BEA_API_KEY"}
+  bls:  {env: "BLS_API_KEY"}
+
+# -----------------------------------------------------------------------------
+# 1. CORE: the cross-section price & weight source (the heart of the model)
+# -----------------------------------------------------------------------------
+core_units:
+  provider: bea
+  dataset: "NIUnderlyingDetail"
+  method: "GetData"
+  frequency: "M"
+  tables:
+    price_index:
+      table_name: "U20404"
+      role: "p_{i,t} source -> per-unit inflation (transform: 100*dln)"
+    nominal_expenditure:
+      table_name: "U20405"
+      role: "w_{i,t} source -> expenditure weights"
+  selection:
+    level: 4
+    expected_n_units: 129
+    note: "How the cross-section is cut from the provider hierarchy; pin to config/units.csv."
+  bulk_fallback:
+    url: "https://apps.bea.gov/national/Release/ZIP/Underlying.zip"
+    files: ["U20404-M.csv", "U20405-M.csv"]
+
+# -----------------------------------------------------------------------------
+# 2. Headline aggregate (Figure 1 overlay; forecast target & control)
+# -----------------------------------------------------------------------------
+headline:
+  provider: fred
+  series_id: "PCEPI"
+  role: "12-month & 3-month headline inflation (target + control)"
+  transforms: ["yoy_pct", "3m_annualized_pct"]
+
+# -----------------------------------------------------------------------------
+# 3. Controls / predictors (one entry per control; provider + transform + role)
+# -----------------------------------------------------------------------------
+controls:
+  inflation_expectations_1y:
+    provider: fred
+    series_id: "MICH"
+    role: "1-year-ahead household inflation expectations"
+    proxy_before_1978: "trailing 12-month inflation (paper fn 14)"
+  unemployment_rate:
+    provider: fred
+    series_id: "UNRATE"
+    role: "denominator of V/U ratio"
+  treasury_10y:
+    provider: fred
+    series_id: "GS10"
+    role: "long leg of yield-curve spread"
+
+# -----------------------------------------------------------------------------
+# 4. External identified shocks (validation sections)
+# -----------------------------------------------------------------------------
+external_shocks:
+  example_shock:
+    provider: external
+    source: "Author (Year), replication files."
+    url: "https://example.org/research"
+    role: "identified shock for the local-projection validation"
+    note: "Document the exact column/format expected by the loader."
+
+# -----------------------------------------------------------------------------
+# 5. Ground truth (for the convergence check)
+# -----------------------------------------------------------------------------
+ground_truth:
+  author_index:
+    provider: manual
+    file: "data/raw/author_index.xlsx"
+    source: "Authors' published appendix / provided on request."
+    columns: ["time_month", "Index", "S_pos", "S_neg"]
+    role: "validate computed Index / S+ / S- (convergence table)"
+
+# -----------------------------------------------------------------------------
+# 6. External files expected on disk (drop-in; loaders read these exact paths)
+# -----------------------------------------------------------------------------
+external_files:
+  shiller_sp500:
+    path: "data/raw/external/ie_data.xls"
+    auto_download: true
+    url: "http://www.econ.yale.edu/~shiller/data/ie_data.xls"
+    loader: "pkg.external_data.load_shiller_sp500"

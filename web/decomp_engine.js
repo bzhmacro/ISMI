@@ -167,10 +167,13 @@ const DecompEngine = (() => {
   }
 
   // ---- precision: per-category trailing rolling SD of a residual series ----
-  function rollingSD(resid, window) {
+  // ppy = periods per year (12 monthly, 4 quarterly); min-periods floor is one
+  // year of observations or window/4, whichever is larger (mirrors Python).
+  function rollingSD(resid, window, ppy) {
     const n = resid.length;
     const out = new Float64Array(n).fill(NaN);
-    const mp = Math.min(window, Math.max(12, Math.floor(window / 4)));
+    const P = ppy || 12;
+    const mp = Math.min(window, Math.max(P, Math.floor(window / 4)));
     for (let t = 0; t < n; t++) {
       let cnt = 0, sum = 0, sum2 = 0;
       for (let s = Math.max(0, t - window + 1); s <= t; s++) {
@@ -201,6 +204,7 @@ const DecompEngine = (() => {
     const { logp, logq, infl, w, n } = panel;
     const ncat = logp.length;
     const J = params.J, W = params.W, h = params.h || 0;
+    const PPY = params.ppy || 12;          // periods per year (12 monthly, 4 quarterly)
     const cut = params.precisionCut || 0;
     const driverMonths = params.driverMonths == null ? 22 : params.driverMonths;
     const excluded = new Set(params.excluded || []);
@@ -226,10 +230,10 @@ const DecompEngine = (() => {
     // optional per-category residual SDs for precision labeling
     let sdP = null, sdQ = null;
     if (cut > 0) {
-      const skey = `SD|${tag}|${J}|${W}|${h}`;
+      const skey = `SD|${tag}|${J}|${W}|${h}|${PPY}`;
       let sd = cache ? cache.get(skey) : null;
       if (!sd) {
-        sd = R.map(o => ({ p: rollingSD(o.rp, W), q: rollingSD(o.rq, W) }));
+        sd = R.map(o => ({ p: rollingSD(o.rp, W, PPY), q: rollingSD(o.rq, W, PPY) }));
         if (cache) cache.set(skey, sd);
       }
       sdP = sd.map(o => o.p); sdQ = sd.map(o => o.q);
@@ -282,12 +286,12 @@ const DecompEngine = (() => {
       driverRows.push({ t, contrib: contribByCat });
     }
 
-    // year-over-year running product of monthly contributions
+    // year-over-year running product of the last PPY per-period contributions
     const yoy = arr => {
       const out = new Array(n).fill(null);
-      for (let t = 11; t < n; t++) {
+      for (let t = PPY - 1; t < n; t++) {
         let prod = 1, ok = true;
-        for (let k = 0; k < 12; k++) {
+        for (let k = 0; k < PPY; k++) {
           const v = arr[t - k];
           if (v == null) { ok = false; break; }
           prod *= (1 + v / 100);

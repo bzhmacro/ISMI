@@ -1,0 +1,100 @@
+member_id,key,label,parent_id,group,gs
+3,E3,Food,2,Food and non-alcoholic beverages,G
+4,E4,Non-alcoholic beverages,2,Food and non-alcoholic beverages,G
+7,E7,Alcoholic beverages,6,"Alcoholic beverages, tobacco and cannabis",G
+8,E8,Tobacco,6,"Alcoholic beverages, tobacco and cannabis",G
+11,E11,"Clothing materials, other articles of clothing and clothing accessories",10,Clothing and footwear,G
+12,E12,Garments,10,Clothing and footwear,G
+13,E13,Cleaning of clothing,10,Clothing and footwear,S
+14,E14,Footwear,10,Clothing and footwear,G
+17,E17,Paid rental fees for housing,16,"Housing, water, electricity, gas and other fuels",S
+18,E18,Imputed rental fees for housing,16,"Housing, water, electricity, gas and other fuels",S
+19,E19,Materials for the maintenance and repair of the dwelling,16,"Housing, water, electricity, gas and other fuels",G
+20,E20,Services for the maintenance and repair of the dwelling,16,"Housing, water, electricity, gas and other fuels",S
+21,E21,Water supply and sanitation services,16,"Housing, water, electricity, gas and other fuels",S
+22,E22,Electricity,16,"Housing, water, electricity, gas and other fuels",G
+23,E23,Gas,16,"Housing, water, electricity, gas and other fuels",G
+24,E24,Other fuels,16,"Housing, water, electricity, gas and other fuels",G
+27,E27,Furniture and furnishings,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+28,E28,Carpets and other floor coverings,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+29,E29,Household textiles,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+30,E30,Major household appliances,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+31,E31,Small electric household appliances,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+32,E32,Major tools and equipment,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+33,E33,Small tools and miscellaneous accessories,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+34,E34,Other semi-durable household goods,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+35,E35,Other non-durable household goods,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",G
+36,E36,Repair of personal and household goods except vehicles,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",S
+37,E37,Renting and leasing of personal and household goods except passenger vehicles,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",S
+38,E38,Other services related to the dwelling and property,26,"Furnishings, household equipment and other goods and services related to the dwelling and property",S
+41,E41,Pharmaceutical products and other medical products (except cannabis),40,Health,G
+42,E42,Therapeutic appliances and equipment,40,Health,G
+43,E43,Out-patient services,40,Health,S
+44,E44,Hospital services,40,Health,S
+47,E47,New passenger cars,46,Transport,G
+48,E48,"New trucks, vans and sport utility vehicles",46,Transport,G
+49,E49,Used motor vehicles,46,Transport,G
+50,E50,Other vehicles,46,Transport,G
+51,E51,Spare parts and accessories for vehicles,46,Transport,G
+52,E52,Fuels and lubricants,46,Transport,G
+53,E53,Maintenance and repair of vehicles,46,Transport,S
+54,E54,Parking,46,Transport,S
+55,E55,Passenger vehicle renting,46,Transport,S
+56,E56,Other services related to the operation of transport equipment,46,Transport,S
+57,E57,Railway transport,46,Transport,S
+58,E58,Urban transit,46,Transport,S
+59,E59,Interurban bus,46,Transport,S
+60,E60,Taxi and limousine,46,Transport,S
+61,E61,Air transport,46,Transport,S
+62,E62,Water transport,46,Transport,S
+63,E63,Other transport services,46,Transport,S
+66,E66,Postal services,65,Communications,S
+67,E67,Telecommunication equipment,65,Communications,G
+68,E68,Telecommunication services,65,Communications,S
+71,E71,Audio-visual and photographic equipment,70,Recreation and culture,G
+72,E72,Information processing equipment,70,Recreation and culture,G
+73,E73,Recording media,70,Recreation and culture,G
+74,E74,Major durables for outdoor recreation,70,Recreation and culture,G
+75,E75,Musical instruments and major durables for indoor recreation,70,Recreation and culture,G
+76,E76,"Games, toys and hobbies",70,Recreation and culture,G
+77,E77,"Equipment for sport, camping and open-air recreation",70,Recreation and culture,G
+78,E78,"Garden products, plants and flowers",70,Recreation and culture,G
+79,E79,Pets and pet food,70,Recreation and culture,G
+80,E80,Veterinary and other services for pets,70,Recreation and culture,S
+81,E81,Recreational and sporting services,70,Recreation and culture,S
+82,E82,"Cable, satellite and other program distribution services",70,Recreation and culture,S
+83,E83,Cinemas,70,Recreation and culture,S
+84,E84,Photographic services,70,Recreation and culture,S
+85,E85,Other cultural services,70,Recreation and culture,S
+86,E86,Games of chance,70,Recreation and culture,S
+87,E87,Books,70,Recreation and culture,G
+88,E88,Newspapers and periodicals,70,Recreation and culture,G
+89,E89,Miscellaneous printed matter and stationery and drawing materials,70,Recreation and culture,G
+92,E92,University education,91,Education,S
+93,E93,Other education,91,Education,S
+96,E96,Food and non-alcoholic beverage services,95,"Food, beverage and accommodation services",S
+97,E97,Alcoholic beverage services,95,"Food, beverage and accommodation services",S
+98,E98,Accommodation services,95,"Food, beverage and accommodation services",S
+101,E101,Life insurance,100,Insurance and financial services,S
+102,E102,Property insurance,100,Insurance and financial services,S
+103,E103,Health insurance,100,Insurance and financial services,S
+104,E104,Insurance related to transport,100,Insurance and financial services,S
+105,E105,Implicit loan charges,100,Insurance and financial services,S
+106,E106,Implicit deposit charges,100,Insurance and financial services,S
+107,E107,Stock and bond commissions,100,Insurance and financial services,S
+108,E108,Other actual financial charges,100,Insurance and financial services,S
+109,E109,Trusteed pension funds,100,Insurance and financial services,S
+110,E110,Mutual funds,100,Insurance and financial services,S
+113,E113,Personal grooming services,112,Miscellaneous goods and services,S
+114,E114,Electrical appliances for personal care,112,Miscellaneous goods and services,G
+115,E115,"Other appliances, articles and products for personal care",112,Miscellaneous goods and services,G
+116,E116,"Jewellery, clocks and watches",112,Miscellaneous goods and services,G
+117,E117,Other personal effects,112,Miscellaneous goods and services,G
+118,E118,Child care services outside the home,112,Miscellaneous goods and services,S
+119,E119,Child care services in the home,112,Miscellaneous goods and services,S
+120,E120,Other social services,112,Miscellaneous goods and services,S
+121,E121,Undertaking and other funeral services,112,Miscellaneous goods and services,S
+122,E122,Legal and other services,112,Miscellaneous goods and services,S
+130,E130,Cannabis products for non-medical use (licensed),6,"Alcoholic beverages, tobacco and cannabis",G
+131,E131,Cannabis products for non-medical use (unlicensed),6,"Alcoholic beverages, tobacco and cannabis",G
+132,E132,Cannabis products for medical use,40,Health,G

@@ -1,0 +1,128 @@
+# =============================================================================
+# sources_canada.yaml  --  US -> Statistics Canada mapping for the Canada ports
+# =============================================================================
+# Registry of every Canadian data source, mirroring sources_uk.yaml /
+# sources_japan.yaml. Canada carries BOTH models:
+#
+#   * the SUPPLY/DEMAND DECOMPOSITION (the second model) follows the Bank of
+#     Canada variant of Shapiro (2022):
+#         Kang, H., Sekkel, R., Taskin, T. & Yang, J. (2026). "Supply and
+#         Demand-Driven inflation: Decomposition and policy implications."
+#         Bank of Canada Staff Analytical Paper 2026-33.
+#         https://doi.org/10.34989/sap-2026-33
+#     It runs on QUARTERLY national-accounts household final consumption
+#     expenditure (real + nominal) instead of monthly BEA PCE -> DecompConfig
+#     (var_lags=4, window=40, periods_per_year=4)  [ism.decomp_ports.QUARTERLY_BASELINE];
+#
+#   * the ISM MOMENTUM INDEX (the first model) runs on monthly StatCan CPI by
+#     product with basket-vintage weights, exactly like the US CPI / UK / JP
+#     backbones (the momentum engine is frequency-native monthly and unchanged).
+#
+# The estimation/classification/aggregation code is unchanged across countries;
+# only the data plumbing differs (ism.statcan, ism.ca_pipeline, decomp_ports).
+#
+# Data access: www150.statcan.gc.ca is BLOCKED from the hosted analysis sandbox,
+# so the repo ships assembled caches under data/raw/statcan/ and everything
+# builds offline. Rebuild them on a machine with open access with
+# `python scripts/fetch_statcan.py` (walks data/raw/statcan/manifest.json).
+# =============================================================================
+
+meta:
+  geo: "CA"
+  landing: "https://www150.statcan.gc.ca"
+  client: "ism.statcan.StatCanClient"
+  db_loading_csv: "https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action"
+  wds_full_table: "https://www150.statcan.gc.ca/t1/wds/rest/getFullTableDownloadCSV/{pid}/en"
+  refresh: "python scripts/fetch_statcan.py            # rebuild data/raw/statcan/ caches"
+  note: >
+    REF_DATE is 'YYYY-MM' (quarterly tables use the quarter's first month, so
+    '1990-01' = 1990Q1). COORDINATE encodes the member ids dimension-by-dimension
+    (e.g. '1.2.1.47' = Canada . 2017-constant . SA . member 47 for 36-10-0124).
+    All caches are compact (REF_DATE, COORDINATE, VALUE), UTF-8, BOM stripped.
+
+# =============================================================================
+# MODEL 2 -- SUPPLY/DEMAND DECOMPOSITION (quarterly HCE; the BoC paper's dataset)
+# =============================================================================
+decomposition:
+  table:
+    pid: "36-10-0124"
+    title: "Detailed household final consumption expenditure, Canada, quarterly"
+    cache: "data/raw/statcan/36100124_ca_sa.csv"
+    frequency: "quarterly, seasonally adjusted at quarterly rates"
+    coverage: "1961Q1 onward (the paper's cross-section is 96 leaves; three cannabis leaves 2018Q4+)"
+    dimensions: "Geography . Prices . Seasonal adjustment . Products and product groups"
+    conventions: "Geography member 1 = Canada; Prices member 1 = current $ (nominal), member 2 = 2017 constant $ (real, chained volume); Seasonal adjustment member 1 = SA"
+
+  category_prices:
+    us: "BEA 2.4.4U PCE price indexes (implicit deflator)"
+    ca: "implicit deflator p_i = 100 * nominal / real, per pinned 36-10-0124 leaf"
+    selection: "99 pinned leaves (config/ca_hce_categories.csv): 116 tree leaves minus 15 'adjusting entry' members and the net-expenditure-abroad block (125/126/127)"
+    confidence: high
+
+  category_quantity:
+    us: "BEA 2.4.3U real PCE quantity (U20403)"
+    ca: "2017 constant-price (chained-volume) HCE, per leaf (the paper's real index)"
+    confidence: high
+
+  category_weights:
+    us: "BEA 2.4.5U nominal PCE (monthly)"
+    ca: "current-price (nominal) HCE shares, renormalised each quarter over available leaves (Laspeyres, Eq. 15)"
+    confidence: high
+
+  scopes:
+    total: "all 99 leaves (paper Fig. 2)"
+    goods: "gs == 'G' leaves, 48 (paper Fig. 3)"
+    services: "gs == 'S' leaves, 51 (paper Fig. 4)"
+    note: >
+      The goods/services split uses the gs tag pinned in
+      config/ca_hce_categories.csv; judgment calls documented in docs/DECISIONS.md.
+      The paper's CORE scope is the Bank of Canada trimmed-mean CPI measure (not
+      an HCE partition) and is NOT reproduced here (see DECISIONS.md).
+
+  estimation:
+    config: "DecompConfig(var_lags=4, window=40, periods_per_year=4)  # ism.decomp_ports.QUARTERLY_BASELINE"
+    note: >
+      Reduced-form VAR of log price and log quantity on p=4 lags of both over a
+      10-year (40-quarter) rolling window (paper p. 2 equations). Classification
+      (demand = same-sign p,q surprises; supply = opposite) and aggregation are
+      Shapiro Eqs. 8-15, unchanged. y/y = running product of the last 4 quarterly
+      contributions (BoC sum the four; a second-order difference, see DECISIONS.md).
+
+# =============================================================================
+# MODEL 1 -- ISM MOMENTUM INDEX (monthly CPI by product; the US CPI analogue)
+# =============================================================================
+ism:
+  price_table:
+    pid: "18-10-0004"
+    title: "Consumer Price Index, monthly, not seasonally adjusted"
+    cache: "data/raw/statcan/18100004_ca.csv"
+    frequency: "monthly, NSA"
+    conventions: "Geography member 2 = Canada; product names carry base-period suffixes (' (2013=100)') stripped before matching weights; All-items = member 2 (v41690973)"
+
+  weights_table:
+    pid: "18-10-0007"
+    title: "Consumer Price Index basket weights"
+    cache: "data/raw/statcan/18100007_ca.csv"
+    conventions: "Geography member 1 = Canada (differs from 18-10-0004!); product member ids DIFFER from 18-10-0004 -> aligned by cleaned name in config/ca_cpi_categories.csv; Price period of weight member 1 = link-month prices; Geographic distribution member 2 = Canada"
+
+  category_prices:
+    us: "BLS CUUR0000* item strata (NSA)"
+    ca: "18-10-0004 product classes, tree capped at depth 4 (analogue of the BLS item-strata / ONS class cut)"
+    selection: "119 leaf classes (config/ca_cpi_categories.csv, member_id_cpi)"
+    coverage: "major components from 1949, classic classes from 1978, detailed leaves mostly 1995; pulled from 1976. W=120 baseline -> ISM from ~1986, thickening as leaves are born."
+    confidence: high
+
+  category_weights:
+    us: "BLS Dec-2023 relative importance (static)"
+    ca: "18-10-0007 basket weights at link-month prices, one vintage per basket year -> monthly ffill from June Y+1, renormalised over available leaves"
+    confidence: medium
+    note: >
+      StatCan links basket year Y into the CPI in the spring of Y+1 (annual
+      baskets since 2021; multi-year gaps before). We apply vintage-Y weights from
+      JUNE of Y+1 -- a documented simplification (historical link months varied);
+      renormalised monthly, so timing slack only second-orders the index.
+
+  headline_inflation:
+    us: "CUUR0000SA0 (yoy)"
+    ca: "18-10-0004 All-items CPI (Canada, member 2, v41690973) -> yoy % change"
+    confidence: high

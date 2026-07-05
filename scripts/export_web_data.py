@@ -40,7 +40,7 @@ absent.
 The parity contract between this exporter's maths and the browser engine is
 enforced by tests/test_web_engine_parity.py.
 
-    python scripts/export_web_data.py            # all backbones (pce cpi uk fr de jp)
+    python scripts/export_web_data.py            # all backbones (pce cpi uk fr de jp ca)
     python scripts/export_web_data.py pce         # only PCE
     python scripts/export_web_data.py uk          # only UK CPI (ONS MM23)
     python scripts/export_web_data.py fr de       # France + Germany (Eurostat HICP v2)
@@ -58,6 +58,14 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+# Load .env so provider keys (ESTAT_API_ID, DESTATIS_API_TOKEN/KEY, …) are
+# available to the self-fetching backbones without an explicit `export`.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+except Exception:
+    pass
 
 from ism.engine import ISMConfig, residual_panel, momentum_signals  # noqa: E402
 from ism.datasources import BeaClient, FredClient, BlsClient         # noqa: E402
@@ -333,6 +341,28 @@ def build_backbone(name):
                     "000032177686), broadcast across months and renormalised — the "
                     "same fixed-base treatment as the US CPI backbone.")
             weight_note = "weights = static 2020-base CPI medium-group weights (per 10000), renormalised monthly"
+        elif name == "ca":
+            # StatCan CPI by product (18-10-0004) + basket-vintage weights
+            # (18-10-0007). Needs the assembled caches under data/raw/statcan/
+            # (www150.statcan.gc.ca is blocked from the sandbox); rebuild them
+            # with `python scripts/fetch_statcan.py`. Skipped with a clear
+            # message if the caches are absent.
+            from ism import ca_pipeline
+            from ism.statcan import StatCanClient
+            client = StatCanClient()
+            infl, weights, labels = ca_pipeline.build_ca_cpi_panel(client)
+            categories = [(k, f"{labels[k]} ({k})") for k in infl.columns]
+            label, source_note = "CA CPI", "Statistics Canada CPI by product (table 18-10-0004, Canada, NSA; leaf classes capped at depth 4)"
+            head_label = "Canada CPI inflation (12m, %)"
+            headline = ca_pipeline.headline_ca_cpi_yoy(client)
+            author = None  # no published author ISM for Canada
+            note = ("ISM computed in the browser from Statistics Canada's CPI by "
+                    "product (table 18-10-0004, leaf classes to depth 4); weights = "
+                    "StatCan basket weights by vintage (18-10-0007), applied from "
+                    "June of the year after each basket year, forward-filled monthly "
+                    "and renormalised. Detailed leaves mostly begin 1995, so the "
+                    "W=120 baseline yields an index from ~1986 that thickens over time.")
+            weight_note = "weights = StatCan basket-vintage weights (18-10-0007, per mille), ffilled monthly, renormalised"
         else:
             raise ValueError(name)
     except Exception as exc:   # e.g. BEA host blocked, or BLS unavailable
@@ -367,7 +397,7 @@ def build_backbone(name):
 
 def main(argv=None):
     argv = argv or sys.argv[1:]
-    wanted = [a.lower() for a in argv] or ["pce", "cpi", "uk", "fr", "de", "jp"]
+    wanted = [a.lower() for a in argv] or ["pce", "cpi", "uk", "fr", "de", "jp", "ca"]
 
     dest = ROOT / "web" / "data" / "ism.json"
 
@@ -398,7 +428,7 @@ def main(argv=None):
     default = (prev_default if prev_default in backbones
                else "pce" if "pce" in backbones else next(iter(backbones)))
     # Stable order: US gauges first, then the country ports, then anything else.
-    KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp")
+    KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp", "ca")
     order = [b for b in KNOWN if b in backbones] + \
             [b for b in backbones if b not in KNOWN]
     out = {

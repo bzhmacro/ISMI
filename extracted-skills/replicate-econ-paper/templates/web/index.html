@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- index.html (TEMPLATE) -- zero-build static site. Serve it (file:// breaks
+     fetch + Workers): `python -m http.server 8000`. No framework, no bundler;
+     charting lib from a CDN. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Replication explorer</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header>
+    <h1>Interactive replication</h1>
+    <p id="freshness">data through … · index recomputed live in your browser</p>
+  </header>
+
+  <section id="controls">
+    <!-- Each control is a live dial; changing it re-runs the engine in the worker. -->
+    <label>Backbone <select id="backbone"></select></label>
+    <label>AR order <input id="ar" type="range" min="1" max="12" value="1" /></label>
+    <label>Window W <input id="W" type="range" min="60" max="240" step="12" value="120" /></label>
+    <label>Run length k <input id="k" type="range" min="2" max="8" value="3" /></label>
+    <label>Weighting
+      <select id="scheme">
+        <option value="extensive">extensive</option>
+        <option value="size">size</option>
+        <option value="stickiness">stickiness</option>
+      </select>
+    </label>
+    <span id="corr"></span>
+  </section>
+
+  <div id="chart" style="width:100%;height:480px"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

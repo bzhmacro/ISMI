@@ -142,3 +142,49 @@ external_shocks:
     us: "Kanzig (2021) oil supply news shock"
     jp: "same Kanzig series (global shock)"
     confidence: high
+
+# =============================================================================
+# MODEL 2 -- SUPPLY/DEMAND DECOMPOSITION (quarterly SNA consumption by type)
+# =============================================================================
+# The second model (Shapiro 2022-18) needs category QUANTITY as well as price,
+# which the monthly CPI does not carry. Japan's quarterly SNA (Cabinet Office
+# 四半期別GDP速報 / QE) publishes household final consumption by "form" (type) in
+# both nominal (current-yen) and real (chained 2020-yen), from which the port
+# forms an implicit deflator and a real quantity per category. Loader:
+# ism.estat.jp_hce_panels -> ism.decomp_ports.build_jp_panels (PORTS["jp"]),
+# run with the quarterly baseline DecompConfig(var_lags=4, window=40,
+# periods_per_year=4). Same e-Stat client + ESTAT_API_ID as the CPI backbone.
+decomposition:
+  statistics:
+    code: "00100409"
+    name: "国民経済計算 四半期別GDP速報 (Cabinet Office QE), 2020 calendar-year base"
+  nominal_table:
+    id: "0003109753"
+    title: "形態別国内家計最終消費支出 名目季節調整系列（1994年1Q～）2020暦年基準"
+  real_table:
+    id: "0003109790"
+    title: "形態別国内家計最終消費支出 実質季節調整系列（1994年1Q～）2020暦年基準"
+  categories:
+    dimension: "cat01 (形態別国内家計最終消費支出)"
+    leaves:
+      "15": "耐久財 / durable goods"
+      "16": "半耐久財 / semi-durable goods"
+      "17": "非耐久財 / non-durable goods"
+      "18": "サービス / services"
+    note: >
+      Only four leaf "form" categories are available quarterly — a deliberately
+      COARSE cross-section (cf. the coarse France A17 port). cat01 also carries
+      the total (14 = 国内家計最終消費支出) and residents-abroad adjustments
+      (11/12/13), which the loader drops. price = 100·nominal/real (implicit
+      deflator); quantity = real chained series; weights = nominal shares.
+  frequency: "quarterly, seasonally adjusted, 1994Q1 onward"
+  time_codes: "'1994000103' = 1994 Q1 (year + start-month..end-month); parsed by ism.estat._jp_quarter_to_timestamp"
+  confidence: high
+  flag: CONFIRMED
+  note: >
+    CONFIRMED on an authenticated run (2026-07): builds 4 categories × 129
+    quarters (1994Q1–2026Q1); the decomposition peaks total y/y inflation at
+    ~4.2% in 2022Q4 (matching Japan's post-pandemic peak) and eases back toward
+    ~2% by 2025. If a future SNA base rebases the ids, refresh them via
+    getStatsList(statsCode=00100409, searchWord="形態別国内家計最終消費支出 …季節調整系列").
+  refresh: "self-fetched by ism.estat.jp_hce_panels via EstatClient (cached under data/raw/estat/); no separate fetch script needed"

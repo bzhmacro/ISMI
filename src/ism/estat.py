@@ -41,6 +41,24 @@ RAW_JP = REPO_ROOT / "data" / "raw" / "estat"
 
 CPI_2020_TABLE = "0003427113"   # 2020-base CPI, Japan, monthly, by item (cat01)
 
+# --- SNA quarterly household final consumption by TYPE (form) -----------------
+# Cabinet Office 四半期別GDP速報 (QE), 2020-base, seasonally adjusted, 1994Q1~
+# (statistics 00100409). Four "form" leaf categories under 形態別国内家計最終
+# 消費支出 (cat01 codes 15/16/17/18): durable / semi-durable / non-durable goods
+# and services. Nominal (current-yen) and real (chained 2020-yen) live in TWO
+# separate tables. Input for the Japan supply/demand decomposition port
+# (ism.decomp_ports.build_jp_panels; see config/sources_japan.yaml). These are
+# the current 2020-base ids; if a future base rebases them, refresh via
+# getStatsList(statsCode=00100409, searchWord="形態別国内家計最終消費支出 …季節調整系列").
+SNA_HCE_NOMINAL_SA = "0003109753"   # 名目季節調整系列（1994年1Q～）2020暦年基準
+SNA_HCE_REAL_SA = "0003109790"      # 実質季節調整系列（1994年1Q～）2020暦年基準
+SNA_HCE_FORMS = {                   # cat01 leaf code -> (key, English label)
+    "15": ("durable", "Durable goods"),
+    "16": ("semidurable", "Semi-durable goods"),
+    "17": ("nondurable", "Non-durable goods"),
+    "18": ("services", "Services"),
+}
+
 
 def _listify(x) -> list:
     """e-Stat JSON uses a bare object where a list has one element."""
@@ -167,3 +185,47 @@ class EstatClient:
         if "time" in df.columns:
             df["date"] = df["time"].map(_jp_time_to_timestamp)
         return df
+
+
+# ---------------------------------------------------------------------------
+# Japan SNA quarterly HCE-by-type panels (the decomposition port's data)
+# ---------------------------------------------------------------------------
+def _jp_quarter_to_timestamp(code) -> Optional[pd.Timestamp]:
+    """SNA quarterly time code -> quarter-start Timestamp.
+
+    e-Stat QE codes look like ``1994000103`` = 1994, months 01–03 (Q1); the
+    quarter's start month is digits [6:8] ∈ {01,04,07,10}.
+    """
+    s = str(code)
+    if len(s) == 10 and s[:4].isdigit() and s[6:8].isdigit():
+        y, sm = int(s[:4]), int(s[6:8])
+        if sm in (1, 4, 7, 10):
+            return pd.Timestamp(y, sm, 1)
+    return None
+
+
+def jp_hce_panels(client: Optional["EstatClient"] = None, force: bool = False):
+    """(nominal, volume, labels) for Japan's quarterly SNA HCE by type (SA).
+
+    nominal = current-price 家計最終消費支出 by form (SNA_HCE_NOMINAL_SA);
+    volume  = chained 2020-price counterpart (SNA_HCE_REAL_SA). Four leaf
+    "form" categories (durable / semi-durable / non-durable goods, services;
+    cat01 codes 15–18). Same (nominal, volume, labels) contract as the other
+    quarterly decomposition ports (ism.decomp_ports.panels_from_nominal_real).
+    """
+    client = client or EstatClient()
+
+    def _wide(table_id: str) -> pd.DataFrame:
+        df = client.stats_data(table_id=table_id, force=force)
+        df = df[df["cat01"].astype(str).isin(SNA_HCE_FORMS)].copy()
+        df["date"] = df["time"].map(_jp_quarter_to_timestamp)
+        df = df.dropna(subset=["date"])
+        df["key"] = df["cat01"].astype(str).map(lambda c: SNA_HCE_FORMS[c][0])
+        return df.pivot_table(index="date", columns="key", values="value",
+                              aggfunc="first").sort_index()
+
+    nominal = _wide(SNA_HCE_NOMINAL_SA)
+    volume = _wide(SNA_HCE_REAL_SA)
+    labels = {key: lab for key, lab in SNA_HCE_FORMS.values()}
+    cols = [c for c in nominal.columns if c in volume.columns]
+    return nominal[cols], volume[cols], {c: labels[c] for c in cols}
