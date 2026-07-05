@@ -211,18 +211,23 @@ def compute_baseline(logp, logq, infl, w, J=12, W=120, ppy=12):
     shares = shock_shares(lab, w)
     index = logp.index
 
-    # sparse latest-month drivers (category contribution to the supply/demand split)
+    # sparse latest-period drivers. Each item is
+    #   [category, TRUE signed contribution to inflation (pp), shock (+1/-1)],
+    # matching web/decomp_engine.js: the contribution keeps its real sign (effect
+    # on inflation) and the shock type (supply/demand) is carried separately so
+    # the UI colours by type without flipping the bar's sign.
     wlag = w.shift(1)
-    cc = (wlag * infl)
-    net = lab.supply.fillna(0) - lab.demand.fillna(0)
-    contrib_cat = (cc * net)
+    cc = (wlag * infl)                                   # true per-category contribution
+    net = lab.supply.fillna(0) - lab.demand.fillna(0)    # +1 supply / -1 demand / 0 neither
     valid = contrib.dropna().index
     drivers = {}
     if len(valid):
         for d in valid[-22:]:
-            row = contrib_cat.loc[d]
-            items = [[i, round(float(v), ROUND)] for i, v in enumerate(row.to_numpy())
-                     if np.isfinite(v) and abs(v) > 1e-6]
+            cc_row = cc.loc[d].to_numpy()
+            net_row = net.loc[d].to_numpy()
+            items = [[i, round(float(cc_row[i]), ROUND), int(net_row[i])]
+                     for i in range(len(cc_row))
+                     if net_row[i] != 0 and np.isfinite(cc_row[i]) and abs(cc_row[i]) > 1e-6]
             items.sort(key=lambda p: -abs(p[1]))
             drivers[d.strftime("%Y-%m")] = items
 

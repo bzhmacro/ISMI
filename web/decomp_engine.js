@@ -273,8 +273,12 @@ const DecompEngine = (() => {
         if (Number.isFinite(wl) && Number.isFinite(pi)) {
           const contrib = wl * pi;
           cT += contrib;
-          if (isSup) { cS += contrib; contribByCat.push([c, contrib]); }
-          else if (isDem) { cD += contrib; contribByCat.push([c, -contrib]); }
+          // Driver item = [category, TRUE signed contribution to inflation,
+          // shock type (+1 supply / -1 demand)]. The contribution keeps its real
+          // sign (effect on inflation); the shock type is carried separately so
+          // the UI can colour by type without flipping the bar's sign.
+          if (isSup) { cS += contrib; contribByCat.push([c, contrib, 1]); }
+          else if (isDem) { cD += contrib; contribByCat.push([c, contrib, -1]); }
           else if (isAmb) cA += contrib;
         }
       }
@@ -306,7 +310,7 @@ const DecompEngine = (() => {
     const drivers = valid.slice(-driverMonths).map(d => {
       const contrib = d.contrib
         .filter(p => Math.abs(p[1]) > DRIVER_MIN)
-        .map(p => [p[0], Math.round(p[1] * 1e5) / 1e5]);
+        .map(p => [p[0], Math.round(p[1] * 1e5) / 1e5, p[2]]);
       contrib.sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]));
       return { t: d.t, contrib };
     });

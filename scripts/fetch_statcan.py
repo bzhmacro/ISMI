@@ -59,6 +59,16 @@ def _prune_stale_chunks(manifest):
                 f.unlink()
 
 
+def _chunk_has_data(path) -> bool:
+    """True if a cached chunk CSV has at least one data row beyond the header."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            f.readline()                       # header
+            return any(line.strip() for line in f)
+    except OSError:
+        return False
+
+
 def main(argv=None):
     argv = argv or sys.argv[1:]
     force = "--force" in argv
@@ -67,7 +77,10 @@ def main(argv=None):
     for i, item in enumerate(manifest, 1):
         dest = RAW_STATCAN / item["file"]
         dest.parent.mkdir(parents=True, exist_ok=True)
-        if dest.exists() and not force:
+        # Skip a cached chunk only if it actually holds data rows; an
+        # empty/header-only chunk (a query that returned nothing) is re-fetched
+        # without needing --force.
+        if dest.exists() and not force and _chunk_has_data(dest):
             continue
         resp = _request("GET", item["url"], provider="StatCan", timeout=180)
         df = compact_db_csv(resp.text)

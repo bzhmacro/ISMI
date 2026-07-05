@@ -205,11 +205,17 @@ class StatCanClient:
             return cached
         cats = load_ca_cpi_categories()
         members = sorted(cats["member_id_w"].astype(int))
-        # dims: Geography . Products . Price period of weight . Geographic distribution
-        df = self.fetch_subset(PID_CPI_W, [[1], members, [1], [2]])
+        # dims: Geography . Products . Price period of weight . Geographic distribution.
+        # Geographic distribution member 1 = "Distribution to selected geographies"
+        # (where the per-product Canada weights live); member 2 = "Distribution to
+        # Canada" only carries the All-items 100%. The db-loading endpoint also
+        # needs a date range for this Occasional table (empty dates return an
+        # error), so pull from 1986 (the table's first basket year) onward.
+        sel = [[1], members, [1], [1]]
+        df = self.fetch_subset(PID_CPI_W, sel, "19860101", "")
         out = self.cache_dir / "18100007_ca.csv"
         df.to_csv(out, index=False)
-        _write_provenance(out, db_loading_url(PID_CPI_W, [[1], members, [1], [2]]), {})
+        _write_provenance(out, db_loading_url(PID_CPI_W, sel, "19860101", ""), {})
         return df
 
 

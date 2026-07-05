@@ -380,13 +380,19 @@
     if (dateEl) dateEl.textContent = `(${dd.date}${!D.selectedDate ? " · latest" : ""})`;
     const top = dd.contrib.slice(0, 15).reverse();
     const labels = top.map(p => { const c = s.categories[p[0]]; const n = c ? c.label : `cat ${p[0]}`; return n.length > 34 ? n.slice(0, 32) + "…" : n; });
-    const vals = top.map(p => p[1]);                       // + = supply, − = demand
-    const colors = vals.map(v => v >= 0 ? SUP : DEMI);
+    // p = [cat, signed contribution to inflation (pp), shock (+1 supply / -1 demand)].
+    // Bars keep the TRUE sign (effect on inflation); supply vs demand is shown by
+    // colour. (Older payloads without p[2] fall back to the sign as the type.)
+    const vals = top.map(p => p[1]);
+    const shock = top.map(p => (p.length > 2 && p[2] != null) ? p[2] : (p[1] >= 0 ? 1 : -1));
+    const colors = shock.map(k => k >= 0 ? SUP : DEMI);
     const layout = { paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG, font: { color: INK, size: 11 },
       margin: { l: 180, r: 16, t: 6, b: 30 },
-      xaxis: { title: "supply (+) / demand (−) contribution", gridcolor: GRID, zeroline: true, zerolinecolor: "#3a4b5c" },
+      xaxis: { title: "contribution to inflation (pp) · red = supply, blue = demand", gridcolor: GRID, zeroline: true, zerolinecolor: "#3a4b5c" },
       yaxis: { gridcolor: "transparent", automargin: true } };
-    Plotly.react(host, [{ x: vals, y: labels, type: "bar", orientation: "h", marker: { color: colors }, hovertemplate: "%{y}: %{x:.4f}<extra></extra>" }], layout, { responsive: true, displayModeBar: false });
+    const shockName = top.map(k => (k[2] != null ? (k[2] >= 0 ? "supply" : "demand") : ""));
+    Plotly.react(host, [{ x: vals, y: labels, type: "bar", orientation: "h", marker: { color: colors },
+      customdata: shockName, hovertemplate: "%{y}: %{x:.4f} pp (%{customdata})<extra></extra>" }], layout, { responsive: true, displayModeBar: false });
   }
 
   function setupDownload() {
