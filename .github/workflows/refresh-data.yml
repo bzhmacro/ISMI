@@ -1,10 +1,24 @@
 name: Refresh ISM web data
 
-# Rebuilds web/data/ism.json (both the PCE and CPI backbones) from the latest
-# BEA/FRED/BLS data and commits it, which triggers an automatic Vercel redeploy.
-# Runs monthly and on demand. If one backbone's source is briefly unavailable,
-# the export keeps the other backbone's previously committed data (see
-# scripts/export_web_data.py), so a partial refresh never drops a gauge.
+# Rebuilds web/data/ism.json (the ISM index backbones) AND web/data/decomp.json
+# (the supply/demand decomposition scopes) from the latest public sources and
+# commits them, which triggers an automatic Vercel redeploy.
+#
+# Runs monthly and on demand. Each backbone/scope self-fetches independently, so
+# if one source is briefly unavailable the export keeps that gauge's previously
+# committed data (see scripts/export_web_data.py / export_decomp_data.py) — a
+# partial refresh never drops a gauge.
+#
+# Sources by gauge:
+#   US PCE/CPI   -> BEA_API_KEY, FRED_API_KEY, BLS_API_KEY
+#   UK CPI       -> ONS bulk CSV (no key)
+#   FR/DE HICP   -> Eurostat (no key); Germany decomp -> DESTATIS_API_TOKEN
+#   Japan        -> ESTAT_API_ID
+#   Canada       -> StatCan caches (refreshed best-effort by fetch_statcan.py)
+#
+# Before committing, the freshly-built JSON is validated (schema, no gauge
+# dropped, dates current and not regressing, panels non-empty) by
+# scripts/validate_web_data.py so a bad refresh can't go live.
 
 on:
   schedule:
@@ -29,22 +43,49 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Rebuild web data from latest BEA/FRED/BLS
+      # Best-effort refresh of the Canadian StatCan caches (monthly CPI + basket
+      # weights for the ISM 'ca' gauge, quarterly HCE for the decomp 'ca' scopes).
+      # Non-fatal: if www150.statcan.gc.ca is unreachable, the committed caches
+      # are used and the CA gauges simply keep their prior data.
+      - name: Refresh StatCan caches (Canada)
+        continue-on-error: true
+        run: python scripts/fetch_statcan.py
+
+      - name: Rebuild ISM data (web/data/ism.json)
         env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-          BEA_API_KEY:  ${{ secrets.BEA_API_KEY }}
-          BLS_API_KEY:  ${{ secrets.BLS_API_KEY }}
+          FRED_API_KEY:       ${{ secrets.FRED_API_KEY }}
+          BEA_API_KEY:        ${{ secrets.BEA_API_KEY }}
+          BLS_API_KEY:        ${{ secrets.BLS_API_KEY }}
+          ESTAT_API_ID:       ${{ secrets.ESTAT_API_ID }}
+          DESTATIS_API_TOKEN: ${{ secrets.DESTATIS_API_TOKEN }}
         run: python scripts/export_web_data.py
+
+      - name: Rebuild decomposition data (web/data/decomp.json)
+        env:
+          FRED_API_KEY:       ${{ secrets.FRED_API_KEY }}
+          BEA_API_KEY:        ${{ secrets.BEA_API_KEY }}
+          BLS_API_KEY:        ${{ secrets.BLS_API_KEY }}
+          ESTAT_API_ID:       ${{ secrets.ESTAT_API_ID }}
+          DESTATIS_API_TOKEN: ${{ secrets.DESTATIS_API_TOKEN }}
+        run: python scripts/export_decomp_data.py
+
+      # Validation gate on the freshly-built DATA: valid schema, no gauge dropped,
+      # dates current and not moving backwards, panels non-empty. If anything
+      # fails the job stops here and nothing is committed, so a broken refresh
+      # can't reach the live site. (Engine-code parity — src/ism vs web/*.js — is
+      # a separate CI concern: a data-only refresh never changes engine code.)
+      - name: Validate refreshed data
+        run: python scripts/validate_web_data.py
 
       - name: Commit if changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git status --porcelain web/data/ism.json | grep -q .; then
-            git add web/data/ism.json
-            git commit -m "data: monthly ISM refresh ($(date -u +%Y-%m-%d))"
+          if git status --porcelain web/data/ism.json web/data/decomp.json | grep -q .; then
+            git add web/data/ism.json web/data/decomp.json
+            git commit -m "data: monthly ISM + decomp refresh ($(date -u +%Y-%m-%d))"
             git push
             echo "Refreshed and pushed."
           else
-            echo "No change in web/data/ism.json — nothing to commit."
+            echo "No change in web/data — nothing to commit."
           fi
