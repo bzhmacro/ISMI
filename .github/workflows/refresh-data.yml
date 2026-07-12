@@ -14,7 +14,8 @@ name: Refresh ISM web data
 #   UK CPI       -> ONS bulk CSV (no key)
 #   FR/DE HICP   -> Eurostat (no key); Germany decomp -> DESTATIS_API_TOKEN
 #   Japan        -> ESTAT_API_ID
-#   Canada       -> StatCan caches (refreshed best-effort by fetch_statcan.py)
+#   Canada       -> StatCan, rebuilt from the committed manifest.json (best
+#                   effort; if the runner is blocked, CI keeps committed CA data)
 #
 # Before committing, the freshly-built JSON is validated (schema, no gauge
 # dropped, dates current and not regressing, panels non-empty) by
@@ -43,13 +44,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      # Best-effort refresh of the Canadian StatCan caches (monthly CPI + basket
-      # weights for the ISM 'ca' gauge, quarterly HCE for the decomp 'ca' scopes).
-      # Non-fatal: if www150.statcan.gc.ca is unreachable, the committed caches
-      # are used and the CA gauges simply keep their prior data.
-      - name: Refresh StatCan caches (Canada)
-        continue-on-error: true
-        run: python scripts/fetch_statcan.py
+      # Rebuild the Canadian StatCan caches from the committed download plan
+      # (data/raw/statcan/manifest.json). Best-effort and non-fatal: if StatCan
+      # (www150.statcan.gc.ca) blocks the runner, the '|| echo' swallows the
+      # failure, no assembled cache is written, and the exporters below simply
+      # keep the last committed CA data. When it succeeds, the CA gauges refresh.
+      - name: Refresh Canada caches (StatCan)
+        run: |
+          python scripts/fetch_statcan.py \
+            || echo "::warning::StatCan unreachable — keeping committed Canada data"
 
       - name: Rebuild ISM data (web/data/ism.json)
         env:

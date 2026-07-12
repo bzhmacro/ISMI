@@ -17,7 +17,14 @@ scratch/
 
 # ---- data: caches & third-party files are NOT redistributed ----
 # All raw pulls are reproducible from config/sources.yaml; regenerate locally.
-data/raw/
+# Exception: the StatCan download plan (manifest.json) IS committed so the
+# GitHub Action can rebuild the Canadian caches in CI (it is derived purely from
+# config/ca_*_categories.csv by scripts/build_statcan_manifest.py — the bulky
+# assembled CSVs it drives stay ignored).
+data/raw/*
+!data/raw/statcan
+data/raw/statcan/*
+!data/raw/statcan/manifest.json
 data/processed/
 # (the author-provided ISM_public.xlsx and BEA caches live under data/raw/ and
 #  are intentionally excluded — see data/README.md for how to obtain them.)

@@ -87,15 +87,24 @@ def _committed_groups_and_latest(path: Path, group_key: str):
     return out
 
 
-def validate_file(path: Path, schema: int, group_key: str, max_stale_days: int) -> list[str]:
+def validate_file(path: Path, schema: int, group_key: str, max_stale_days: int):
+    """Return (errors, warnings). Errors block the commit; warnings only inform.
+
+    A stale gauge is a WARNING, not an error: a source that simply hasn't
+    published (or was briefly unreachable, e.g. StatCan) is not a corrupt
+    refresh, and must not block the gauges that DID update. Hard failures are
+    reserved for genuinely broken output: bad JSON/schema, a dropped gauge,
+    dates moving backwards, or an empty panel.
+    """
     errors: list[str] = []
+    warnings: list[str] = []
     if not path.exists():
-        return [f"{path.name}: file missing"]
+        return [f"{path.name}: file missing"], warnings
 
     try:
         data = json.loads(path.read_text())
     except Exception as e:  # noqa: BLE001
-        return [f"{path.name}: not valid JSON ({e})"]
+        return [f"{path.name}: not valid JSON ({e})"], warnings
 
     meta = data.get("meta", {})
     if meta.get("schema") != schema:
@@ -103,7 +112,7 @@ def validate_file(path: Path, schema: int, group_key: str, max_stale_days: int) 
 
     groups = data.get(group_key) or {}
     if not groups:
-        return errors + [f"{path.name}: no '{group_key}' present"]
+        return errors + [f"{path.name}: no '{group_key}' present"], warnings
 
     default = meta.get("default_backbone") or meta.get("default_scope")
     if default and default not in groups:
@@ -131,9 +140,9 @@ def validate_file(path: Path, schema: int, group_key: str, max_stale_days: int) 
         latest = parsed[-1]
         stale = (today - latest).days
         if stale > max_stale_days:
-            errors.append(
+            warnings.append(
                 f"{path.name}[{g}]: latest date {ds[-1]} is {stale}d old "
-                f"(> {max_stale_days}d)")
+                f"(> {max_stale_days}d) — source may not have published")
         if prev and prev.get(g) and latest < prev[g]:
             errors.append(
                 f"{path.name}[{g}]: latest date {ds[-1]} moved BACKWARDS "
@@ -141,7 +150,7 @@ def validate_file(path: Path, schema: int, group_key: str, max_stale_days: int) 
         if not _any_finite(gv.get("panel", {})):
             errors.append(f"{path.name}[{g}]: panel has no finite values")
 
-    return errors
+    return errors, warnings
 
 
 def main() -> int:
@@ -152,11 +161,22 @@ def main() -> int:
     args = ap.parse_args()
 
     all_errors: list[str] = []
+    all_warnings: list[str] = []
     for path, schema, group_key in FILES:
-        errs = validate_file(path, schema, group_key, args.max_stale_days)
+        errs, warns = validate_file(path, schema, group_key, args.max_stale_days)
         all_errors.extend(errs)
-        status = "OK" if not errs else f"{len(errs)} problem(s)"
-        print(f"{path.name}: {status}")
+        all_warnings.extend(warns)
+        bits = []
+        if errs:
+            bits.append(f"{len(errs)} problem(s)")
+        if warns:
+            bits.append(f"{len(warns)} warning(s)")
+        print(f"{path.name}: {', '.join(bits) or 'OK'}")
+
+    if all_warnings:
+        print("\nWarnings (non-blocking):")
+        for w in all_warnings:
+            print(f"  - {w}")
 
     if all_errors:
         print("\nVALIDATION FAILED:", file=sys.stderr)
