@@ -14,8 +14,8 @@ name: Refresh ISM web data
 #   UK CPI       -> ONS bulk CSV (no key)
 #   FR/DE HICP   -> Eurostat (no key); Germany decomp -> DESTATIS_API_TOKEN
 #   Japan        -> ESTAT_API_ID
-#   Canada       -> StatCan, rebuilt from the committed manifest.json (best
-#                   effort; if the runner is blocked, CI keeps committed CA data)
+#   Canada       -> refreshed locally (StatCan too slow/blocked in CI); CI keeps
+#                   the last committed CA data. See the note on the steps below.
 #
 # Before committing, the freshly-built JSON is validated (schema, no gauge
 # dropped, dates current and not regressing, panels non-empty) by
@@ -44,15 +44,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      # Rebuild the Canadian StatCan caches from the committed download plan
-      # (data/raw/statcan/manifest.json). Best-effort and non-fatal: if StatCan
-      # (www150.statcan.gc.ca) blocks the runner, the '|| echo' swallows the
-      # failure, no assembled cache is written, and the exporters below simply
-      # keep the last committed CA data. When it succeeds, the CA gauges refresh.
-      - name: Refresh Canada caches (StatCan)
-        run: |
-          python scripts/fetch_statcan.py \
-            || echo "::warning::StatCan unreachable — keeping committed Canada data"
+      # NOTE on Canada: StatCan (www150.statcan.gc.ca) is too slow/unreliable to
+      # fetch in CI (blocked from many runners; ~1s/chunk × ~90 chunks even when
+      # up), so it is NOT auto-fetched here. Refresh the CA gauges LOCALLY when
+      # needed:  python scripts/build_statcan_manifest.py  (if categories changed)
+      #          python scripts/fetch_statcan.py           (rebuild caches)
+      #          python scripts/export_web_data.py  &&  export_decomp_data.py
+      # then commit the JSON. In CI the exporters find no StatCan cache and simply
+      # keep the last committed CA data — so the other gauges still refresh.
 
       - name: Rebuild ISM data (web/data/ism.json)
         env:
