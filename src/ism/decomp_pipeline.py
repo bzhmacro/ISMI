@@ -97,6 +97,26 @@ def core_exclusions() -> set[str]:
     return {"DFOFR", "DNBVR", "DFFDR", "DGASR", "DOILR", "DLPFR", "DELGR"}
 
 
+def goods_services_keys(tag: str) -> list[str]:
+    """Keys tagged Goods ('G') or Services ('S') in config/pce_categories.csv.
+
+    The tag is BEA's own PCE aggregate split: every pinned leaf under the table
+    2.4.5U "Goods" header (line < 150) is a good, everything under "Services"
+    (line >= 150) is a service. Mirrors Canada's `gs` column in
+    config/ca_hce_categories.csv, so the US gets the same total/goods/services
+    scopes as the Bank-of-Canada port (Shapiro Figs. 3-4). All-PCE, no core cut.
+    """
+    cats = load_categories()
+    if "gs" not in cats.columns:  # legacy config without the tag
+        raise ValueError(
+            "config/pce_categories.csv has no 'gs' column; regenerate it "
+            "(G = line < 150, S = line >= 150 in BEA table 2.4.5U)."
+        )
+    want = {"goods": "G", "services": "S"}[tag]
+    return [k for k in cats["key"].astype(str) if
+            cats.loc[cats["key"].astype(str) == k, "gs"].iloc[0] == want]
+
+
 # ----------------------------------------------------------------------------
 # Robustness transforms applied to the log levels before estimation
 # ----------------------------------------------------------------------------
@@ -163,7 +183,9 @@ def build_decomp_panels(
 
     Parameters
     ----------
-    scope : "headline" (all pinned categories) or "core" (drop food & energy).
+    scope : "headline" (all pinned categories), "core" (drop food & energy),
+            "goods" or "services" (BEA's PCE goods/services split, all-PCE;
+            the US analogue of the Canada total/goods/services scopes).
     spec  : "levels" | "diff" | "filter" (Section 3.2 robustness).
     inflation_method : "pct" (Laspeyres-additive, default) or "log" for π_{i,t}.
     """
@@ -178,8 +200,11 @@ def build_decomp_panels(
     if scope == "core":
         excl = core_exclusions()
         keys = [k for k in keys if k not in excl]
+    elif scope in ("goods", "services"):
+        gs = set(goods_services_keys(scope))
+        keys = [k for k in keys if k in gs]
     elif scope != "headline":
-        raise ValueError("scope must be 'headline' or 'core'")
+        raise ValueError("scope must be 'headline', 'core', 'goods' or 'services'")
 
     # keep keys present in ALL three tables
     keys = [k for k in keys if k in price.columns and k in quantity.columns and k in nominal.columns]

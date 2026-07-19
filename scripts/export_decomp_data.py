@@ -4,9 +4,10 @@ export_decomp_data.py
 
 Export the RAW category panels (log price, log quantity, MoM inflation, nominal
 expenditure shares) for the supply/demand decomposition (Shapiro 2022-18), for
-several scopes -- the US PCE backbone (headline, core; monthly) and the Bank of
-Canada quarterly HCE port (ca, ca_goods, ca_services) -- plus one precomputed
-baseline combo per scope, into the compact JSON the static website consumes:
+several scopes -- the US PCE backbone (headline, core, goods, services; monthly)
+and the Bank of Canada quarterly HCE port (ca, ca_goods, ca_services) -- plus one
+precomputed baseline combo per scope, into the compact JSON the static website
+consumes:
 
     web/data/decomp.json
 
@@ -97,6 +98,10 @@ SCOPES = {
                         ui=UI_PARAMS),
     "core":        dict(country="us", tab="US core",     ppy=12, J=12, W=120,
                         ui=UI_PARAMS),
+    "goods":       dict(country="us", tab="US goods",    ppy=12, J=12, W=120,
+                        ui=UI_PARAMS),
+    "services":    dict(country="us", tab="US services", ppy=12, J=12, W=120,
+                        ui=UI_PARAMS),
     "ca":          dict(country="ca", tab="Canada",          ppy=4, J=4, W=40,
                         ca_scope="total",    ui=UI_QUARTERLY),
     "ca_goods":    dict(country="ca", tab="Canada goods",    ppy=4, J=4, W=40,
@@ -121,10 +126,11 @@ COUNTRY_META = {
            "on 4 lags over a 40-quarter window. No published author overlay."),
     "fr": ("France PCE",
            "INSEE quarterly national accounts, household consumption by product "
-           "(A17, values + chained volumes, SA-WDA)",
+           "(~40 products from the 'par produit' tables; values + chained volumes, "
+           "SA-WDA; A17 ~17-product fallback when the detailed source is offline)",
            "Decomposition computed in the browser from INSEE quarterly national-"
-           "accounts consumption (A17 products; coarser cross-section than the other "
-           "ports): 4 lags over a 40-quarter window. No published author overlay."),
+           "accounts consumption by product: reduced-form VAR of log price & log "
+           "quantity on 4 lags over a 40-quarter window. No published author overlay."),
     "de": ("Germany PCE",
            "Eurostat quarterly national accounts, household consumption by "
            "durability (namq_10_fcs, SCA, nominal + chain-linked real)",
@@ -184,6 +190,10 @@ def build_panels(scope, proxy=False):
     keys = [k for k in cats["key"].astype(str) if k in price.columns and k in nominal.columns]
     if scope == "core":
         keys = [k for k in keys if k not in core_exclusions()]
+    elif scope in ("goods", "services"):
+        from ism.decomp_pipeline import goods_services_keys
+        gs = set(goods_services_keys(scope))
+        keys = [k for k in keys if k in gs]
     p = price[keys].astype(float)
     nom = nominal[keys].astype(float)
     q = nom / p                                   # real-expenditure proxy
@@ -275,6 +285,22 @@ def build_scope(scope, proxy=False):
                     "Total = computed aggregate; no published author overlay.")
         else:
             label, source_note, note = COUNTRY_META[country]
+    elif scope in ("goods", "services"):
+        # US goods/services split (BEA table 2.4.5U aggregate: line < 150 = goods,
+        # line >= 150 = services). FRBSF publishes only headline/core, so there is
+        # no author overlay; the dotted overlay is the panel's own aggregate
+        # implicit-deflator y/y change, as for the Canada goods/services scopes.
+        author = None
+        headline_yoy = _ser(_aggregate_yoy(logp, w, spec["ppy"]), index)
+        label = f"PCE ({scope})"
+        source_note = ("BEA Underlying Detail 2.4.3U / 2.4.4U / 2.4.5U, goods vs "
+                       "services per BEA's PCE aggregate split (table 2.4.5U: "
+                       "line < 150 = goods, line >= 150 = services)"
+                       + (" (quantity = nominal/price proxy)" if proxy else ""))
+        note = ("DEMO: quantity proxied as nominal/price; rerun the exporter "
+                "with BEA table U20403 for the exact series." if proxy else
+                "Decomposition computed in the browser from BEA underlying detail, "
+                "restricted to PCE goods (or services). No published author overlay.")
     else:
         # FRBSF published author overlay (supply/demand/ambiguous), monthly + yoy
         author = load_frbsf_author(scope=scope, index=index)

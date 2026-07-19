@@ -21,6 +21,20 @@ h2{font-size:1.05rem;margin:24px 0 8px}
   padding:6px 10px;cursor:pointer;font-size:.82rem;transition:.12s}
 .seg button:hover{border-color:var(--accent)}
 .seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#04101f;font-weight:600}
+/* Scopes whose cross-section is too small for the supply/demand model to be
+   meaningful (Japan/Germany): greyed out but still selectable, with a tooltip. */
+.seg button.caution{position:relative;opacity:.45;border-style:dashed}
+.seg button.caution:hover{opacity:.7}
+.seg button.caution[aria-pressed="true"]{opacity:.95;border-style:solid}
+.seg button.caution .tip{
+  position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
+  width:236px;background:#0b1119;border:1px solid var(--line);color:var(--ink);
+  border-radius:8px;padding:9px 11px;font-size:.74rem;line-height:1.4;font-weight:400;
+  text-align:left;white-space:normal;opacity:0;visibility:hidden;transition:opacity .12s;
+  z-index:30;box-shadow:0 6px 22px rgba(0,0,0,.45);pointer-events:none}
+.seg button.caution .tip::after{content:"";position:absolute;top:100%;left:50%;
+  transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--line)}
+.seg button.caution:hover .tip{opacity:1;visibility:visible}
 .toggles{display:flex;flex-direction:column;gap:6px;justify-content:center}
 .chk{font-weight:500;font-size:.85rem;display:flex;align-items:center;gap:8px;cursor:pointer}
 .chk input:disabled{cursor:not-allowed}

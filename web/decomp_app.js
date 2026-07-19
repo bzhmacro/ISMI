@@ -166,22 +166,49 @@
   function setStatus(t, warn) { const el = $("d-status"); if (!el) return; el.textContent = t || ""; el.classList.toggle("warn", !!warn); }
 
   // ---- controls ----------------------------------------------------------
-  function seg(id, values, current, label, onPick) {
+  function seg(id, values, current, label, onPick, decorate) {
     const host = $(id); if (!host) return; host.innerHTML = "";
     values.forEach(v => {
       const b = document.createElement("button");
       b.textContent = label(v);
       b.setAttribute("aria-pressed", String(v === current));
       b.onclick = () => { [...host.children].forEach(c => c.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true"); onPick(v); };
+      if (decorate) decorate(b, v);   // optional per-button styling / tooltip
       host.appendChild(b);
     });
+  }
+
+  // Scopes whose national-accounts cross-section is too small for the
+  // supply/demand split to be meaningful — greyed out (but still selectable),
+  // with a hover tooltip explaining the caveat. Keyed by scope name.
+  const CAUTION_SOURCE = {
+    jp: "Japan's quarterly national accounts",
+    de: "Germany's quarterly national accounts",
+  };
+
+  function cautionText(n) {
+    const sc = DATA.scopes[n] || {};
+    const src = CAUTION_SOURCE[n];
+    return `${src} break household consumption into only ${sc.n_categories || "a few"} `
+      + `categories. The supply-vs-demand split needs a broad cross-section of `
+      + `category prices and quantities, so with this few series the model isn't `
+      + `reliable here — shown for completeness, read it as a coarse `
+      + `goods-vs-services signal, not a real decomposition.`;
   }
 
   function buildScopeSeg() {
     const names = (DATA.meta && DATA.meta.scopes) || ["headline"];
     const label = n => (DATA.scopes[n] && DATA.scopes[n].tab) || (n[0].toUpperCase() + n.slice(1));
     seg("d-scope", names, D.scope, label,
-        n => { D.scope = n; D.selectedDate = null; applyScope(); requestCompute(0); });
+        n => { D.scope = n; D.selectedDate = null; applyScope(); requestCompute(0); },
+        (b, n) => {
+          if (!(n in CAUTION_SOURCE)) return;
+          b.classList.add("caution");
+          b.setAttribute("title", cautionText(n));   // native fallback
+          const tip = document.createElement("span");
+          tip.className = "tip"; tip.textContent = cautionText(n);
+          b.appendChild(tip);
+        });
   }
 
   // J-lags seg + W slider depend on the scope's frequency (monthly vs quarterly),

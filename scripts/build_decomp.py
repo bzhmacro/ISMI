@@ -8,6 +8,7 @@ End-to-end build + validation for the supply/demand decomposition
     python scripts/build_decomp.py                 # US headline+core + Canada + UK/FR/DE
     python scripts/build_decomp.py --proxy         # dev: US quantity = nominal/price
     python scripts/build_decomp.py --no-validate   # skip the FRBSF/BoC/sanity comparisons
+    python scripts/build_decomp.py --no-gs         # skip the US goods/services split
     python scripts/build_decomp.py --no-canada     # skip the Canada scopes
     python scripts/build_decomp.py --no-ports      # skip the UK/France/Germany ports
 
@@ -65,6 +66,10 @@ def _panels(scope, proxy):
             if k in price.columns and k in nominal.columns]
     if scope == "core":
         keys = [k for k in keys if k not in core_exclusions()]
+    elif scope in ("goods", "services"):
+        from ism.decomp_pipeline import goods_services_keys
+        gs = set(goods_services_keys(scope))
+        keys = [k for k in keys if k in gs]
     p = price[keys].astype(float); nom = nominal[keys].astype(float)
     q = nom / p
     w = nom.div(nom.sum(axis=1).replace(0, np.nan), axis=0)
@@ -75,6 +80,7 @@ def main(argv=None):
     argv = argv or sys.argv[1:]
     proxy = "--proxy" in argv
     do_validate = "--no-validate" not in argv
+    do_gs = "--no-gs" not in argv                # US goods/services split
     do_canada = "--no-canada" not in argv
     do_ports = "--no-ports" not in argv          # UK / France / Germany
 
@@ -102,6 +108,30 @@ def main(argv=None):
                 if rep is not None and len(rep):
                     print(f"  [{tag}] vs FRBSF (yoy):")
                     print(rep.to_string(index=False).replace("\n", "\n    "))
+
+    if do_gs:
+        # US goods/services split (BEA table 2.4.5U aggregate: line < 150 = goods,
+        # line >= 150 = services). Same monthly baseline as headline/core; FRBSF
+        # publishes no goods/services overlay, so validation is internal coherence.
+        for scope in ("goods", "services"):
+            print(f"\n=== US ({scope.upper()}) ===")
+            try:
+                logp, logq, infl, w = _panels(scope, proxy)
+            except Exception as exc:
+                print(f"  build failed: {type(exc).__name__}: {exc}")
+                continue
+            print(f"  {logp.shape[1]} categories, {logp.shape[0]} months"
+                  + (" (PROXY quantity)" if proxy else ""))
+            res = compute_decomp(logp, logq, infl, w,
+                                 DecompConfig(var_lags=12, window=120, precision_cut=0.0))
+            res.contrib.to_csv(PROC / f"decomp_{scope}_binary_monthly.csv")
+            res.contrib_yoy.to_csv(PROC / f"decomp_{scope}_binary_yoy.csv")
+            res.shares.to_csv(PROC / f"decomp_{scope}_binary_shares.csv")
+            print("  [binary] saved monthly/yoy/shares to data/processed/")
+            if do_validate:
+                rep = sanity_quarterly_decomp(res.contrib, res.contrib_yoy)
+                print("  internal-coherence sanity:")
+                print("    " + rep.to_string(index=False).replace("\n", "\n    "))
 
     if do_canada:
         for ca_scope in ("total", "goods", "services"):

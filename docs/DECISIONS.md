@@ -4,6 +4,33 @@ Non-obvious modelling and data judgment calls made when porting the two FRBSF
 models to other countries. Referenced from the source docstrings and the
 `config/sources_*.yaml` registries.
 
+## US — goods vs services scopes (supply/demand decomposition)
+
+- **Goods/services split.** Alongside `headline` and `core`, the US PCE model
+  exposes `goods` and `services` scopes (the analogue of the Canada
+  total/goods/services scopes, Shapiro Figs. 3–4). Each pinned leaf carries a
+  `gs` tag (G/S) in `config/pce_categories.csv`, consumed by
+  `ism.decomp_pipeline.goods_services_keys`. Unlike Canada — where the tag is a
+  hand-made judgment call at the durable/service boundary — the US tag is
+  **BEA's own PCE aggregate split**: table 2.4.5U places the "Goods" header at
+  line 2 and "Services" at line 150, so every leaf with `line < 150` is a good
+  and `line >= 150` a service (66 goods, 64 services of the 130 pinned leaves).
+  No boundary judgment is needed. `scripts/finalize_categories.py` re-emits the
+  `gs` column on a category rebuild so the split survives regeneration.
+
+- **All-PCE, monthly, no author overlay.** Both scopes use the full pinned set
+  (no core food/energy cut) and the same monthly baseline as headline/core
+  (`DecompConfig(var_lags=12, window=120)`). FRBSF publishes supply/demand only
+  for headline and core, so `goods`/`services` carry **no author overlay**;
+  validation is internal coherence (`sanity_quarterly_decomp`) and the dotted
+  overlay is the panel's own aggregate implicit-deflator y/y change, as for the
+  Canada goods/services scopes. Sanity: goods y/y peaks ~14% in the 1974 oil
+  shock (supply-led) and services later (~11% around 1980–81).
+
+- **Web.** Both appear in the decomposition site's Scope selector as `US goods`
+  / `US services`, grouped after `headline`/`core` and before the Canada scopes
+  (the selector is built from `meta.scopes`, so no JS change was needed).
+
 ## Canada (Bank of Canada SAP 2026-33) — supply/demand decomposition
 
 The Canadian decomposition follows Kang, Sekkel, Taskin & Yang (2026), "Supply
@@ -90,11 +117,25 @@ identical `DecompPanels` contract as the US and Canada. Decisions:
   adjusted, from 1955. Class-level leaves capped at `max_depth=2` give ~105
   categories — the finest cross-section among the European ports.
 
-- **France.** INSEE quarterly national accounts, household consumption by product
-  (**A17**, ~17 products), values + chained volumes, SA-WDA, from 1949. This is a
-  deliberately **coarse** cross-section (17 vs 96–105 elsewhere); read the shares
-  with that in mind. It still cleanly recovers known episodes (e.g. the 1974 oil
-  shock peaks aggregate y/y inflation at ~15%).
+- **France.** INSEE quarterly national accounts, household consumption by product,
+  values + chained volumes, SA-WDA, from 1949. **Two cross-sections, one contract:**
+  - *Detail (~40 products, default).* INSEE publishes a finer quarterly product
+    breakdown than A17, but **only as Excel** ("Consommation des ménages — par
+    produit": `t_conso_val.xls` = values, `t_conso_vol.xls` = chained volumes),
+    NOT in SDMX/BDM (the quarterly SDMX consumption is A17-only; the finer *annual*
+    dataset `CNA-2020-CONSO-MEN` has 582 codes but is annual). `ism.insee` scrapes
+    and caches those two files (`fr_hce_panels_detail`, needs `xlrd`); the release
+    id changes each quarter (pin in `CONSO_RELEASE`, refresh via
+    `scripts/fetch_insee_conso.py`). This lifts France from 17 to ~40 products —
+    closer to the UK/Canada cross-sections.
+  - *A17 (~17 products, fallback).* The SDMX `CNT-2020-OPERATIONS` P3M panel, always
+    available and keyless. `fr_hce_panels(level="detail")` uses the Excel panel and
+    **degrades gracefully to A17** when the Excel backbone is unreachable (host
+    blocked / no `xlrd` / no cache — e.g. the analysis sandbox), so builds never fail.
+  - *Validation.* Nominal is additive, so `validate_conso_vs_a17` cross-checks
+    Σ(detailed products) against the A17 total each quarter (small residual gap
+    expected). Both cross-sections recover known episodes (e.g. the 1974 oil shock
+    peaks aggregate y/y inflation at ~15%).
 
 - **Germany.** Quarterly consumption by **durability** (durable / semi-durable /
   non-durable goods, services — four categories) from **Eurostat**
@@ -146,6 +187,22 @@ consumption **by type (form)**, via the existing `ism.estat.EstatClient`
   signal, not a fine decomposition. The total (code 14) and residents-abroad
   adjustments (11/12/13) are dropped. Price = 100·nominal/real (implicit
   deflator); quantity = real chained series; weights = nominal shares.
+
+  *Why not finer (the quarterly ceiling).* Four is not a choice but the hard
+  quarterly limit — the same kind of constraint as Germany. The Cabinet Office
+  **quarterly** QE breaks household consumption down *only* by form; the richer
+  **by-purpose** breakdown (家計の目的別最終消費支出, ~10–13 COICOP-like
+  categories, with both nominal and real) exists but is published **annually**
+  only (国民経済計算年次推計, 付表 11/12), so it cannot feed a quarterly VAR
+  without interpolation. The Family Income and Expenditure Survey (家計調査 /
+  FIES) has many categories quarterly but is a **nominal**-only expenditure
+  survey — its "real" figures are CPI-deflated growth rates, not chained-volume
+  levels, and its per-household survey concept differs from SNA final
+  consumption — so it can't supply the nominal+real-chained pair the
+  decomposition needs. (The "116 purpose classifications" in the QE methodology
+  handbook are internal estimation inputs, not a published quarterly output
+  series.) Four form categories is therefore the finest cross-section that is
+  simultaneously quarterly, SA, and nominal+real-chained in one SNA framework.
 
 - **Access.** Same free `ESTAT_API_ID` as the CPI backbone; the loader
   self-fetches and caches under `data/raw/estat/`. Without the key the `jp` scope

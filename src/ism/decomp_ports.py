@@ -24,7 +24,8 @@ same construction is applied to every country here:
     -------   ---------------------------------------------  ----------  ------
     ca        StatCan 36-10-0124 detailed HCE (SA, 2017$)     ~96 leaves  1961Q1
     uk        ONS Consumer Trends ct.csv (SA, CP + CVM)       144 classes 1985Q1
-    fr        INSEE quarterly accounts P3M by product (A17)   ~17 prods   1949Q1
+    fr        INSEE quarterly consumption by product (Excel)  ~40 prods   1949Q1
+              (t_conso_val/vol; falls back to A17 ~17 if blocked)
     de        Destatis GENESIS 81000-0120 by purpose (COICOP) ~12+ divs   1991Q1
 
 Every loader returns the SAME `DecompPanels` contract as the US pipeline
@@ -182,21 +183,23 @@ def build_ca_panels(client=None, scope: str = "total", spec: str = "levels",
 # ---------------------------------------------------------------------------
 # France — INSEE quarterly accounts, consumption by product (A17)
 # ---------------------------------------------------------------------------
-def build_fr_panels(client=None, spec: str = "levels",
+def build_fr_panels(client=None, spec: str = "levels", level: str = "detail",
                     force: bool = False) -> DecompPanels:
-    """France port: INSEE CNT P3M by product, values (V) + chained volumes (L).
+    """France port: INSEE quarterly household consumption by product, V + L.
 
-    ~17 A17 product categories, SA-WDA, quarterly from 1949. Coarser than the
-    US/CA/UK cross-sections — read the shares with that in mind (documented in
-    docs/DECISIONS.md).
+    `level="detail"` (default) uses the ~40-product "Consommation des ménages —
+    par produit" Excel tables; it degrades gracefully to the ~17-product A17
+    SDMX panel when that backbone is unreachable (host blocked / no `xlrd` / no
+    cache — e.g. this sandbox). `level="a17"` forces the coarse panel. SA-WDA,
+    quarterly from 1949. See docs/DECISIONS.md and scripts/fetch_insee_conso.py.
     """
     from .insee import InseeClient, fr_hce_panels
 
     client = client or InseeClient()
-    nominal, volume, labels = fr_hce_panels(client, force=force)
+    nominal, volume, labels = fr_hce_panels(client, force=force, level=level)
     panels = panels_from_nominal_real(nominal, volume, labels, scope="fr",
                                       spec=spec)
-    print(f"[fr-decomp] {len(panels.categories)} A17 products, "
+    print(f"[fr-decomp] {len(panels.categories)} products, "
           f"{len(panels.log_price)} quarters")
     return panels
 

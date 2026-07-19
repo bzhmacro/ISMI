@@ -78,8 +78,15 @@ sel = tree[(at | shallow) & ~tree["excl"]].drop_duplicates("key")
 print(f"SELECTED CATEGORIES: {len(sel)}  (paper: 129)")
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
-sel[["key", "SeriesCode", "line", "level", "label"]].to_csv(OUT, index=False)
-print(f"wrote -> {OUT}")
+# BEA's own PCE goods/services split: table 2.4.5U puts "Goods" at line 2 and
+# "Services" at line 150, so every leaf with line < 150 is a good and line >= 150
+# a service. Emit it as the `gs` column so the decomposition's goods/services
+# scopes (ism.decomp_pipeline.goods_services_keys) survive a category rebuild.
+sel = sel.copy()
+sel["gs"] = ["G" if int(x) < 150 else "S" for x in sel["line"]]
+sel[["key", "SeriesCode", "line", "level", "label", "gs"]].to_csv(OUT, index=False)
+print(f"wrote -> {OUT}  (goods={int((sel['gs']=='G').sum())}, "
+      f"services={int((sel['gs']=='S').sum())})")
 
 # build ISM and validate
 keys = [k for k in sel["key"] if k in pw.columns and k in nw.columns]
