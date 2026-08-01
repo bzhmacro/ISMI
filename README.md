@@ -245,6 +245,58 @@ BEA https://apps.bea.gov/API/signup/ · BLS https://data.bls.gov/registrationEng
    **CPI backbone** (`src/ism/cpi_pipeline.py`, below) is a worked in-repo example
    of exactly this — a second price gauge behind the same engine.
 
+## Keeping the site's data current (the release calendar)
+
+The web data used to be rebuilt by a single GitHub Action cron on the **3rd of
+each month**, which turned out to be the worst available day. US CPI is the only
+gauge that publishes before the 15th; UK, Eurostat FR/DE, Japan, Canada and US
+PCE all land between the **10th and the 25th of the following month**. A run on
+the 3rd therefore fetched a vintage that was already ~5 weeks old and missed the
+release that had happened ten days earlier — and then did nothing for a month.
+
+The refresh is now **calendar-gated**. `config/release_calendar.yaml` carries
+each agency's published release dates (transcribed — no agency publishes a
+date-derivation rule, they all publish fixed annual calendars), the release time
+in its own IANA timezone, and a deliberately conservative fallback for months
+past the published horizon. `src/ism/release_calendar.py` compares what *should*
+be public against what is actually committed in `web/data/*.json` and refreshes
+only the gauges that are behind:
+
+```
+expected vintage > committed vintage   ->   rebuild that gauge
+```
+
+The workflow polls at 04:00, 10:00, 13:00 and 17:00 UTC — chosen so every source
+is caught within ~1.5h of its data becoming fetchable in both DST regimes (08:30
+ET is 15:30 UTC in summer but 16:30 UTC in winter, which is why the US slot is
+17:00 and not 16:00). About 4% of polls actually trigger a rebuild; the rest exit
+in seconds. Because "due" is a property of the data rather than of the calendar
+day, a failed fetch, a slipped release or a dropped cron all simply retry at the
+next poll instead of waiting a month.
+
+```bash
+python -m ism.release_calendar report     # what is stale right now, and what is next
+python -m ism.release_calendar next       # upcoming releases + safe fetch times
+python -m ism.release_calendar due        # gauges needing a refresh (what CI uses)
+python -m ism.release_calendar check      # self-validate the calendar (runs in CI)
+python -m ism.release_calendar horizon    # warns when published dates are running out
+```
+
+Two operational notes:
+
+- **Canada is local-only** (`ci: false`). StatCan is blocked from many runners
+  and ~1s/chunk over ~90 chunks when it is not, so `ca` and the quarterly
+  `ca_hce` scopes are refreshed by hand. They stay in the calendar so the
+  monitor job annotates the run when they fall behind, and `report` prints the
+  exact command to run.
+- **Top the calendar up each autumn.** Agencies publish the next year around
+  September/October. `check` runs in CI on every poll and validates each date
+  against the shape that gauge declares in its `expect:` block (weekday,
+  day-of-month window, lag), that the fallback can never fire early, and that
+  the cron slots still cover every gauge. It cannot catch a wrong-but-plausible
+  date — a US CPI release moved from the 12th to the 13th passes every
+  structural check — so transcribe from the agency calendar, not from memory.
+
 ## The CPI backbone (alternative price gauge)
 
 The paper builds the ISM on **PCE**. Because `engine.py` only ever sees an

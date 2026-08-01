@@ -1,0 +1,453 @@
+# release_calendar.yaml — when each price source actually publishes
+# =================================================================
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# The refresh job used to run once a month, on the 3rd. That is the worst
+# possible day: US CPI is the only gauge that lands before the 15th, and every
+# other source publishes between the 10th and the 25th of the following month.
+# A run on the 3rd therefore picked up a vintage that was already ~5 weeks old
+# and systematically missed the release that had happened ~10 days earlier.
+#
+# So the refresh is now CALENDAR-GATED: a daily job asks this file "what is the
+# newest reference month that should be public by now?", compares it with what
+# is actually committed in web/data/*.json, and rebuilds only the gauges that
+# are behind. See src/ism/release_calendar.py and .github/workflows/refresh-data.yml.
+#
+# THE ONE THING TO UNDERSTAND ABOUT THESE DATES
+# ---------------------------------------------
+# **No statistical agency publishes a date-derivation rule.** BLS, BEA, ONS,
+# Eurostat, StatCan and the Japan Statistics Bureau all publish a fixed annual
+# calendar instead, and the day-of-week/lag patterns are not stable enough to
+# reverse-engineer (US CPI 2026 runs Tue/Fri/Wed/Fri/Tue/Wed/Tue/Wed/Fri/Wed/Tue/Thu,
+# with lags of 10-14 days). The `dates:` blocks below are therefore transcribed
+# from the agencies' own calendars and are the source of truth. The `fallback:`
+# block is only a deliberately CONSERVATIVE backstop for reference months past
+# the published horizon — it is set late enough that it can never claim a
+# release has happened when it has not.
+#
+# MAINTENANCE
+# -----------
+# Agencies publish the next year around Sep-Oct (OMB published the 2026 US
+# principal-indicator schedule on 2025-09-26). Re-run:
+#     python -m ism.release_calendar horizon
+# to see how far each gauge is covered; it warns once a gauge is inside 90 days
+# of falling off its published calendar. Machine-readable feeds, if you want to
+# automate the top-up:
+#     BLS      https://www.bls.gov/schedule/news_release/bls.ics
+#     BEA      https://apps.bea.gov/API/signup/release_dates.json
+#     Japan    https://www.stat.go.jp/data/kouhyou/e-stat_cpi.xml
+#     Destatis per-release ICS from the Terminsuche release calendar
+#
+# All `dates` keys are the REFERENCE month (YYYY-MM); values are the RELEASE
+# date (YYYY-MM-DD) in the gauge's own timezone. Verified 2026-07-31.
+
+version: 1
+verified: 2026-07-31
+
+defaults:
+  # How long after the press release before we trust the machine-readable
+  # endpoint (bulk CSV / API table) to carry the new month. Agencies publish the
+  # release and the data together in principle, but the API tier can lag by
+  # minutes-to-hours and CI cron itself drifts, so we wait.
+  fetch_delay_hours: 3
+  # Reference months to look back over when resolving "newest released vintage".
+  lookback_months: 24
+
+gauges:
+
+  # ---------------------------------------------------------------------
+  cpi:
+    label: US CPI (BLS item strata)
+    provider: BLS
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [cpi]
+      decomp: []
+    release_time: "08:30"
+    timezone: America/New_York
+    utc_hour_fallback: 14          # used only if the tz database is unavailable
+    rule: >-
+      No derivation rule is published. CPI is a Principal Federal Economic
+      Indicator under OMB Statistical Policy Directive No. 3, which requires a
+      pre-announced immutable annual calendar and requires each release to name
+      the next one. Empirically the release falls on the 10th-14th of the
+      following month, on a weekday, 08:30 ET. CPI-U/CPI-W are final when
+      issued; SEASONALLY ADJUSTED series are revised for the prior 5 years each
+      February with the January release, so February should be treated as a
+      full-history re-pull rather than an append.
+    source: https://www.bls.gov/schedule/news_release/cpi.htm
+    # Machine-checkable shape of the published dates, asserted by
+    # `python -m ism.release_calendar check`. Catches a typo when someone tops
+    # the calendar up from the agency site next autumn.
+    expect:
+      weekdays: [Mon, Tue, Wed, Thu, Fri]
+      day_range: [10, 14]
+      lag_months: 1
+    fallback:
+      lag_months: 1
+      day: 15                      # conservative: never earlier than observed (10th-14th)
+    dates:
+      "2025-12": "2026-01-13"
+      "2026-01": "2026-02-13"
+      "2026-02": "2026-03-11"
+      "2026-03": "2026-04-10"
+      "2026-04": "2026-05-12"
+      "2026-05": "2026-06-10"
+      "2026-06": "2026-07-14"
+      "2026-07": "2026-08-12"
+      "2026-08": "2026-09-11"
+      "2026-09": "2026-10-14"
+      "2026-10": "2026-11-10"
+      "2026-11": "2026-12-10"
+      # 2027 not yet published by BLS (expected ~Sep-Oct 2026).
+
+  # ---------------------------------------------------------------------
+  pce:
+    label: US PCE (BEA underlying detail) — Personal Income and Outlays
+    provider: BEA
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [pce]
+      decomp: [headline, core, goods, services]
+    release_time: "08:30"
+    timezone: America/New_York
+    utc_hour_fallback: 14
+    rule: >-
+      No derivation rule is published. BEA states the annual schedule is
+      "promulgated several months before the start of the year and is
+      immutable, except for special, unforeseen circumstances". Empirically
+      Personal Income and Outlays ships on the same morning as that month's GDP
+      vintage, 23-30 days after the reference month ends, on a Wednesday or
+      Thursday, 08:30 ET — pulled forward in November and December to the
+      Wednesday before Thanksgiving and Christmas. Note the Jan-Apr 2026 dates
+      were disrupted by the government shutdown (Oct+Nov 2025 were combined into
+      a single 2026-01-22 release at 10:00 ET) and are not representative.
+    annual_update:
+      date: "2026-09-30"
+      note: >-
+        BEA annual update lands with the Aug 2026 release. Open revision period
+        is Q1 2021 - Q1 2026, so monthly personal income and outlays history
+        back to 2021-01 is restated. Treat this run as a FULL history re-pull,
+        not an incremental append; expect every PCE panel value to move.
+    source: https://www.bea.gov/news/schedule
+    # NOTE the fallback is only conservative for NORMAL months. The 2025-12,
+    # 2026-01 and 2026-02 reference months were pushed a further 2-6 weeks out
+    # by the shutdown, past what any rule would predict — if that recurs, the
+    # gate will ask for a vintage a few days before BEA publishes it, the fetch
+    # will return the prior month, and the gauge stays flagged behind until the
+    # data actually lands. Annoying, not harmful.
+    expect:
+      weekdays: [Mon, Tue, Wed, Thu, Fri]
+      day_range: [23, 31]
+      lag_months: 1
+      # Shutdown-disrupted; no rule predicts these and they are excluded from
+      # the shape checks AND from the fallback-conservatism check.
+      exceptions: ["2025-12", "2026-01", "2026-02"]
+    fallback:
+      lag_months: 1
+      day: last                    # conservative: last day of the following month
+    dates:
+      # -- shutdown-disrupted, NOT representative of BEA's normal cadence -----
+      "2025-12": "2026-02-20"      # 51d after month end (normal is 23-30d)
+      "2026-01": "2026-03-13"      # released in M+2, not M+1
+      "2026-02": "2026-04-09"      # released in M+2, not M+1
+      # -- cadence back to normal from here ---------------------------------
+      "2026-03": "2026-04-30"
+      "2026-04": "2026-05-28"
+      "2026-05": "2026-06-25"
+      "2026-06": "2026-07-30"
+      "2026-07": "2026-08-26"
+      "2026-08": "2026-09-30"
+      "2026-09": "2026-10-29"
+      "2026-10": "2026-11-25"
+      "2026-11": "2026-12-23"
+      # 2027 not yet published by BEA.
+
+  # ---------------------------------------------------------------------
+  uk:
+    label: UK CPI (ONS MM23 COICOP classes)
+    provider: ONS
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [uk]
+      decomp: []
+    release_time: "07:00"
+    timezone: Europe/London
+    utc_hour_fallback: 7
+    rule: >-
+      No derivation rule is published; ONS fixes dates in its release calendar
+      at least 12 months ahead. Empirically: always a WEDNESDAY, always in the
+      month following the reference month, always between the 16th and the 25th,
+      on a 4-week cycle stretched to 5 weeks whenever 4 weeks would land before
+      the 16th. 07:00 London — the market-sensitive slot, distinct from the
+      09:30 slot other ONS outputs use on the same morning. The MM23 bulk CSV
+      goes live under the same 07:00 bulletin release, with no separate
+      calendar entry and no documented lag.
+    source: https://www.ons.gov.uk/economy/inflationandpriceindices/bulletins/consumerpriceinflation/latest
+    expect:
+      weekdays: [Wed]
+      day_range: [16, 25]
+      lag_months: 1
+      gap_days: [28, 35]
+    fallback:
+      lag_months: 1
+      day: 25                      # conservative end of the observed 16th-25th window
+    dates:
+      "2025-12": "2026-01-21"
+      "2026-01": "2026-02-18"
+      "2026-02": "2026-03-25"
+      "2026-03": "2026-04-22"
+      "2026-04": "2026-05-20"
+      "2026-05": "2026-06-17"
+      "2026-06": "2026-07-22"
+      "2026-07": "2026-08-19"
+      "2026-08": "2026-09-16"
+      "2026-09": "2026-10-21"
+      "2026-10": "2026-11-18"
+      "2026-11": "2026-12-16"
+      "2026-12": "2027-01-20"
+
+  # ---------------------------------------------------------------------
+  # France and Germany are both read from the EUROSTAT full HICP release, not
+  # from INSEE/Destatis directly, so they share one calendar. The national
+  # flash estimates (INSEE ~last working day of the reference month 08:45 Paris,
+  # Destatis ~28th-31st 08:00 Berlin) are ~2.5 weeks earlier but carry only
+  # headline aggregates, not the COICOP leaf detail the panels need — which is
+  # why the gate waits for the full Eurostat release.
+  fr:
+    label: France HICP (Eurostat, COICOP leaves)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [fr]
+      decomp: []
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Documented by Eurostat: "The euro area inflation flash estimate is issued
+      at the end of each reference month. The complete set of harmonised indices
+      of consumer prices (HICP) for the euro area, EU and Member States is
+      released around the middle of the month following the reference month."
+      In practice the full release lands on the 16th-20th at 11:00 CET/CEST.
+      The January reference month is the exception (2026-02-25) because of the
+      annual weight update. If you ever switch to the ECB Data Portal instead of
+      the Eurostat press release, the euro-area SA series posts at 12:00 CET for
+      the full release (15:00 CET for the flash), i.e. later than Eurostat.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    expect: &eurostat_expect
+      weekdays: [Mon, Tue, Wed, Thu, Fri]
+      day_range: [16, 20]
+      lag_months: 1
+      # January reference month: annual reweighting pushes it to the 25th.
+      exceptions: ["2026-01"]
+    fallback: &eurostat_fallback
+      lag_months: 1
+      day: 22                      # conservative; covers the 16th-20th window and slippage
+      month_overrides:
+        1: 27                      # January reference month: annual reweighting
+                                   # pushes the release out (2026-02-25 vs the
+                                   # usual 16th-20th)
+    dates: &eurostat_hicp_full
+      "2025-12": "2026-01-19"
+      "2026-01": "2026-02-25"      # annual reweighting month — later than usual
+      "2026-02": "2026-03-18"
+      "2026-03": "2026-04-16"
+      "2026-04": "2026-05-20"
+      "2026-05": "2026-06-17"
+      "2026-06": "2026-07-17"
+      "2026-07": "2026-08-19"
+      "2026-08": "2026-09-17"
+      "2026-09": "2026-10-16"
+      "2026-10": "2026-11-18"
+      "2026-11": "2026-12-17"
+      "2026-12": "2027-01-19"      # cross-checked against the ECB statistical
+                                   # calendar; Eurostat's own API was rate-limited
+
+  de:
+    label: Germany HICP (Eurostat, COICOP leaves)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [de]
+      decomp: []
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Same Eurostat full-HICP release as France (see `fr`). Destatis publishes
+      its own national VPI/HVPI earlier — flash on the 28th-31st of the
+      reference month and final on the 10th-13th of the following month, both
+      08:00 Berlin — and the Destatis API is what feeds the German
+      decomposition when that scope is enabled. January is the outlier there
+      too (2026-02-17 final, vs the usual 10th-13th) for annual reweighting.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    # Anchored to France's — these two MUST stay identical, they are the same
+    # Eurostat release. They drifted apart once already.
+    expect: *eurostat_expect
+    fallback: *eurostat_fallback
+    dates: *eurostat_hicp_full
+
+  # ---------------------------------------------------------------------
+  jp:
+    label: Japan CPI (e-Stat, national)
+    provider: Statistics Bureau of Japan / e-Stat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [jp]
+      decomp: []
+    release_time: "08:30"
+    timezone: Asia/Tokyo
+    utc_hour_fallback: 23          # 08:30 JST = 23:30 UTC the PREVIOUS day
+    rule: >-
+      Confirmed by the Statistics Bureau's own machine-readable schedule feed
+      (e-stat_cpi.xml, which carries explicit release_hour/release_minute
+      fields): the national CPI is released roughly 3 weeks after the reference
+      month ends, on the 18th-24th, at 08:30 JST — USUALLY but not always a
+      Friday. The published calendar puts the Feb 2026 reference month on
+      Tuesday 2026-03-24; every other 2026 date is a Friday. Do not "correct"
+      that to a Friday, it is what the agency published. Japan has no DST.
+      The Tokyo ku-area advance CPI is
+      published 3-4 weeks earlier, on the Friday at or near the end of the
+      reference month, but covers only Tokyo and is not what these panels use.
+      The feed's `internet_*` fields (when the data goes on the web) match the
+      `release_*` fields exactly for every past entry, so e-Stat has the data
+      the same calendar day — but the feed gives no intraday posting time, hence
+      the extra buffer below.
+    fetch_delay_hours: 4           # wider than default: e-Stat intraday lag unverified
+    rebasing:
+      date: "2026-08-21"
+      note: >-
+        2025-base rebasing. 2026-07-10 the 2025-base item list was published;
+        2026-08-07 16:00 JST the retroactive 2025-base series (2025-01 to
+        2026-06) plus the pre-2024-12 linked index were published; 2026-08-21 is
+        the first monthly report on the 2025 base (July 2026 data). Anything
+        pinned to 2020=100 breaks here, and the whole history is restated —
+        check config/sources_japan.yaml and the jp panel after this run.
+    source: https://www.stat.go.jp/english/data/cpi/1582.html
+    expect:
+      # Usually Friday, but the agency's own calendar puts 2026-02 on a
+      # Tuesday. Do not "fix" that.
+      weekdays: [Mon, Tue, Wed, Thu, Fri]
+      day_range: [18, 24]
+      lag_months: 1
+    fallback:
+      lag_months: 1
+      day: 26                      # conservative; observed window is the 18th-24th
+    dates:
+      "2025-12": "2026-01-23"
+      "2026-01": "2026-02-20"
+      "2026-02": "2026-03-24"      # Tuesday — the one non-Friday in the 2026 calendar
+      "2026-03": "2026-04-24"
+      "2026-04": "2026-05-22"
+      "2026-05": "2026-06-19"
+      "2026-06": "2026-07-24"
+      "2026-07": "2026-08-21"      # first 2025-base monthly report
+      "2026-08": "2026-09-18"
+      "2026-09": "2026-10-23"
+      "2026-10": "2026-11-20"
+      "2026-11": "2026-12-18"
+      "2026-12": "2027-01-22"
+      "2027-01": "2027-02-19"
+      "2027-02": "2027-03-19"
+
+  # ---------------------------------------------------------------------
+  # Canada is deliberately NOT refreshed in CI: www150.statcan.gc.ca is blocked
+  # from many GitHub runners and, when it does respond, takes ~1s per chunk over
+  # ~90 chunks. It stays a local job. It is still listed here so the freshness
+  # monitor can tell you when it has fallen behind and needs a manual run —
+  # which is the whole point of having it in the calendar.
+  ca:
+    label: Canada CPI (StatCan 18-10-0004)
+    provider: Statistics Canada
+    frequency: monthly
+    ci: false
+    manual_command: >-
+      python scripts/fetch_statcan.py && python scripts/export_web_data.py ca
+    targets:
+      ism: [ca]
+      decomp: []
+    release_time: "08:30"
+    timezone: America/Toronto
+    utc_hour_fallback: 14
+    rule: >-
+      The only formal statement is in the Canadian CPI Reference Paper
+      (62-553-X, para 1.2): "The CPI is released every month, about three weeks
+      after the price observation period." Everything else is a published
+      calendar, with the caveat "in exceptional circumstances, some release
+      dates may be modified during the year". Empirically it is the MONDAY
+      roughly 2-3 weeks after month end (actual lag 14-22 days), bumped to
+      TUESDAY when that Monday is a statutory holiday — which is exactly what
+      happens at Family Day and Victoria Day (2026-02-17, 2026-05-19,
+      2027-02-16). Released via The Daily, which publishes at 08:30 ET.
+    source: https://www150.statcan.gc.ca/n1/dai-quo/cal1-eng.htm
+    expect:
+      # Monday, bumped to Tuesday when that Monday is a statutory holiday
+      # (Family Day in Feb, Victoria Day in May).
+      weekdays: [Mon, Tue]
+      day_range: [14, 22]
+      lag_months: 1
+    fallback:
+      lag_months: 1
+      day: 23                      # conservative; observed window is the 14th-22nd
+    dates:
+      "2025-12": "2026-01-19"
+      "2026-01": "2026-02-17"      # Tue — Family Day
+      "2026-02": "2026-03-16"
+      "2026-03": "2026-04-20"
+      "2026-04": "2026-05-19"      # Tue — Victoria Day
+      "2026-05": "2026-06-22"
+      "2026-06": "2026-07-20"
+      "2026-07": "2026-08-17"
+      "2026-08": "2026-09-14"
+      "2026-09": "2026-10-19"
+      "2026-10": "2026-11-16"
+      "2026-11": "2026-12-14"
+      "2026-12": "2027-01-18"
+      "2027-01": "2027-02-16"      # Tue — Family Day
+      "2027-02": "2027-03-15"
+
+  # ---------------------------------------------------------------------
+  # The Canadian decomposition scopes are QUARTERLY (StatCan 36-10-0124,
+  # household final consumption expenditure in the quarterly national accounts),
+  # not monthly CPI — a different release entirely, roughly two months after the
+  # quarter ends. Local-only for the same StatCan reachability reason.
+  ca_hce:
+    label: Canada HCE quarterly (StatCan 36-10-0124) — decomposition scopes
+    provider: Statistics Canada
+    frequency: quarterly
+    ci: false
+    manual_command: >-
+      python scripts/fetch_statcan.py && python scripts/export_decomp_data.py ca ca_goods ca_services
+    targets:
+      ism: []
+      decomp: [ca, ca_goods, ca_services]
+    release_time: "08:30"
+    timezone: America/Toronto
+    utc_hour_fallback: 14
+    rule: >-
+      Quarterly national accounts (Gross domestic product, income and
+      expenditure), released via The Daily at 08:30 ET roughly 60 days after
+      the reference quarter ends. Reference "months" for this gauge are the
+      FIRST month of the quarter, matching how the decomp panel labels its
+      quarterly date axis (2026-01 = Q1 2026).
+    source: https://www150.statcan.gc.ca/n1/dai-quo/cal1-eng.htm
+    fallback:
+      lag_months: 5                # first month of quarter + 5 months ~= quarter end + 60d
+      day: 5
+    # NOT TRANSCRIBED FROM A VERIFIED CALENDAR. Unlike every other gauge above,
+    # the quarterly national-accounts dates were not checked against StatCan's
+    # published schedule, so no `dates:` block is given and the conservative
+    # fallback above is used instead. That is safe — it only makes the monitor
+    # flag Canada a few days later than strictly necessary — but if you want
+    # tighter monitoring, transcribe the "Gross domestic product, income and
+    # expenditure" rows from https://www150.statcan.gc.ca/n1/dai-quo/cal1-eng.htm
+    # into a `dates:` block here, keyed by the first month of each quarter.
+    dates: {}

@@ -1,21 +1,54 @@
 name: Refresh ISM web data
 
-# Rebuilds web/data/ism.json (the ISM index backbones) AND web/data/decomp.json
+# Rebuilds web/data/ism.json (the ISM index backbones) and web/data/decomp.json
 # (the supply/demand decomposition scopes) from the latest public sources and
 # commits them, which triggers an automatic Vercel redeploy.
 #
-# Runs monthly and on demand. Each backbone/scope self-fetches independently, so
-# if one source is briefly unavailable the export keeps that gauge's previously
-# committed data (see scripts/export_web_data.py / export_decomp_data.py) — a
-# partial refresh never drops a gauge.
+# CALENDAR-GATED, NOT MONTHLY
+# ---------------------------
+# This used to be a single cron on the 3rd of the month, which is the worst
+# available day: US CPI is the only gauge that publishes before the 15th, and
+# every other source lands between the 10th and the 25th of the following
+# month. A run on the 3rd therefore fetched a vintage that was already ~5 weeks
+# stale and missed the release that had happened ~10 days earlier.
+#
+# Instead the job now polls four times a day and asks config/release_calendar.yaml
+# what SHOULD be public, compares it against what is actually committed in
+# web/data/*.json, and rebuilds only the gauges that are behind:
+#
+#     expected vintage > committed vintage  ->  refresh that gauge
+#
+# Two consequences worth knowing:
+#   * On the ~25 days a month with no release the `plan` job resolves in well
+#    under a minute and the `refresh` job is skipped entirely.
+#   * Because "due" is a property of the DATA and not of the calendar day, the
+#     job is self-healing. A source that is down, a release that slips, a cron
+#     that GitHub drops under load — all just mean the gauge is still behind at
+#     the next poll and gets retried, instead of waiting a month.
+#
+# The four poll times cover every release + its fetch delay (see the calendar
+# for the per-gauge reasoning):
+#     04:00 UTC  Japan          08:30 JST = 23:30 UTC previous day, +4h delay
+#     10:00 UTC  UK             07:00 London  (06:00 UTC BST / 07:00 UTC GMT, +3h)
+#     13:00 UTC  Eurostat FR/DE 11:00 Brussels (09:00 UTC CEST / 10:00 UTC CET, +3h)
+#     17:00 UTC  US CPI + PCE   08:30 ET      (12:30 UTC EDT / 13:30 UTC EST, +3h)
+#                               also the Canada monitor slot. 17:00 rather than
+#                               16:00 because in EST the window does not open
+#                               until 16:30 — a 16:00 poll catches US releases
+#                               same-day in summer but not in winter.
+# GitHub cron is always UTC and has no DST, which is why the calendar carries
+# IANA timezones and resolves the actual instant in Python. Scheduled runs can
+# be delayed by GitHub under load; the vintage gate makes that harmless.
 #
 # Sources by gauge:
 #   US PCE/CPI   -> BEA_API_KEY, FRED_API_KEY, BLS_API_KEY
 #   UK CPI       -> ONS bulk CSV (no key)
 #   FR/DE HICP   -> Eurostat (no key); Germany decomp -> DESTATIS_API_TOKEN
 #   Japan        -> ESTAT_API_ID
-#   Canada       -> refreshed locally (StatCan too slow/blocked in CI); CI keeps
-#                   the last committed CA data. See the note on the steps below.
+#   Canada       -> ci: false in the calendar. StatCan is blocked from many
+#                   runners and ~1s/chunk over ~90 chunks when it is not, so it
+#                   is refreshed LOCALLY. The monitor job below still reports
+#                   when CA has fallen behind so it does not rot unnoticed.
 #
 # Before committing, the freshly-built JSON is validated (schema, no gauge
 # dropped, dates current and not regressing, panels non-empty) by
@@ -23,15 +56,87 @@ name: Refresh ISM web data
 
 on:
   schedule:
-    - cron: "0 12 3 * *"      # 03rd of each month, 12:00 UTC (after the monthly PCE release)
-  workflow_dispatch: {}        # manual "Run workflow" button
+    - cron: "0 4 * * *"     # Japan     (e-Stat, 08:30 JST — window opens 03:30 UTC)
+    - cron: "0 10 * * *"    # UK        (ONS, 07:00 London)
+    - cron: "0 13 * * *"    # FR/DE     (Eurostat, 11:00 Brussels)
+    - cron: "0 17 * * *"    # US + CA   (BLS/BEA/StatCan, 08:30 ET — 16:30 UTC in EST)
+  workflow_dispatch:
+    inputs:
+      gauges:
+        description: "Gauges to refresh (space-separated, e.g. 'pce uk'). Blank = whatever the calendar says is due."
+        required: false
+        default: ""
+      ignore_calendar:
+        description: "Refresh everything regardless of the calendar gate"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write              # allow committing the refreshed JSON
 
+concurrency:
+  # Never let two refreshes race to commit the same 27 MB of JSON.
+  group: refresh-data
+  cancel-in-progress: false
+
 jobs:
-  refresh:
+  # ---------------------------------------------------------------------
+  # Cheap gate. No heavy deps — pyyaml only — so a no-op poll costs seconds.
+  # ---------------------------------------------------------------------
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      any:    ${{ steps.gate.outputs.any }}
+      ism:    ${{ steps.gate.outputs.ism }}
+      decomp: ${{ steps.gate.outputs.decomp }}
+      gauges: ${{ steps.gate.outputs.gauges }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install gate deps
+        run: pip install --quiet pyyaml tzdata
+
+      # tests/ is gitignored in this repo, so the invariants that keep the gate
+      # honest live in the module itself and run here on every poll: date shapes
+      # match each gauge's declared `expect:` block, the fallback can never fire
+      # early, gauges sharing a calendar share its timing, nothing in web/data is
+      # unowned, and the cron slots below actually catch every release same-day.
+      # This is a hard gate — a miswired calendar must not go on to fetch data.
+      - name: Self-check the release calendar
+        run: PYTHONPATH=src python -m ism.release_calendar check
+
+      - name: Freshness report
+        run: PYTHONPATH=src python -m ism.release_calendar report || true
+
+      - name: Decide what is due
+        id: gate
+        env:
+          MANUAL_GAUGES: ${{ github.event.inputs.gauges }}
+          IGNORE_CAL:    ${{ github.event.inputs.ignore_calendar }}
+        run: |
+          set -euo pipefail
+          ARGS="--github-output"
+          if [ "${IGNORE_CAL:-false}" = "true" ]; then
+            echo "Calendar gate bypassed — refreshing every CI gauge."
+            ARGS="$ARGS --all"
+          elif [ -n "${MANUAL_GAUGES:-}" ]; then
+            echo "Manual gauge list: $MANUAL_GAUGES"
+            ARGS="$ARGS --only=$MANUAL_GAUGES"
+          fi
+          PYTHONPATH=src python -m ism.release_calendar due $ARGS
+          echo "--- gate decision ---"; cat "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------
+  refresh:
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -43,41 +148,48 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
+          pip install --quiet tzdata
 
-      # NOTE on Canada: StatCan (www150.statcan.gc.ca) is too slow/unreliable to
-      # fetch in CI (blocked from many runners; ~1s/chunk × ~90 chunks even when
-      # up), so it is NOT auto-fetched here. Refresh the CA gauges LOCALLY when
-      # needed:  python scripts/build_statcan_manifest.py  (if categories changed)
-      #          python scripts/fetch_statcan.py           (rebuild caches)
-      #          python scripts/export_web_data.py  &&  export_decomp_data.py
-      # then commit the JSON. In CI the exporters find no StatCan cache and simply
-      # keep the last committed CA data — so the other gauges still refresh.
+      - name: Refreshing
+        run: |
+          echo "gauges due : ${{ needs.plan.outputs.gauges }}"
+          echo "ism        : ${{ needs.plan.outputs.ism }}"
+          echo "decomp     : ${{ needs.plan.outputs.decomp }}"
 
+      # Only the due backbones are passed, so an unrelated source being down
+      # cannot touch a gauge that was already current. The exporters seed from
+      # the committed file and keep previous data for anything not rebuilt.
       - name: Rebuild ISM data (web/data/ism.json)
+        if: needs.plan.outputs.ism != ''
         env:
           FRED_API_KEY:       ${{ secrets.FRED_API_KEY }}
           BEA_API_KEY:        ${{ secrets.BEA_API_KEY }}
           BLS_API_KEY:        ${{ secrets.BLS_API_KEY }}
           ESTAT_API_ID:       ${{ secrets.ESTAT_API_ID }}
           DESTATIS_API_TOKEN: ${{ secrets.DESTATIS_API_TOKEN }}
-        run: python scripts/export_web_data.py
+        run: python scripts/export_web_data.py ${{ needs.plan.outputs.ism }}
 
       - name: Rebuild decomposition data (web/data/decomp.json)
+        if: needs.plan.outputs.decomp != ''
         env:
           FRED_API_KEY:       ${{ secrets.FRED_API_KEY }}
           BEA_API_KEY:        ${{ secrets.BEA_API_KEY }}
           BLS_API_KEY:        ${{ secrets.BLS_API_KEY }}
           ESTAT_API_ID:       ${{ secrets.ESTAT_API_ID }}
           DESTATIS_API_TOKEN: ${{ secrets.DESTATIS_API_TOKEN }}
-        run: python scripts/export_decomp_data.py
+        run: python scripts/export_decomp_data.py ${{ needs.plan.outputs.decomp }}
 
-      # Validation gate on the freshly-built DATA: valid schema, no gauge dropped,
-      # dates current and not moving backwards, panels non-empty. If anything
-      # fails the job stops here and nothing is committed, so a broken refresh
-      # can't reach the live site. (Engine-code parity — src/ism vs web/*.js — is
-      # a separate CI concern: a data-only refresh never changes engine code.)
+      # Validation gate on the freshly-built DATA: valid schema, no gauge
+      # dropped, dates current and not moving backwards, panels non-empty. If
+      # anything fails the job stops here and nothing is committed, so a broken
+      # refresh can't reach the live site. (Engine-code parity — src/ism vs
+      # web/*.js — is a separate CI concern: a data-only refresh never changes
+      # engine code.)
       - name: Validate refreshed data
         run: python scripts/validate_web_data.py
+
+      - name: Post-refresh freshness
+        run: PYTHONPATH=src python -m ism.release_calendar report || true
 
       - name: Commit if changed
         run: |
@@ -85,9 +197,44 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if git status --porcelain web/data/ism.json web/data/decomp.json | grep -q .; then
             git add web/data/ism.json web/data/decomp.json
-            git commit -m "data: monthly ISM + decomp refresh ($(date -u +%Y-%m-%d))"
-            git push
+            git commit -m "data: refresh ${{ needs.plan.outputs.gauges }} ($(date -u +%Y-%m-%d))"
+            # The 16:00 poll and a human push can collide on a 27 MB binary-ish
+            # blob; rebase would try to merge it. Re-export is cheaper than a
+            # conflict, so just retry the push once after fetching.
+            git push || (git pull --rebase=false --strategy=ours --no-edit && git push)
             echo "Refreshed and pushed."
           else
             echo "No change in web/data — nothing to commit."
           fi
+
+  # ---------------------------------------------------------------------
+  # Canada is refreshed by hand (StatCan is not reachable from CI). This job
+  # exists purely so that fact stays visible: once CA drifts more than a month
+  # behind, the run is annotated instead of the data quietly rotting.
+  # ---------------------------------------------------------------------
+  monitor-local-gauges:
+    needs: plan
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet pyyaml tzdata
+      - name: Warn on stale local-only gauges
+        run: |
+          set -euo pipefail
+          BEHIND=$(PYTHONPATH=src python -m ism.release_calendar due --include-local)
+          for g in ca ca_hce; do
+            if echo " $BEHIND " | grep -q " $g "; then
+              echo "::warning title=$g is stale::Canada gauge '$g' is behind its release calendar and is refreshed locally. Run the command shown by 'python -m ism.release_calendar report'."
+            fi
+          done
+          PYTHONPATH=src python -m ism.release_calendar report || true
+
+      # Nags once a quarter when a published calendar is about to run out.
+      - name: Warn when the published calendar is running out
+        run: |
+          PYTHONPATH=src python -m ism.release_calendar horizon || \
+            echo "::warning title=Release calendar needs topping up::One or more gauges have under 90 days of published release dates left. See the MAINTENANCE note in config/release_calendar.yaml."

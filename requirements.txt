@@ -7,6 +7,7 @@ matplotlib>=3.7
 openpyxl>=3.1
 xlrd>=2.0        # legacy .xls reader for INSEE t_conso quarterly tables (FR port)
 pyyaml>=6.0
+tzdata>=2024.1   # IANA tz database for the release calendar (bundled on Linux, NOT on Windows)
 requests>=2.31
 python-dotenv>=1.0
 pyarrow>=12.0
