@@ -232,5 +232,9 @@
 
   <script src="app.js"></script>
   <script src="decomp_app.js"></script>
+  <!-- Freshness panel + on-demand refresh button. Self-contained: it injects
+       its own markup under #asof and its own styles, reads
+       data/release_calendar.json, and hides itself if that file is absent. -->
+  <script src="refresh.js"></script>
 </body>
 </html>

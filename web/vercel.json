@@ -5,6 +5,11 @@
     {
       "source": "/data/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+    },
+    {
+      "//": "The freshness panel polls this file to notice that a refresh has gone live, and it is the input to the /api/refresh gate. A one-hour TTL like the panel data above would make the button claim 'up to date' for up to an hour after a new print landed, so it gets a short TTL and revalidation. It is a few KB, so this costs nothing.",
+      "source": "/data/release_calendar.json",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }]
     }
   ]
 }

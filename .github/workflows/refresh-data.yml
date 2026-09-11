@@ -120,15 +120,21 @@ jobs:
           IGNORE_CAL:    ${{ github.event.inputs.ignore_calendar }}
         run: |
           set -euo pipefail
-          ARGS="--github-output"
+          export PYTHONPATH=src
+          # NOTE: --only takes ONE space-separated value, so it must stay
+          # quoted. Building an unquoted ARGS string and splatting it word-splits
+          # "pce jp" into two arguments and argparse rejects the second — which
+          # would break every multi-gauge dispatch, including all of the ones the
+          # website's refresh button sends.
           if [ "${IGNORE_CAL:-false}" = "true" ]; then
             echo "Calendar gate bypassed — refreshing every CI gauge."
-            ARGS="$ARGS --all"
+            python -m ism.release_calendar due --github-output --all
           elif [ -n "${MANUAL_GAUGES:-}" ]; then
             echo "Manual gauge list: $MANUAL_GAUGES"
-            ARGS="$ARGS --only=$MANUAL_GAUGES"
+            python -m ism.release_calendar due --github-output --only "$MANUAL_GAUGES"
+          else
+            python -m ism.release_calendar due --github-output
           fi
-          PYTHONPATH=src python -m ism.release_calendar due $ARGS
           echo "--- gate decision ---"; cat "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------
@@ -188,6 +194,14 @@ jobs:
       - name: Validate refreshed data
         run: python scripts/validate_web_data.py
 
+      # Republish the calendar the website's freshness panel reads. This MUST
+      # run after the exporters and after validation: it embeds the vintages
+      # actually present in the committed JSON, so generating it earlier would
+      # describe the data we are replacing. Its build stamp is also what the
+      # page polls to notice that a refresh has gone live.
+      - name: Republish the browser release calendar
+        run: python scripts/export_release_calendar.py
+
       - name: Post-refresh freshness
         run: PYTHONPATH=src python -m ism.release_calendar report || true
 
@@ -195,8 +209,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git status --porcelain web/data/ism.json web/data/decomp.json | grep -q .; then
-            git add web/data/ism.json web/data/decomp.json
+          if git status --porcelain web/data/ism.json web/data/decomp.json web/data/release_calendar.json | grep -q .; then
+            git add web/data/ism.json web/data/decomp.json web/data/release_calendar.json
             git commit -m "data: refresh ${{ needs.plan.outputs.gauges }} ($(date -u +%Y-%m-%d))"
             # The 16:00 poll and a human push can collide on a 27 MB binary-ish
             # blob; rebase would try to merge it. Re-export is cheaper than a
