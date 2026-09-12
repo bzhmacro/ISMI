@@ -98,6 +98,9 @@
   display:block;font-size:11px;color:var(--paper-dim);margin-top:4px;
   letter-spacing:.03em;line-height:1.4;text-transform:none;
 }
+/* Headline stat, emphasised by the trim / bridge views. */
+.statrow .stat.big{border-color:var(--pos);}
+.statrow .stat.big b{font-size:2rem;color:var(--pos);}
 
 /* ── Category picker ─────────────────────────────────────────────────────── */
 .catlist{
@@ -198,5 +201,9 @@
 .tbl tbody tr:hover td{background:color-mix(in srgb,var(--azure) 5%,transparent);}
 .tbl td.low{color:var(--neg);font-weight:600;}
 .tbl td.high{color:var(--pos);font-weight:600;}
-.notes{color:var(--muted);font-size:.76rem;margin:6px 0 14px;max-width:860px;}
-.notes div{margin:2px 0;}
+.tbl td.small,.tbl th.small{font-size:.72rem;}
+/* Group separator in the CPI→PCE bridge table. Was `2px solid var(--accent)`;
+   --accent did not survive the move to house tokens, so it is the seal red. */
+.tbl tr.sep td{border-top:2px solid var(--seal);}
+.notes{color:var(--muted);font-size:.76rem;margin:6px 0 14px;max-width:900px;}
+.notes div{margin:3px 0;}

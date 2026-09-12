@@ -26,7 +26,8 @@
   let DATA = null, C = null, X = [];
   const $ = id => document.getElementById(id);
 
-  const PLOT_BG = "#171e26", GRID = "#243240", INK = "#e6edf3";
+  // bzhmacro house tokens — see the note in app.js.
+  const PLOT_BG = "#161D2C", GRID = "#2A3448", INK = "#EDE6D6";
   const IMPLIED = "#f5a623", ACTUAL = "#4c9aff", PPI_C = "#3fb950", GAPC = "#e6edf3";
   const COLORS = {
     price: "#f5605a", weight: "#f5a623", formula: "#c9b458",
