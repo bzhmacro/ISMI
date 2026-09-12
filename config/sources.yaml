@@ -130,6 +130,87 @@ cpi_categories:
     item_titles: "https://download.bls.gov/pub/time.series/cu/cu.item"
     note: "Send a descriptive User-Agent; keep only periods M01-M12 (M13 is the annual average); value '-' means not available."
 
+
+# -----------------------------------------------------------------------------
+# 1c. TRIMMED-MEAN / MEDIAN MODEL: seasonally adjusted CPI, versioned weights,
+#     and the two Reserve Banks' published measures
+# -----------------------------------------------------------------------------
+# The limited-influence estimators (src/ism/trim_engine.py) need three things the
+# ISM backbone did not: SEASONALLY ADJUSTED category prices, TIME-VARYING CPI
+# weights, and the published series to validate against. None of them needs a key.
+#
+# NOTE ON ACCESS: download.bls.gov returns HTTP 403 to the default
+# `python-requests` user-agent. The module-level USER_AGENT in datasources.py
+# (a name plus a contact URL, which is what BLS asks for) is accepted. Do not
+# "simplify" it away.
+cpi_seasonally_adjusted:
+  provider: bls_flat
+  method: "flat file"
+  base: "https://download.bls.gov/pub/time.series/cu/"
+  files: ["cu.data.1.AllItems", "cu.data.2.Summaries", "cu.data.11.USFoodBeverage",
+          "cu.data.12.USHousing", "cu.data.13.USApparel", "cu.data.14.USTransportation",
+          "cu.data.15.USMedical", "cu.data.16.USRecreation",
+          "cu.data.17.USEducationAndCommunication", "cu.data.18.USOtherGoodsAndServices",
+          "cu.data.20.USCommoditiesServicesSpecial"]
+  series: "CUSR0000<item> (seasonally adjusted), falling back to CUUR0000<item>"
+  role: "the cross-section the trimmed mean is taken of"
+  notes: >
+    BLS publishes a CUSR series only where the seasonal is statistically
+    significant; for the rest the NSA index IS the adjusted index by their own
+    test. Seven of the seventy pinned strata fall back this way, and
+    BlsFlatFileClient.seasonally_adjusted reports which.
+  regional_oer:
+    series: ["CUUR0100SEHC", "CUUR0200SEHC", "CUUR0300SEHC", "CUUR0400SEHC"]
+    files: ["cu.data.7.OtherNorthEast", "cu.data.8.OtherNorthCentral",
+            "cu.data.9.OtherSouth", "cu.data.10.OtherWest"]
+    role: >
+      Owners' equivalent rent by census region -- the split that takes the median
+      CPI replication from corr 0.965 to 0.997. No SA variant is published.
+
+cpi_relative_importance:
+  provider: bls
+  method: "published tables"
+  base: "https://www.bls.gov/cpi/tables/relative-importance/"
+  files:
+    modern: "<year>.xlsx           # 2020- , 'Indent Level' + 'Item and Group'"
+    archive: ["ri-archive-1990-1999.zip", "ri-archive-2000-2009.zip",
+              "ri-archive-2010-2019.zip"]   # fixed-width text, one file per year
+  first_usable_year: 1997    # the 1998 CPI item-structure revision; see DECISIONS
+  role: "December cost weights -> the anchors for the versioned monthly weights"
+  pinned_to: "config/cpi_ri_by_year.csv, config/cleveland_ri_by_year.csv"
+  rebuild: "python scripts/build_cpi_ri.py"
+
+chained_cpi:
+  provider: bls_flat
+  method: "flat file"
+  base: "https://download.bls.gov/pub/time.series/su/"
+  files: ["su.data.1.AllItems"]
+  series: "SUUR0000SA0"      # C-CPI-U, all items, US city average, NSA, from Dec-1999
+  role: "the textbook formula-effect proxy in the CPI->PCE page (diagnostic only)"
+
+cleveland_fed_measures:
+  provider: frbcle
+  method: "published flat files"
+  urls:
+    history: "https://www.clevelandfed.org/-/media/files/webcharts/mediancpi/usinflationdata.zip"
+    components: "https://www.clevelandfed.org/-/media/files/webcharts/mediancpi/mediancpi_component_table.csv"
+  role: "ground truth for the median CPI and the 16% trimmed-mean CPI"
+  notes: >
+    The "usinflationdata.csv" URL actually serves the ZIP, so the client asks for
+    the ZIP by name and sniffs the magic bytes. The file carries both the
+    "Revised" (Dec-82=100, current methodology, from 1983) and "Original"
+    (Jan-67=100) vintages; validation uses the revised span only.
+
+dallas_fed_trimmed_mean:
+  provider: frbdal
+  method: "published workbooks"
+  urls:
+    history: "https://www.dallasfed.org/-/media/documents/research/pce/pcehist.xlsx"
+    detail: "https://www.dallasfed.org/-/media/documents/research/pce/detail.xlsx"
+    technical_note: "https://www.dallasfed.org/-/media/Documents/research/pce/tech.pdf"
+  trim: {lower: 0.24, upper: 0.31}
+  role: "ground truth for the trimmed mean PCE; detail.xlsx gives the month's cross-section"
+
 # -----------------------------------------------------------------------------
 # 2. Headline aggregate PCE (Figure 1 overlay; forecast target & control)
 # -----------------------------------------------------------------------------

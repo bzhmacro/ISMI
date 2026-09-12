@@ -3,19 +3,30 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FRBSF inflation models — interactive explorer</title>
-  <meta name="description" content="Interactive explorer for two FRBSF inflation models — the Inflation Shock Momentum index (Lansing & Shapiro 2026) and the Supply/Demand decomposition (Shapiro 2022-18). Both recomputed live in your browser." />
+  <title>US inflation models — interactive explorer</title>
+  <meta name="description" content="Interactive explorer for four inflation models — the Inflation Shock Momentum index (Lansing &amp; Shapiro 2026), the Supply/Demand decomposition (Shapiro 2022-18), trimmed-mean and median inflation validated against the Cleveland and Dallas Feds, and a CPI-to-PCE bridge. Recomputed live in your browser." />
   <link rel="stylesheet" href="styles.css" />
   <style>
     .modelbar { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
     .modelbar .seg button { font-weight:600; }
     #decomp-view .banner { color:#f0d28a; }
+    .tbl { width:100%; border-collapse:collapse; font-size:.82rem; background:var(--panel);
+           border:1px solid var(--line); border-radius:12px; overflow:hidden }
+    .tbl th, .tbl td { padding:7px 10px; text-align:right; border-bottom:1px solid var(--line) }
+    .tbl th:first-child, .tbl td:first-child { text-align:left }
+    .tbl thead th { background:#0d141b; font-size:.74rem; text-transform:uppercase;
+                    letter-spacing:.04em; color:var(--muted); font-weight:600 }
+    .tbl tbody tr:hover { background:#16202b }
+    .tbl td.low { color:#f5605a; font-weight:600 }
+    .tbl td.high { color:#3fb950; font-weight:600 }
+    .notes { color:var(--muted); font-size:.78rem; margin:6px 0 14px; max-width:860px }
+    .notes div { margin:2px 0 }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
   <header>
-    <h1>FRBSF inflation models <span class="muted">— interactive explorer</span></h1>
+    <h1>US inflation models <span class="muted">— interactive explorer</span></h1>
     <div class="modelbar">
       <label>Model</label>
       <div class="seg" id="model"></div>
@@ -224,14 +235,194 @@
       </p>
     </section>
     </div>
+
+    <!-- ================ MODEL 3: TRIMMED MEAN & MEDIAN ================ -->
+    <div id="trim-view" hidden>
+
+    <section class="controls">
+      <div class="control">
+        <label>Cross-section</label>
+        <div class="seg" id="t-scope"></div>
+        <small>The Cleveland cut is the 45-component cross-section behind the published median CPI (owners' equivalent rent split by census region); the 70-strata cut is this repo's finer CPI partition; PCE is the BEA underlying detail the Dallas Fed trims.</small>
+      </div>
+      <div class="control">
+        <label>Preset</label>
+        <div class="seg" id="t-preset"></div>
+        <small>Or move the two sliders — the asymmetry is the point.</small>
+      </div>
+      <div class="control">
+        <label>Trim from the bottom <b id="t-lower-label">8%</b></label>
+        <input type="range" id="t-lower" min="0" max="50" step="1" value="8" />
+        <label style="margin-top:8px">Trim from the top <b id="t-upper-label">8%</b></label>
+        <input type="range" id="t-upper" min="0" max="50" step="1" value="8" />
+        <small><span id="t-keep-label">84% of the basket kept</span>. Fractions of <em>weight</em>, not of categories; the categories straddling each cut enter partially.</small>
+      </div>
+      <div class="control">
+        <label>Weight vintage</label>
+        <div class="seg" id="t-weights"></div>
+        <small>Versioned = the relative importances that actually applied that month. Freeze them and you are using today's shelter weight in 1998.</small>
+      </div>
+      <div class="control">
+        <label>Seasonal adjustment</label>
+        <div class="seg" id="t-sa"></div>
+        <small id="t-sa-note"></small>
+      </div>
+      <div class="control">
+        <label>Horizon</label>
+        <div class="seg" id="t-view"></div>
+        <small>The 12-month rate is the 12-month change of the chained index, not a trim of the cross-section of 12-month changes.</small>
+      </div>
+      <div class="control toggles">
+        <label class="chk"><input type="checkbox" id="t-t-official" checked /> Published series</label>
+        <label class="chk"><input type="checkbox" id="t-t-headline" checked /> Headline inflation</label>
+      </div>
+      <div class="control range">
+        <label>Sample start: <span id="t-start-label"></span></label>
+        <input type="range" id="t-start" min="0" max="0" value="0" />
+      </div>
+      <div class="control cats">
+        <label>Categories <span class="muted" id="t-cat-summary"></span></label>
+        <details>
+          <summary>choose categories…</summary>
+          <input type="search" id="t-cat-search" placeholder="filter, e.g. shelter" autocomplete="off" />
+          <div class="catlist" id="t-catlist"></div>
+        </details>
+        <small>Untick a line and the trim points move — the trim is a share of the weight that remains.</small>
+      </div>
+    </section>
+
+    <p id="t-status" class="status"></p>
+    <section class="readout" id="t-readout"></section>
+    <p class="notes" id="t-spec"></p>
+    <div id="t-chart" class="chart"></div>
+    <div class="notes" id="t-notes"></div>
+
+    <section class="grid2">
+      <div>
+        <h2>This month's cross-section <span id="t-cross-date" class="muted"></span></h2>
+        <div id="t-cross" class="chart small"></div>
+      </div>
+      <div>
+        <h2>Weights that moved most</h2>
+        <div id="t-weights-chart" class="chart small"></div>
+        <p class="notes" id="t-weights-note"></p>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="t-download">Download current series (CSV)</button>
+    </section>
+
+    <section class="explain">
+      <h2>What am I looking at?</h2>
+      <p>
+        Each month the categories are sorted by their seasonally adjusted,
+        annualised price change and lined up along their <strong>expenditure
+        weight</strong>. Throw away the lowest <em>α</em> and the highest
+        <em>β</em> of that weight and average what is left: that is a
+        <strong>trimmed mean</strong>. Push both cuts to 50% and you are left
+        with the single category holding the middle of the basket — the
+        <strong>weighted median</strong>, which is why the Cleveland Fed can
+        name it each month.
+      </p>
+      <p>
+        Trimming is not cosmetic. Cross-sectional price changes are fat-tailed,
+        so the plain mean — headline inflation — is a noisy estimate of its own
+        centre. The trim buys a large variance reduction for a small bias, and
+        the bias is removed by choosing the cuts to track a smooth trend, which
+        is how the Dallas Fed arrived at cutting <strong>24% off the bottom and
+        31% off the top</strong>: the PCE cross-section is right-skewed, so
+        symmetric trimming inherits a downward bias.
+      </p>
+      <p class="muted">
+        Everything is recomputed <strong>client-side</strong> by a
+        parity-tested port of the Python engine. Our Cleveland-cut median
+        reproduces the published median CPI at a 12-month correlation of 0.997
+        and the 16% trimmed mean at 0.998; the PCE trim reproduces the Dallas
+        Fed series at 0.990 since 1998 (0.997 on the full sample).
+      </p>
+    </section>
+    </div>
+
+    <!-- ================ MODEL 4: CPI -> PCE ================ -->
+    <div id="cpipce-view" hidden>
+
+    <section class="controls">
+      <div class="control">
+        <label>View</label>
+        <div class="seg" id="x-view"></div>
+        <small>The gap decomposition is an identity, not a regression: the six terms sum to the wedge every month.</small>
+      </div>
+      <div class="control toggles">
+        <label class="chk"><input type="checkbox" id="x-smooth" /> Smooth the stack (12m mean)</label>
+      </div>
+      <div class="control range">
+        <label>Sample start: <span id="x-start-label"></span></label>
+        <input type="range" id="x-start" min="0" max="0" value="0" />
+      </div>
+    </section>
+
+    <section class="readout" id="x-readout"></section>
+    <div id="x-chart" class="chart"></div>
+    <div id="x-table" hidden></div>
+    <div class="notes" id="x-notes"></div>
+
+    <section class="grid2" id="x-bridge-panels" hidden>
+      <div>
+        <h2>Implied contributions <span id="x-bars-date" class="muted"></span></h2>
+        <div id="x-bars" class="chart small"></div>
+      </div>
+      <div class="explain">
+        <h2>Reading the pass-through column</h2>
+        <p>
+          The <em>Group by group</em> table reports, for each common group, how
+          much of a 1pp move in the CPI subindex turns up in the PCE deflator
+          for the same spending. Shelter comes in at 1.00 — PCE takes the number
+          straight from the CPI. Medical services comes in around 0.3, because
+          PCE prices hospital care from the producer price index and counts what
+          insurers actually pay, not what a household is billed. Those rows are
+          where the two gauges stop being the same measurement.
+        </p>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="x-download">Download the decomposition (CSV)</button>
+    </section>
+
+    <section class="explain">
+      <h2>What am I looking at?</h2>
+      <p>
+        PCE inflation has run about <strong>0.3pp below</strong> CPI inflation
+        since 2000, and the Fed targets the lower one. The stack splits that
+        wedge into the four things that generate it — a different aggregation
+        <strong>formula</strong>, different <strong>weights</strong> over the
+        same spending, different <strong>price sources</strong> for the same
+        goods, and different <strong>scope</strong> — plus the CPI lines PCE has
+        no counterpart for, and an explicitly reported rebuild residual. Each
+        term is one substitution in a chain from the published CPI to the
+        published PCE, so the six add up to the gap by construction.
+      </p>
+      <p>
+        The weight term is the one that moves: shelter is roughly a third of the
+        CPI basket and a sixth of PCE, so the 2021-22 rent surge added well over
+        a point to CPI relative to PCE and then went into reverse. The price
+        term is the one that persists, and it is mostly medical care.
+      </p>
+    </section>
+    </div>
+
   </main>
 
   <footer>
-    <span id="foot-source">ISM: BEA Underlying Detail + FRED (corr ~0.99 vs authors). Decomposition: Shapiro (2022-18), validated vs the FRBSF published series.</span>
+    <span id="foot-source">ISM: BEA Underlying Detail + FRED (corr ~0.99 vs authors). Decomposition: Shapiro (2022-18), validated vs the FRBSF published series. Trimmed mean &amp; median: BLS CPI and BEA PCE, validated vs the <a href="https://www.clevelandfed.org/indicators-and-data/median-cpi">Cleveland Fed</a> (corr 0.997) and the <a href="https://www.dallasfed.org/research/pce">Dallas Fed</a>. CPI&nbsp;→&nbsp;PCE: exact gap identity plus a rolling group-level bridge.</span>
   </footer>
 
+  <script src="models.js"></script>
   <script src="app.js"></script>
   <script src="decomp_app.js"></script>
+  <script src="trim_app.js"></script>
+  <script src="cpipce_app.js"></script>
   <!-- Freshness panel + on-demand refresh button. Self-contained: it injects
        its own markup under #asof and its own styles, reads
        data/release_calendar.json, and hides itself if that file is absent. -->

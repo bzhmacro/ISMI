@@ -15,20 +15,41 @@ instead of a precomputed grid.
 
 ```
 web/
-├── index.html      # layout + controls
+├── index.html        # layout + controls for all four models
 ├── styles.css
-├── app.js          # UI: loads data, drives the worker, plots, correlates
-├── engine.js       # the ISM maths in JS — parity-tested port of src/ism/engine.py
-├── worker.js       # Web Worker wrapper; caches residual panels per (gauge, AR, W)
-├── data/ism.json   # raw panels + one precomputed baseline combo (instant first paint)
+├── models.js         # the Model bar: a registry, show/hide, lazy first init
+├── app.js            # model 1 — Inflation Shock Momentum
+├── engine.js         # the ISM maths in JS — parity-tested port of src/ism/engine.py
+├── worker.js         # Web Worker wrapper; caches residual panels per (gauge, AR, W)
+├── decomp_app.js     # model 2 — Supply vs Demand
+├── decomp_engine.js / decomp_worker.js
+├── trim_app.js       # model 3 — Trimmed mean & median
+├── trim_engine.js    # parity-tested port of src/ism/trim_engine.py
+├── trim_worker.js    # caches the seasonally adjusted panel per (scope, sa, window)
+├── cpipce_app.js     # model 4 — CPI → PCE (no client-side recompute: see below)
+├── data/ism.json     # ISM panels + one precomputed baseline combo
+├── data/decomp.json  # supply/demand panels
+├── data/trim.json    # SA panels, versioned weights, the Cleveland/Dallas
+│                     # overlays, and the CPI→PCE payload
 └── vercel.json
 ```
 
-`engine.js` must stay in sync with the Python engine. The contract is enforced
-by `tests/test_web_engine_parity.py`, which runs both implementations on the
-same synthetic panel (including missing data and rank-deficient windows) and
-asserts the residuals, momentum and index match. `tests/web_smoke.cjs` boots
-the whole app headlessly (jsdom) and drives every control.
+Each model registers itself with `models.js` and owns one `<div id="…-view">`;
+nothing else knows the others exist. A model's `init` runs the first time it is
+shown, so opening the site does not download every payload.
+
+`engine.js` and `trim_engine.js` must stay in sync with their Python
+originals. The contracts are enforced by `tests/test_web_engine_parity.py` and
+`tests/test_trim_parity.py`, which run both implementations on the same
+synthetic panels — missing data, rank-deficient windows, late-born categories,
+publication gaps, quarterly frequency — and assert the outputs match.
+`tests/web_smoke.cjs` boots the whole app headlessly (jsdom) and drives every
+control.
+
+**The CPI→PCE page deliberately does not recompute in the browser.** The gap
+decomposition is an accounting identity and the bridge is a rolling regression
+over the full panels: there is no parameter a reader would want to drag, so the
+payload carries the finished series and the page is a renderer.
 
 ## Performance notes
 

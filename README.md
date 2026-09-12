@@ -110,6 +110,123 @@ Canada also has an **ISM momentum** backbone (StatCan CPI by product,
 Sources and conventions: `config/sources_canada.yaml`; port decisions:
 `docs/DECISIONS.md`.
 
+## Third model: trimmed-mean & median inflation (Cleveland / Dallas)
+
+The repo now also rebuilds the **limited-influence** inflation measures — the
+weighted median and the asymmetric trimmed means behind the Cleveland Fed's
+**median CPI** and **16% trimmed-mean CPI** and the Dallas Fed's **trimmed mean
+PCE** — from the same category cross-sections the other two models use, and
+validates them against the published series.
+
+Sort the categories by their seasonally adjusted annualised price change, line
+them up along their expenditure weight, throw away the lowest `α` and highest
+`β` of that *weight*, and average what is left. `α = β = 0` is headline
+inflation; `α = β = 0.5` is the weighted median; the published measures sit in
+between. Categories straddling a trim point enter partially, which is what keeps
+the estimator continuous in the trim fractions.
+
+```bash
+python scripts/build_cpi_ri.py        # pin the December weight anchors (yearly)
+python scripts/build_trim.py          # build every scope + validate vs the banks
+python scripts/build_trim.py --cross-section --optimal-trim
+python scripts/export_trim_data.py    # refresh the website's payload
+```
+
+Validated against the published series, 1998 onward:
+
+| scope | measure | 12-month corr | RMSE | bias |
+|---|---|---:|---:|---:|
+| `cpi45` (Cleveland cut, 45 components) | median CPI | **0.997** | 0.083 | 0.000 |
+| `cpi45` | 16% trimmed mean | **0.998** | 0.114 | +0.084 |
+| `cpi70` (this repo's 70 strata) | median CPI | 0.965 | 0.419 | +0.224 |
+| `pce` (BEA underlying detail) | trimmed mean PCE | 0.990 | 0.127 | +0.063 |
+
+Three things had to be *measured* rather than assumed, and each one moved the
+answer:
+
+- **BEA's underlying-detail price indexes are already seasonally adjusted.**
+  Adjusting them again lowers the fit to the Dallas Fed series (0.9970 → 0.9951),
+  so the PCE scope applies none. The ISM momentum model differences these panels
+  again and is insensitive to this; a trimmed mean is not, because seasonality
+  decides who lands in the tails.
+- **BLS publishes no `CUSR` series for every stratum** — only where the seasonal
+  is significant. For the other seven of seventy, the NSA index *is* the adjusted
+  index by BLS's own test, and the pipeline falls back rather than dropping them.
+- **Splitting owners' equivalent rent by census region is the single biggest
+  fidelity win for the median.** OER is a quarter of the CPI, so with the stratum
+  whole it simply *is* the median most months. Splitting it four ways, as the
+  Cleveland Fed does, takes the correlation from 0.965 to 0.997.
+
+Key files: `src/ism/trim_engine.py` (the maths, Eqs. T1-T4), `trim_pipeline.py`
+(the scopes), `cpi_ri.py` (versioned weights, below), `official_trim.py` +
+`trim_validate.py` (the Reserve Banks' own files and the comparison),
+`web/trim_engine.js` (parity-tested browser twin),
+`config/cleveland_components.csv`. Full maths→code map:
+`docs/trim_methodology.md`.
+
+### Versioned CPI weights
+
+The PCE backbone gets a genuinely monthly weight panel for free (BEA publishes
+nominal dollars per category every month). The CPI does not: BLS publishes
+relative importances once a year. A single static vector is fine for a diffusion
+index that renormalises anyway, but not for a trimmed mean, where the **weights
+decide where the trim points fall** — using 2023 weights to locate the trim point
+in 1975 puts a 2023-sized shelter weight and a 2023-sized (tiny) food weight into
+a 1975 cross-section.
+
+`src/ism/cpi_ri.py` rebuilds the weight path the way BLS computes it:
+
+```
+RI_{i,t} = RI_{i,Dec Y} × (P_{i,t} / P_{i,Dec Y})   / (normalise)
+```
+
+anchored on the published December table for each year from 1997
+(`config/cpi_ri_by_year.csv`, 70 strata × 29 Decembers) and restarted at each new
+anchor. Within a weight regime this is **not an approximation — it is BLS's
+method**, and the repo checks it: in the non-update years of the old biennial
+regime (2012, 2014, 2016, 2018, 2020) the price-updated December weight and the
+published one agree to about 0.02pp summed across all seventy strata. In the
+update years the difference is 5-8pp, and that difference *is* the weight-update
+effect, reported by `weight_update_effect()`.
+
+Before 1998 (the CPI item-structure revision) the weights are back-updated from
+the 1997 anchor; the payload labels those months and the website greys them. The
+site exposes the whole thing as a **weight vintage** control — `versioned`,
+`latest`, `first` — so you can see directly what the static shortcut costs.
+
+## Fourth model: CPI → PCE
+
+Why the two US gauges print different numbers, and what a CPI print implies for
+the PCE print two weeks later.
+
+`src/ism/cpi_pce.py` decomposes the 12-month CPI−PCE wedge into six terms that
+sum to it **by construction** — each one substitution in a chain from the
+published CPI to the published PCE:
+
+```
+π_CPI − π_PCE = rebuild residual + coverage + weight + price-measure + scope + formula
+```
+
+No fitting, nothing to tune; `GapResult.check()` returns 4e-16 on the live data.
+Since 2000 the average wedge is +0.34pp, of which **price-measure +0.44pp**
+(PCE prices medical services from the PPI and counts what insurers pay, not what
+households are billed), **scope −0.13pp**, **formula +0.10pp**, coverage
++0.05pp, weight +0.02pp. That last average is misleading and instructive: the
+weight term peaked at **+1.56pp in March 2022**, because shelter is 34% of the
+CPI basket and 16% of PCE.
+
+The same module maps a CPI print into an implied PCE print, group by group,
+using a rolling regression that never sees the month it is predicting (monthly
+RMSE 0.121pp; 12-month correlation 0.977 since 2000). Its fitted **pass-through**
+slopes are the most useful output: shelter comes in at 1.00 because PCE takes the
+number straight from the CPI, while medical services comes in at 0.31. Those are
+the rows where a CPI surprise does not mean a PCE surprise.
+
+Concordance: `config/cpi_pce_concordance.csv` (all 70 CPI strata and all 130 PCE
+categories → 28 common groups, plus four groups flagged `scope` where the two
+gauges measure different things — net insurance versus premiums, imputed
+financial services). Full maths→code map: `docs/cpi_pce_methodology.md`.
+
 ## Repository layout
 
 ```
@@ -122,6 +239,10 @@ ISMI/
 │   ├── sources_canada.yaml    # US -> StatCan mapping (CA ISM CPI + quarterly HCE decomposition)
 │   ├── ca_hce_categories.csv  # pinned StatCan 36-10-0124 HCE leaves (decomposition; G/S tags)
 │   ├── ca_cpi_categories.csv  # pinned StatCan 18-10-0004 CPI leaves (ISM; + 18-10-0007 weight ids)
+│   ├── cleveland_components.csv  # the 45-component Cleveland median-CPI cut
+│   ├── cleveland_ri_by_year.csv  # its December relative importances, 1997-
+│   ├── cpi_ri_by_year.csv     # December relative importances for the 70 strata
+│   ├── cpi_pce_concordance.csv   # CPI strata + PCE categories -> 28 common groups
 │   ├── pce_categories.csv     # the pinned 130 fourth-level PCE categories
 │   └── cpi_categories.csv     # the pinned ~70 BLS CPI item strata (alt. backbone)
 ├── src/ism/                   # the library (the importable engine + plumbing)
@@ -145,12 +266,21 @@ ISMI/
 │   ├── statcan.py             # Statistics Canada client (36-10-0124 HCE, 18-10-0004/07 CPI)
 │   ├── ca_pipeline.py         # StatCan CPI by product -> ISM for Canada
 │   ├── decomp_ports.py        # quarterly national-accounts ports of the decomposition (ca/uk/fr/de)
+│   ├── trim_engine.py         # trimmed-mean / median maths: Eqs (T1)-(T4)
+│   ├── trim_pipeline.py       # the trim scopes (cpi45 / cpi70 / pce / country ports)
+│   ├── cpi_ri.py              # versioned CPI weights: December anchors + price-updating
+│   ├── official_trim.py       # Cleveland Fed + Dallas Fed published files
+│   ├── trim_validate.py       # our measures vs theirs (series + cross-section)
+│   ├── cpi_pce.py             # CPI-PCE gap identity + the nowcast bridge
 │   ├── figures.py / validate.py / run.py
 ├── scripts/                   # runnable helpers
 │   ├── build_and_validate.py  # build the US index + convergence check
 │   ├── finalize_categories.py # pin config/pce_categories.csv from BEA hierarchy
 │   ├── fetch_statcan.py       # rebuild the Canadian data caches (data/raw/statcan/)
-│   └── export_web_data.py     # export raw panels + baseline to web/data/ism.json
+│   ├── export_web_data.py     # export raw panels + baseline to web/data/ism.json
+│   ├── build_cpi_ri.py        # pin the BLS December relative-importance anchors
+│   ├── build_trim.py          # build + validate the trimmed-mean measures
+│   └── export_trim_data.py    # export web/data/trim.json (trim + CPI->PCE)
 ├── notebooks/                 # guided, runnable analyses
 │   ├── ISM_replication.ipynb  # Figure 1 + Table 1 (core)
 │   ├── ISM_expand.ipynb       # Figures 2-3 + Table 2
@@ -158,10 +288,16 @@ ISMI/
 │   └── ISM_europe.ipynb       # euro-area port (Eurostat HICP)
 ├── web/                       # zero-build interactive site (deploy on Vercel)
 │   ├── index.html / app.js / styles.css / vercel.json
+│   ├── models.js              # the four-way Model bar (registry + show/hide)
 │   ├── engine.js / worker.js  # the ISM maths IN THE BROWSER (parity-tested JS port)
+│   ├── trim_engine.js / trim_worker.js / trim_app.js   # the trimmed-mean model
+│   ├── cpipce_app.js          # the CPI -> PCE page
 │   └── data/ism.json          # raw panels + baselines, all gauges: pce cpi uk fr de jp ca (regen via scripts/export_web_data.py)
+│       data/trim.json         # SA panels + versioned weights + the published
+│                              # Cleveland/Dallas overlays + the CPI->PCE payload
 ├── tests/                     # 25 synthetic unit tests incl. Python<->JS parity (no network)
-├── docs/                      # methodology.md, differences_report.md, DECISIONS.md
+├── docs/                      # decomp_methodology.md, trim_methodology.md,
+│                              # cpi_pce_methodology.md, DECISIONS.md
 ├── data/                      # NOT committed (gitignored); see data/README.md
 ├── .env.example  pyproject.toml  requirements.txt  pytest.ini  LICENSE
 ```

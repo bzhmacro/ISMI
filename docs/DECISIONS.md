@@ -222,3 +222,134 @@ them on a machine with open network access with `python scripts/fetch_statcan.py
 (walks `data/raw/statcan/manifest.json`, which is generated from the pinned
 category sets). Every builder degrades gracefully — a missing cache skips only
 the Canadian gauge/scope and keeps previously committed data.
+
+## US — trimmed mean & median (Cleveland / Dallas replication)
+
+Decisions taken when adding the third model. Full write-up:
+`docs/trim_methodology.md`.
+
+- **BEA's underlying-detail price indexes arrive seasonally adjusted.** Measured,
+  not assumed: applying our own adjustment to the 2.4.4U panel *lowers* the
+  12-month correlation with the Dallas Fed trimmed mean from 0.9970 to 0.9951.
+  The `pce` scope therefore declares `sa="none"`. This matters for a trimmed mean
+  and not for the ISM index, which differences the panel again — seasonality
+  decides who lands in the tails. The `cpi_pipeline` docstring calls the BEA
+  panel "NSA" by analogy with the BLS `CUUR` series; that wording is loose and
+  is corrected here rather than in the momentum code, whose behaviour does not
+  change.
+
+- **`CUSR` where BLS publishes it, `CUUR` otherwise.** BLS seasonally adjusts an
+  item stratum only where the seasonal is statistically significant; for the
+  rest the published NSA index *is* the adjusted index by their own test. Seven
+  of the seventy strata (household insurance, household operations, motor-vehicle
+  fees, medical equipment, health insurance, telephone services, personal-care
+  services) and three of the 45 Cleveland components fall back this way.
+  `BlsFlatFileClient.seasonally_adjusted` reports which, and the website shows
+  the count. Treating the missing ones as an error would have dropped 6% of the
+  basket.
+
+- **Two CPI cross-sections, not one.** `cpi45` reproduces the Cleveland Fed's
+  45-component cut (owners' equivalent rent split into its four census regions);
+  `cpi70` keeps this repo's finer 70-stratum partition. The **median** is
+  sensitive to the cut and the **trimmed mean** is not — 12-month correlation
+  with the published median is 0.997 on `cpi45` and 0.965 on `cpi70`, while the
+  16% trim is 0.998 and 0.992. That is a property of the estimators, not a
+  defect: a median names a category, a trimmed mean averages over the choice of
+  categories. Offering both makes the point visible rather than hiding it behind
+  one blessed cut.
+
+- **The regional OER split needs one number BLS does not publish.** Each region's
+  owners'-equivalent-rent relative importance is published *within that region's
+  own index*, never as a share of the national index. We take the national OER
+  relative importance (published) and split it with one observed split — the
+  Cleveland Fed's own component table, month recorded in
+  `trim_pipeline.OER_SPLIT_ANCHOR` — carried to every December by the four
+  regional OER price indexes. Without the split the median replication is 0.965;
+  with it, 0.997. The alternative (dropping the split) would have been cleaner
+  to source and much less faithful.
+
+- **Seasonal adjustment as a control, not a fixed choice.** `sa="rolling"` uses
+  trailing-window month effects and therefore no future data; `sa="dummy"` uses
+  the whole sample and is a revised-vintage adjustment. Both are re-centred to
+  sum to zero over the twelve calendar months so the annual average cannot move.
+  Neither is X-13 — no moving-average seasonal, no outlier detection, no
+  trading-day correction — and neither is used for the US scopes, where the
+  agencies' own adjustment is available. They exist for the country ports.
+
+- **Presets are the published parameterisations**, not round numbers: 8/8
+  (Cleveland 16% trim), 24/31 (Dallas, asymmetric because the PCE cross-section
+  is skewed), 50/50 (the weighted median). `optimal_trim()` re-derives them
+  against a centred 36-month moving average of headline, which is how the banks
+  chose them; `scripts/build_trim.py --optimal-trim` runs it.
+
+- **Partial inclusion at the trim points.** The two categories straddling each
+  cut enter with only the slice of their weight inside the retained interval.
+  Without it the estimate jumps every time a trim point crosses a category
+  boundary, which would make the trim sliders on the website meaningless. Both
+  Reserve Banks do this; `test_partial_inclusion_makes_the_trim_continuous`
+  guards it.
+
+## US — versioned CPI weights
+
+- **Price-updated December anchors, not a static vector.** `config/cpi_ri_by_year.csv`
+  pins the published December relative importance for 1997-2025 and
+  `cpi_ri.price_updated_weights` carries each anchor across the following year by
+  the categories' own price changes. Within a weight regime this is BLS's actual
+  method, and the repo verifies it: in the non-update years of the biennial
+  regime the price-updated and published December weights agree to ~0.02pp summed
+  across seventy strata. The old static Dec-2023 vector stays the default for the
+  **ISM** backbone (which renormalises and is insensitive) and the versioned
+  panel is used by the trimmed mean, where the weights decide the trim points.
+
+- **1997 is the earliest usable anchor.** The CPI item structure was revised in
+  January 1998; the December 1987-1996 tables use the old structure and cannot be
+  mapped onto the `SE*` strata at all. Earlier months are back-updated from the
+  1997 anchor, which holds the 1997 basket fixed in real terms — relative price
+  drift is captured, genuine basket change is not. `weights_source` labels every
+  month and the site says so rather than presenting 1960s weights as anchored.
+
+- **Label drift is aliased, one real break is re-cut.** BLS renamed several lines
+  in the Dec-2009 table (OER "of primary residence" → "of residences", "Gas
+  (piped) and electricity" → "Energy services", "Recreation services" → "Other
+  recreation services"); these are printing changes and are handled by
+  `HISTORICAL_LABEL_ALIASES`. The medical-commodities branch is a genuine break —
+  it switched from prescription/non-prescription to drugs/equipment — and the old
+  lines are re-cut onto the new boundary, leaving ~0.1% of the index on the wrong
+  side before 2009. Matching is case- and whitespace-insensitive so pure
+  typography (the 1998 table's double space, a capital "I" in "Health Insurance")
+  never breaks a join.
+
+- **Late-born strata are back-updated, not dropped.** "Information technology,
+  hardware and services" first appears in the Dec-2003 table. Reindexing on the
+  whole-table anchor would have silently removed it from every earlier
+  cross-section; instead the per-key anchor search back-updates it from 2003.
+
+## US — CPI to PCE
+
+- **Groups, not a line-by-line map.** The two classifications are not nested, so
+  `config/cpi_pce_concordance.csv` maps both sides into 28 common groups. A
+  coarser map that is right beats a finer one that is quietly wrong in a dozen
+  places.
+
+- **Four groups are flagged `scope`, not `common`.** Health, household and
+  motor-vehicle insurance (PCE measures net insurance and employer-paid spending;
+  the CPI measures the household premium) and financial services (PCE imputes
+  FISIM; the CPI has no counterpart). Averaging them into a common group would
+  hide the largest single structural difference between the gauges.
+
+- **The identity telescopes; the C-CPI-U proxy is kept out of it.** The six terms
+  are each one substitution in a chain from the published CPI to the published
+  PCE, so they sum to the gap by construction (checked to 4e-16). The textbook
+  formula-effect proxy — CPI-U minus C-CPI-U — is reported as a diagnostic only:
+  chaining a published index between two aggregates of our own makes the formula
+  and residual lines cancel, which looks tidy and means nothing. The formula
+  effect in the identity is measured directly, as a fixed-weight aggregate of the
+  PCE categories against the published Fisher chain.
+
+- **The bridge never sees the month it predicts.** Each group's rolling
+  regression is fitted on the trailing window *excluding* month t, because on CPI
+  day month t's PCE has not been published.
+  `test_bridge_uses_no_contemporaneous_pce` enforces it by tampering with the
+  last month's PCE and asserting the implied value does not move. Scope groups
+  are carried at their own trailing 12-month mean — deliberately dumb, and
+  labelled as such, rather than pretending FISIM can be forecast from CPI data.

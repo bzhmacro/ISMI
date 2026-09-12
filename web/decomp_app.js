@@ -18,45 +18,6 @@
   const SUP = "#f5605a", DEM = "#27406b", DEMI = "#4c9aff", AMB = "#c9b458", TOT = "#e6edf3";
   const $ = id => document.getElementById(id);
 
-  // ---- model toggle (ISM <-> decomp) -------------------------------------
-  function setupModelToggle() {
-    const host = $("model");
-    if (!host) return;
-    const models = [["ism", "Inflation Shock Momentum"], ["decomp", "Supply vs Demand"]];
-    host.innerHTML = "";
-    models.forEach(([key, label]) => {
-      const b = document.createElement("button");
-      b.textContent = label;
-      b.setAttribute("aria-pressed", String(key === "ism"));
-      b.onclick = () => {
-        [...host.children].forEach(c => c.setAttribute("aria-pressed", "false"));
-        b.setAttribute("aria-pressed", "true");
-        switchModel(key);
-      };
-      host.appendChild(b);
-    });
-  }
-
-  function switchModel(model) {
-    const ism = $("ism-view"), dec = $("decomp-view");
-    const sub = $("model-sub");
-    if (model === "decomp") {
-      ism.hidden = true; dec.hidden = false;
-      if (sub) sub.textContent =
-        "Decomposing inflation into supply- and demand-driven contributions " +
-        "(Shapiro 2022-18; Canada: Bank of Canada SAP 2026-33). Each category-" +
-        "period is signed from the reduced-form price & quantity residuals; " +
-        "recomputed live in your browser.";
-      if (!D.inited) init();
-      else requestCompute(0);
-    } else {
-      dec.hidden = true; ism.hidden = false;
-      if (sub) sub.textContent =
-        "Replication of Lansing & Shapiro (2026): the share of categories with " +
-        "sustained inflation surprises, recomputed live in your browser.";
-    }
-  }
-
   // ---- init --------------------------------------------------------------
   async function init() {
     D.inited = true;
@@ -435,8 +396,19 @@
     };
   }
 
-  // expose + wire the model toggle once the DOM is ready
+  // expose + register with the top-level Model bar (models.js)
   window.DecompApp = { init };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", setupModelToggle);
-  else setupModelToggle();
+  if (typeof ModelBar !== "undefined") {
+    ModelBar.register({
+      key: "decomp",
+      label: "Supply vs Demand",
+      viewId: "decomp-view",
+      sub: "Decomposing inflation into supply- and demand-driven contributions "
+         + "(Shapiro 2022-18; Canada: Bank of Canada SAP 2026-33). Each category-"
+         + "period is signed from the reduced-form price & quantity residuals; "
+         + "recomputed live in your browser.",
+      init,
+      refresh: () => requestCompute(0),
+    });
+  }
 })();

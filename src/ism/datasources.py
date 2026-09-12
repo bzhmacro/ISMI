@@ -33,7 +33,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 import pandas as pd
 
@@ -568,6 +568,199 @@ class BlsClient:
             idx = pd.to_datetime([r[0] for r in recs])
             result[sid] = pd.Series([r[1] for r in recs], index=idx, name=sid)
         return result
+
+
+# ----------------------------------------------------------------------------
+# BLS flat files (download.bls.gov) -- no key, no daily cap
+# ----------------------------------------------------------------------------
+@dataclass
+class BlsFlatFileClient:
+    """Reader for the BLS `time.series` flat files, the CPI's other front door.
+
+    Why this exists alongside :class:`BlsClient`
+    --------------------------------------------
+    The JSON API is convenient but rationed: 25 series and 10 years a day
+    without a key, 500 a day with one, and the quota is per *key*, so a shared
+    address can exhaust the keyless pool before you start.  The flat files under
+    ``download.bls.gov/pub/time.series/cu/`` carry the **same numbers with no
+    key and no cap**, the full history in one download, and -- the reason this
+    class was added -- the **seasonally adjusted** ``CUSR`` series, which the
+    trimmed-mean model needs and which nothing else in the repo was pulling.
+
+    Traps worth knowing
+    -------------------
+    * **User-Agent.** ``download.bls.gov`` returns **403** to the default
+      ``python-requests`` agent.  The module-level :data:`USER_AGENT` (a name
+      plus a contact URL, which is what BLS asks for) is accepted.  Do not
+      "simplify" it away.
+    * **Not every stratum is seasonally adjusted.**  BLS publishes a ``CUSR``
+      series only where the seasonal is statistically significant; for the rest
+      the NSA series *is* the adjusted series by their own determination.
+      :meth:`seasonally_adjusted` implements that fallback rather than
+      pretending the missing ones are an error.
+    * **Series live in item-group files**, not one big file, and
+      ``cu.data.0.Current`` holds only the last few years.  We therefore
+      download the US item-group set (about 25 MB, once) and the regional files
+      only when a regional series is asked for.
+
+    Files are cached under ``data/raw/bls_flat/`` with the usual provenance
+    sidecar; parsing is cheap enough to redo on demand.
+    """
+
+    #: ``cu`` = CPI-U/CPI-W, ``su`` = the chained CPI (C-CPI-U).  Both live
+    #: under the same flat-file root with the same row layout.
+    database: str = "cu"
+    cache_dir: Path = RAW_DIR / "bls_flat"
+    base_root: str = "https://download.bls.gov/pub/time.series/"
+
+    #: US-level item-group files: everything with area code 0000.
+    US_FILES: tuple[str, ...] = (
+        "cu.data.1.AllItems",
+        "cu.data.2.Summaries",
+        "cu.data.11.USFoodBeverage",
+        "cu.data.12.USHousing",
+        "cu.data.13.USApparel",
+        "cu.data.14.USTransportation",
+        "cu.data.15.USMedical",
+        "cu.data.16.USRecreation",
+        "cu.data.17.USEducationAndCommunication",
+        "cu.data.18.USOtherGoodsAndServices",
+        "cu.data.20.USCommoditiesServicesSpecial",
+    )
+
+    #: Census-region files, keyed by the area code that appears in the series id
+    #: (0100 Northeast, 0200 Midwest, 0300 South, 0400 West).  Needed for the
+    #: four regional owners'-equivalent-rent series the Cleveland Fed splits
+    #: its median CPI cross-section on.
+    REGION_FILES: dict = field(default_factory=lambda: {
+        "0100": "cu.data.7.OtherNorthEast",
+        "0200": "cu.data.8.OtherNorthCentral",
+        "0300": "cu.data.9.OtherSouth",
+        "0400": "cu.data.10.OtherWest",
+    })
+
+    def __post_init__(self):
+        self.cache_dir = Path(self.cache_dir) / self.database
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def base(self) -> str:
+        return f"{self.base_root}{self.database}/"
+
+    # -- downloading ---------------------------------------------------------
+    def _file(self, name: str, force: bool = False) -> Path:
+        """Download one flat file (cached)."""
+        target = self.cache_dir / name
+        if target.exists() and not force:
+            return target
+        url = self.base + name
+        resp = _request("GET", url, provider="BLS-flat", timeout=300)
+        target.write_bytes(resp.content)
+        _write_provenance(target, url, {})
+        return target
+
+    #: The chained-CPI database is small enough to ship in one file.
+    SU_FILES: tuple[str, ...] = ("su.data.1.AllItems",)
+
+    def _files_for(self, series_ids: Iterable[str]) -> list[str]:
+        """Which flat files could hold these ids, from their area codes."""
+        if self.database != "cu":
+            return list(self.SU_FILES)
+        need_us, regions = False, set()
+        for sid in series_ids:
+            area = sid[4:8] if len(sid) >= 8 else "0000"
+            if area == "0000":
+                need_us = True
+            elif area in self.REGION_FILES:
+                regions.add(area)
+            else:
+                need_us = True      # unknown area: fall back to the US set
+        files = list(self.US_FILES) if need_us else []
+        files += [self.REGION_FILES[a] for a in sorted(regions)]
+        return files
+
+    # -- reading -------------------------------------------------------------
+    def fetch_many(self, series_ids: list[str], force: bool = False,
+                   verbose: bool = False) -> dict[str, pd.Series]:
+        """``{series_id: monthly pd.Series}`` for any CPI series ids.
+
+        Ids not found in the downloaded files are simply absent from the result
+        -- callers decide whether that is fatal (see
+        :meth:`seasonally_adjusted`, where it is expected and handled).
+        """
+        wanted = set(series_ids)
+        found: dict[str, list[tuple[str, float]]] = {s: [] for s in wanted}
+        for name in self._files_for(wanted):
+            path = self._file(name, force=force)
+            if verbose:
+                print(f"[bls-flat] scanning {name}")
+            with path.open("r", encoding="latin-1") as fh:
+                next(fh, None)                    # header
+                for line in fh:
+                    sid, _, rest = line.partition("\t")
+                    sid = sid.strip()
+                    if sid not in wanted:
+                        continue
+                    parts = rest.split("\t")
+                    if len(parts) < 3:
+                        continue
+                    year, period, value = parts[0].strip(), parts[1].strip(), parts[2].strip()
+                    if not period.startswith("M") or period == "M13":
+                        continue              # M13 is the annual average
+                    try:
+                        v = float(value)
+                    except ValueError:
+                        continue
+                    found[sid].append((f"{year}-{period[1:]}-01", v))
+
+        out: dict[str, pd.Series] = {}
+        for sid, recs in found.items():
+            if not recs:
+                continue
+            recs = sorted(set(recs))
+            out[sid] = pd.Series([r[1] for r in recs],
+                                 index=pd.to_datetime([r[0] for r in recs]),
+                                 name=sid)
+        return out
+
+    def series(self, series_id: str, force: bool = False) -> pd.Series:
+        """One CPI series from the flat files."""
+        got = self.fetch_many([series_id], force=force)
+        if series_id not in got:
+            raise ApiError("BLS-flat", f"series {series_id} not found in the "
+                                       "downloaded item-group files")
+        return got[series_id]
+
+    def seasonally_adjusted(
+        self, item_codes: list[str], area: str = "0000", force: bool = False,
+    ) -> tuple[dict[str, pd.Series], list[str]]:
+        """SA price index per item code, falling back to NSA where none exists.
+
+        BLS seasonally adjusts an item stratum only when the seasonal is
+        statistically significant, so for a minority of strata (household
+        operations, motor-vehicle fees, personal-care services, ...) there is no
+        ``CUSR`` series and the published NSA index is the adjusted one.  Seven
+        of this repo's seventy strata are in that position.
+
+        Returns ``({item_code: series}, [item codes served from NSA])`` so the
+        caller can record which is which -- the website shows the count.
+        """
+        sa_ids = {f"CUSR{area}{code}": code for code in item_codes}
+        nsa_ids = {f"CUUR{area}{code}": code for code in item_codes}
+        got = self.fetch_many(list(sa_ids) + list(nsa_ids), force=force)
+
+        out: dict[str, pd.Series] = {}
+        fell_back: list[str] = []
+        for code in item_codes:
+            sa = got.get(f"CUSR{area}{code}")
+            if sa is not None and len(sa):
+                out[code] = sa
+                continue
+            nsa = got.get(f"CUUR{area}{code}")
+            if nsa is not None and len(nsa):
+                out[code] = nsa
+                fell_back.append(code)
+        return out, fell_back
 
 
 # ----------------------------------------------------------------------------

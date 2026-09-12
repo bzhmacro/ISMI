@@ -648,3 +648,17 @@ function setupDownload() {
     a.click();
   };
 }
+
+/* Register with the top-level Model bar (models.js). The ISM view boots itself
+   on load — it is the landing model — so `init` is a no-op and only the
+   subtitle and show/hide are delegated. */
+if (typeof ModelBar !== "undefined") {
+  ModelBar.register({
+    key: "ism",
+    label: "Inflation Shock Momentum",
+    viewId: "ism-view",
+    sub: "Replication of Lansing & Shapiro (2026): the share of categories with "
+       + "sustained inflation surprises, recomputed live in your browser.",
+    init: () => {},
+  });
+}
