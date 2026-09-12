@@ -397,10 +397,25 @@ def trim_membership(
     """Per-category label for one cross-section, for the drivers panel.
 
     Returns an integer array aligned with ``values``:
-    ``-1`` cut from the bottom, ``0`` retained, ``+1`` cut from the top,
-    ``-2`` unusable (NaN value or weight).  A category straddling a trim point
-    is labelled by where the *majority* of its weight fell, so the label answers
-    "was this month's print driven by things in the middle or in the tail?".
+
+    ``-1``  entirely below the lower trim point -- cut from the bottom
+    `` 0``  entirely inside the retained interval -- included
+    ``+1``  entirely above the upper trim point -- cut from the top
+    `` 2``  **straddles** a trim point: part of its weight was retained
+    ``-2``  unusable (NaN value or weight)
+
+    The straddling label is not a nicety.  Because the estimator includes
+    boundary categories *partially* (Eq. T3), a category can supply a large
+    share of the retained weight while most of its own weight sits in a tail.
+    On the shipped panels at the published trim points this happens in roughly
+    seven months out of ten, and the straddling category has contributed as
+    much as 17% of the basket -- so labelling it "cut" would tell the reader
+    that a category which drove the number had been thrown away.  The Dallas
+    Fed's published component table makes the same distinction, marking the
+    boundary row "Trim point" rather than cut or included.
+
+    ``sum of retained weight`` over the categories labelled 0 and 2 is the
+    denominator of Eq. (T3); no category labelled -1 or +1 contributes.
     """
     v = np.asarray(values, dtype=float)
     w = np.asarray(weights, dtype=float)
@@ -419,12 +434,45 @@ def trim_membership(
     cum_hi = cum_lo - ww
     lo, hi = lower, max(lower, 1.0 - upper)
 
-    below = np.clip(np.minimum(cum_lo, lo) - cum_hi, 0.0, None)
-    above = np.clip(cum_lo - np.maximum(cum_hi, hi), 0.0, None)
+    # weight of each category lying inside the retained interval (lo, hi)
     inside = np.clip(np.minimum(cum_lo, hi) - np.maximum(cum_hi, lo), 0.0, None)
+    tol = 1e-12
+    fully_in = inside >= ww - tol           # nothing of it was trimmed
+    partly_in = (inside > tol) & ~fully_in  # a slice survived: the trim point
+    above = (cum_hi >= hi - tol)
 
-    stacked = np.vstack([below, inside, above])          # rows -> -1, 0, +1
-    out[idx] = np.argmax(stacked, axis=0) - 1
+    label = np.where(fully_in, 0, np.where(partly_in, 2, np.where(above, 1, -1)))
+    out[idx] = label
+    return out
+
+
+def retained_weight(
+    values: np.ndarray,
+    weights: np.ndarray,
+    lower: float = 0.08,
+    upper: float = 0.08,
+) -> np.ndarray:
+    """Share of total weight each category actually contributed (Eq. T3).
+
+    Aligned with ``values``; zero for a category that was entirely trimmed.
+    Summing it gives ``1 - lower - upper``.  This is what the website sizes the
+    straddling bars by, so the picture and the number agree exactly.
+    """
+    v = np.asarray(values, dtype=float)
+    w = np.asarray(weights, dtype=float)
+    out = np.zeros(len(v), dtype=float)
+    ok = np.isfinite(v) & np.isfinite(w) & (w > 0)
+    if not ok.any():
+        return out
+    idx = np.where(ok)[0]
+    vv, ww = v[ok], w[ok]
+    order = np.argsort(vv, kind="mergesort")
+    idx, vv, ww = idx[order], vv[order], ww[order]
+    ww = ww / ww.sum()
+    cum_lo = np.cumsum(ww)
+    cum_hi = cum_lo - ww
+    out[idx] = np.clip(np.minimum(cum_lo, 1.0 - upper) - np.maximum(cum_hi, lower),
+                       0.0, None)
     return out
 
 

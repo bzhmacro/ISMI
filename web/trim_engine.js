@@ -189,21 +189,43 @@ const TrimEngine = (() => {
     return den > 0 ? num / den : NaN;
   }
 
-  /* Per-category label for the drivers panel: -1 cut from the bottom,
-     0 retained, +1 cut from the top, -2 unusable. A category straddling a trim
-     point is labelled by where the majority of its weight fell. */
-  function membershipOne(idx, m, lower, upper, wnorm, out, k) {
+  /* Per-category label for the cross-section chart, plus the weight each
+     category actually contributed.
+
+       -1  entirely below the lower trim point — cut from the bottom
+        0  entirely inside the retained interval — included
+       +1  entirely above the upper trim point — cut from the top
+        2  STRADDLES a trim point: part of its weight was retained
+       -2  unusable
+
+     The straddling label matters. Because boundary categories enter partially
+     (Eq. T3), a category can supply a large share of the retained weight while
+     most of its own weight sits in a tail — on the shipped panels at the
+     published trim points that happens in roughly seven months out of ten, and
+     the straddling category has contributed up to 17% of the basket. Colouring
+     it "cut" would tell the reader a category that drove the number had been
+     thrown away. The Dallas Fed's own component table marks that row
+     "Trim point" for the same reason.
+
+     `kept` receives the retained weight share per category, so the bars can be
+     sized by what each one actually contributed rather than by its full
+     weight. */
+  function membershipOne(idx, m, lower, upper, wnorm, out, k, kept) {
     out.fill(-2, 0, k);
+    if (kept) kept.fill(0, 0, k);
     const hi = Math.max(lower, 1 - upper);
+    const tol = 1e-12;
     let cumLo = 0;
     for (let t = 0; t < m; t++) {
       const cumHi = cumLo;
       cumLo += wnorm[t];
-      const below = Math.max(0, Math.min(cumLo, lower) - cumHi);
-      const above = Math.max(0, cumLo - Math.max(cumHi, hi));
       const inside = Math.max(0, Math.min(cumLo, hi) - Math.max(cumHi, lower));
-      out[idx[t]] = (below >= inside && below >= above) ? -1
-                  : (inside >= above ? 0 : 1);
+      const j = idx[t];
+      if (kept) kept[j] = inside;
+      if (inside >= wnorm[t] - tol) out[j] = 0;            // fully retained
+      else if (inside > tol) out[j] = 2;                   // the trim point
+      else if (cumHi >= hi - tol) out[j] = 1;              // cut from the top
+      else out[j] = -1;                                    // cut from the bottom
     }
   }
 
@@ -270,7 +292,8 @@ const TrimEngine = (() => {
     const idx = new Int32Array(k), wnorm = new Float64Array(k);
     const vrow = new Float64Array(k);
     const member = new Int8Array(k);
-    let lastMembership = null, lastRow = -1;
+    const keptW = new Float64Array(k);
+    let lastMembership = null, lastKept = null, lastRow = -1;
 
     for (let i = 0; i < n; i++) {
       let m = 0, tot = 0;
@@ -290,8 +313,9 @@ const TrimEngine = (() => {
 
       rate[i] = trimOne(vrow, weights, idx, m, o.lower, o.upper, wnorm);
       if (Number.isFinite(rate[i])) {
-        membershipOne(idx, m, o.lower, o.upper, wnorm, member, k);
+        membershipOne(idx, m, o.lower, o.upper, wnorm, member, k, keptW);
         lastMembership = Array.from(member);
+        lastKept = Array.from(keptW);
         lastRow = i;
       }
     }
@@ -303,6 +327,7 @@ const TrimEngine = (() => {
       latest: lastRow < 0 ? null : {
         row: lastRow,
         membership: lastMembership,
+        retained: lastKept,
         values: Array.from({ length: k }, (_, j) =>
           Number.isFinite(values[j][lastRow]) ? values[j][lastRow] : null),
         weights: Array.from({ length: k }, (_, j) =>

@@ -65,6 +65,19 @@ the answer jumps every time a trim point crosses a category boundary), and it is
 what both Reserve Banks do. `test_partial_inclusion_makes_the_trim_continuous`
 guards it.
 
+Partial inclusion has a consequence worth stating, because getting it wrong is
+easy and invisible: a category straddling a trim point is **neither cut nor
+included**. On the shipped panels at the published trim points, the straddling
+category has contributed as much as 17% of the basket while most of its own
+weight sat in a tail. The cross-section chart therefore colours four states, not
+three — cut from the bottom, counted, cut from the top, and **at the trim point
+(partly counted)** — which is the same distinction the Dallas Fed's published
+component table draws when it marks a row "Trim point".
+`retained_weight()` returns the share each category actually contributed, and
+`test_retained_weight_reconstructs_the_trimmed_mean` asserts those shares
+reproduce the headline number exactly, so the picture and the figure come from
+one calculation.
+
 α + β = 1 degenerates to the weighted median: the value of the category holding
 the 50th percentile of the weight — *a real category's own price change*, never
 an interpolation, which is why the Cleveland Fed can name the median component

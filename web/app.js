@@ -23,9 +23,13 @@ let REQ = 0, REQ_KEY = "", RESULT = null;     // latest worker result
 let DEB = null;             // debounce timer for compute requests
 const EXCLUDED = {};        // backbone -> Set of excluded category indices
 
-const PLOT_BG = "#171e26", GRID = "#243240", INK = "#e6edf3", MUTED = "#8b98a5";
-const POS = "#f5a623", NEG = "#4c9aff";
-const HEADLINE_COLOR = { pce: "#d05ce3", cpi: "#2dd4bf" };
+/* bzhmacro house tokens. Plotly needs literal colours, so these mirror
+   brand/tokens.json — panel, line, paper, muted and the categorical series
+   --c1..--c8, in order. Keep in step with assets/bzh.css; chart_export.js maps
+   each of these to its paper equivalent for the light export. */
+const PLOT_BG = "#161D2C", GRID = "#2A3448", INK = "#EDE6D6", MUTED = "#B9B2A0";
+const POS = "#BE8A31", NEG = "#5E9CD8";                    // --gold / --azure
+const HEADLINE_COLOR = { pce: "#8A85E8", cpi: "#2AA695" }; // --c2 / --c1
 
 const $ = id => document.getElementById(id);
 
@@ -627,7 +631,12 @@ function renderDrivers(res) {
 }
 
 function setupDownload() {
-  $("download").onclick = () => {
+  // The page-level "Download current series (CSV)" button is gone — every chart
+  // now carries its own CSV export (chart_export.js). Kept null-safe rather
+  // than deleted so the handler still binds if the button is reinstated.
+  const btn = $("download");
+  if (!btn) return;
+  btn.onclick = () => {
     const b = backbone();
     const { res } = currentResult();
     if (!res) return;

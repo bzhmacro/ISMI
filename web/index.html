@@ -19,8 +19,15 @@
     .tbl tbody tr:hover { background:#16202b }
     .tbl td.low { color:#f5605a; font-weight:600 }
     .tbl td.high { color:#3fb950; font-weight:600 }
-    .notes { color:var(--muted); font-size:.78rem; margin:6px 0 14px; max-width:860px }
-    .notes div { margin:2px 0 }
+    /* .toggles sets display:flex, which outranks the UA sheet's [hidden] rule,
+       so a hidden toggle control would still show. Make hidden win. */
+    [hidden] { display:none !important }
+    .notes { color:var(--muted); font-size:.78rem; margin:6px 0 14px; max-width:900px }
+    .notes div { margin:3px 0 }
+    .tbl td.small, .tbl th.small { font-size:.72rem }
+    .tbl tr.sep td { border-top:2px solid var(--accent) }
+    .readout .stat.big b { font-size:2rem; color:var(--pos) }
+    .readout .stat.big { border-color:var(--pos) }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
@@ -351,9 +358,19 @@
       <div class="control">
         <label>View</label>
         <div class="seg" id="x-view"></div>
-        <small>The gap decomposition is an identity, not a regression: the six terms sum to the wedge every month.</small>
+        <small>The nowcast is the point of the page; the other three show what it is built from and why it is needed.</small>
       </div>
-      <div class="control toggles">
+      <div class="control" id="x-scope-ctl">
+        <label>Measure</label>
+        <div class="seg" id="x-scope"></div>
+        <small>Core is what the Fed targets. Core excludes food and energy on the BEA definition pinned in <code>config/pce_core_exclusions.csv</code>.</small>
+      </div>
+      <div class="control" id="x-horizon-ctl">
+        <label>Horizon</label>
+        <div class="seg" id="x-horizon"></div>
+        <small>A 12-month estimate is eleven published months plus one estimated month — not a guess about all twelve.</small>
+      </div>
+      <div class="control toggles" id="x-smooth-ctl" hidden>
         <label class="chk"><input type="checkbox" id="x-smooth" /> Smooth the stack (12m mean)</label>
       </div>
       <div class="control range">
@@ -369,45 +386,52 @@
 
     <section class="grid2" id="x-bridge-panels" hidden>
       <div>
-        <h2>Implied contributions <span id="x-bars-date" class="muted"></span></h2>
+        <h2>What adds up to it <span id="x-bars-date" class="muted"></span></h2>
         <div id="x-bars" class="chart small"></div>
       </div>
       <div class="explain">
-        <h2>Reading the pass-through column</h2>
+        <h2>Why this can be done at all</h2>
         <p>
-          The <em>Group by group</em> table reports, for each common group, how
-          much of a 1pp move in the CPI subindex turns up in the PCE deflator
-          for the same spending. Shelter comes in at 1.00 — PCE takes the number
-          straight from the CPI. Medical services comes in around 0.3, because
-          PCE prices hospital care from the producer price index and counts what
-          insurers actually pay, not what a household is billed. Those rows are
-          where the two gauges stop being the same measurement.
+          The CPI and the producer price index for a month are published about
+          two weeks before the PCE for the same month. Between those two dates
+          most of the PCE is already determined and simply not yet assembled:
+          shelter comes straight from the CPI, food and energy nearly so, and
+          the pieces that do <em>not</em> follow the CPI — medical services,
+          portfolio management, air fares — follow producer prices that are also
+          already out.
+        </p>
+        <p>
+          So the estimate is not a forecast of prices. It is a translation of
+          readings that already exist into the aggregate BEA has not published
+          yet, group by group, with each group's mapping fitted only on months
+          that came before the one being estimated.
         </p>
       </div>
     </section>
 
     <section class="actions">
-      <button id="x-download">Download the decomposition (CSV)</button>
+      <button id="x-download">Download the series (CSV)</button>
     </section>
 
     <section class="explain">
       <h2>What am I looking at?</h2>
       <p>
         PCE inflation has run about <strong>0.3pp below</strong> CPI inflation
-        since 2000, and the Fed targets the lower one. The stack splits that
-        wedge into the four things that generate it — a different aggregation
-        <strong>formula</strong>, different <strong>weights</strong> over the
-        same spending, different <strong>price sources</strong> for the same
-        goods, and different <strong>scope</strong> — plus the CPI lines PCE has
-        no counterpart for, and an explicitly reported rebuild residual. Each
+        since 2000, and the Fed targets the lower one. The <em>Why they differ</em>
+        view splits that wedge into the four things that generate it — a different
+        aggregation <strong>formula</strong>, different <strong>weights</strong>
+        over the same spending, different <strong>price sources</strong> for the
+        same goods, and different <strong>scope</strong> — plus the CPI lines PCE
+        has no counterpart for, and an explicitly reported rebuild residual. Each
         term is one substitution in a chain from the published CPI to the
         published PCE, so the six add up to the gap by construction.
       </p>
       <p>
         The weight term is the one that moves: shelter is roughly a third of the
         CPI basket and a sixth of PCE, so the 2021-22 rent surge added well over
-        a point to CPI relative to PCE and then went into reverse. The price
-        term is the one that persists, and it is mostly medical care.
+        a point to CPI relative to PCE and then went into reverse. The price term
+        is the one that persists, and it is mostly medical care — which is also
+        why the producer price index does most of the work in the nowcast.
       </p>
     </section>
     </div>

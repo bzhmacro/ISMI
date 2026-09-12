@@ -14,7 +14,8 @@
   let REQ = 0, REQ_KEY = "", RESULT = null, DEB = null;
   const EXCLUDED = {};
 
-  const PLOT_BG = "#171e26", GRID = "#243240", INK = "#e6edf3", MUTED = "#8b98a5";
+  // bzhmacro house tokens — see the note in app.js.
+  const PLOT_BG = "#161D2C", GRID = "#2A3448", INK = "#EDE6D6", MUTED = "#B9B2A0";
   const SUP = "#f5605a", DEM = "#27406b", DEMI = "#4c9aff", AMB = "#c9b458", TOT = "#e6edf3";
   const $ = id => document.getElementById(id);
 

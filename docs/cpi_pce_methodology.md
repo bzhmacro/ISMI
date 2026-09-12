@@ -128,7 +128,87 @@ which looks tidy and means nothing. It is a diagnostic, not a term.
 
 ---
 
-## 4. The bridge
+## 4. The forecast — what the page is for
+
+The CPI and the PPI for a month are published about two weeks before the PCE
+for the same month. Between those two dates most of the PCE is already
+determined and merely not yet assembled: shelter comes straight from the CPI,
+food and energy nearly so, and the pieces that do *not* follow the CPI — medical
+services, portfolio management, air fares — follow producer prices that are also
+already out.
+
+So `bridge_nowcast` runs over the **CPI's** index rather than the intersection
+of the two, and the months with no published PCE come out as estimates. Both
+headline and core are produced; core is what the Fed targets.
+
+**Accuracy, one month ahead, with no lookahead anywhere:**
+
+| measure | inputs | RMSE (pp) | vs CPI only |
+|---|---|---:|---:|
+| headline | CPI | 0.075 | |
+| headline | CPI + PPI | 0.065 | −13% |
+| core | CPI | 0.078 | |
+| core | CPI + PPI | 0.062 | **−21%** |
+
+Two details that decide whether those numbers mean anything:
+
+- **The fit never sees the month it predicts.** Each group is fitted on the
+  trailing window *excluding* month t. `test_bridge_uses_no_weights_from_the_month_it_predicts`
+  checks this by predicting the same month with and without the rest of the data
+  present and requiring bit-identical answers.
+- **Nor do the weights.** BEA publishes expenditure shares *with* the PCE, so on
+  CPI day month t's weights do not exist either. Every month therefore
+  aggregates on the last shares known before it. Using month t's own shares
+  where they happened to exist moved a print by 0.004pp and made the historical
+  error bands flatter than the live forecast could ever be.
+
+**The band is regime-dependent and quoted as such.** One-month RMSE runs about
+0.17pp through the high-inflation 1970s and 1980s and about 0.04pp through the
+calm 2010s. A full-sample band is therefore wrong for today in one direction and
+a 2010s band is wrong in the other; the quoted `se` is the trailing 60 months,
+which still contains the 2021–22 surge, and the full-sample `rmse` is reported
+next to it.
+
+**A 12-month estimate is eleven published months plus one estimate**, not a
+guess about all twelve: the published months are spliced in as published and
+only the missing ones are filled.
+
+---
+
+## 5. The producer-price inputs
+
+About a fifth of PCE is not priced from the CPI at all, and the largest piece of
+that — medical services, 17.6% of PCE against 6.1% of the CPI — is priced from
+the **producer** price index, because PCE counts what insurers pay rather than
+what a household is billed. A bridge on the CPI alone is blind exactly where the
+two gauges diverge most.
+
+`config/ppi_bridge_series.csv` pins one row per (group, PPI series).
+Measured pseudo-out-of-sample at group level:
+
+| group | RMSE, CPI only | RMSE, CPI + PPI | improvement |
+|---|---:|---:|---:|
+| `medical_services` | 0.166 | 0.071 | **57%** |
+| `health_insurance` | 0.414 | 0.253 | 39% |
+| `public_transport` | 1.650 | 1.307 | 21% |
+| `financial_services` | *no CPI counterpart* | 0.519 | PPI is the only input |
+
+The PPI-by-industry flat files carry **only unadjusted** series, so they are
+deseasonalised here with trailing month effects (`sa="rolling"`) — which uses no
+future data and, measured, also forecasts slightly better than the full-sample
+alternative.
+
+One reporting trap worth naming: once PPI is in the regression, the model's CPI
+coefficient becomes a *partial* slope holding producer prices fixed — a
+different quantity — and for a group with no CPI side it is not a CPI slope at
+all. The "pass-through" column the website shows is therefore fitted on CPI
+**alone** (`BridgeResult.cpi_slope`) and is blank where there is no CPI
+counterpart. `test_cpi_slope_stays_the_plain_pass_through_when_ppi_is_added`
+guards it.
+
+---
+
+## 6. The bridge
 
 For each common group and each month t, fit on the trailing `window` months
 **excluding t itself**
@@ -171,7 +251,7 @@ of the reason CPI-day moves in PCE expectations are often wrong.
 
 ---
 
-## 5. What this does not do
+## 7. What this does not do
 
 * **No real-time vintages.** Everything uses the latest published data. A
   genuine reconstruction of what a given CPI day implied at the time would need
@@ -186,7 +266,7 @@ of the reason CPI-day moves in PCE expectations are often wrong.
 
 ---
 
-## 6. Running it
+## 8. Running it
 
 ```bash
 python scripts/export_trim_data.py        # builds the decomposition + bridge into web/data/trim.json
@@ -202,7 +282,7 @@ res.table[["gap", "weight", "price", "scope"]].tail()
 
 ---
 
-## 7. Sources
+## 9. Sources
 
 | what | where |
 |---|---|
@@ -210,6 +290,7 @@ res.table[["gap", "weight", "price", "scope"]].tail()
 | Chained CPI (C-CPI-U) | BLS flat files, `.../time.series/su/` |
 | PCE category prices and expenditure | BEA 2.4.4U / 2.4.5U (or the committed `web/data/ism.json`) |
 | Published PCE price index | the site's own headline series, from FRED via `export_web_data.py` |
+| PPI by industry (hospitals, physicians, nursing, home health, portfolio management, air fares, health insurers) | BLS flat files, `.../time.series/pc/` — pinned in `config/ppi_bridge_series.csv` |
 
 Background reading: McCully, Moyer & Stewart (2007), "Comparing the Consumer
 Price Index and the Personal Consumption Expenditures Price Index", *Survey of

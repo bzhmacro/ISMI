@@ -215,12 +215,45 @@ households are billed), **scope −0.13pp**, **formula +0.10pp**, coverage
 weight term peaked at **+1.56pp in March 2022**, because shelter is 34% of the
 CPI basket and 16% of PCE.
 
-The same module maps a CPI print into an implied PCE print, group by group,
-using a rolling regression that never sees the month it is predicting (monthly
-RMSE 0.121pp; 12-month correlation 0.977 since 2000). Its fitted **pass-through**
-slopes are the most useful output: shelter comes in at 1.00 because PCE takes the
-number straight from the CPI, while medical services comes in at 0.31. Those are
-the rows where a CPI surprise does not mean a PCE surprise.
+### What will PCE print?
+
+The same module answers the question the page exists for. The CPI **and the
+PPI** for a month are published about two weeks before the PCE for that month,
+so `bridge_nowcast` runs over the CPI's own index and the months with no
+published PCE come out as estimates — headline and core, month-over-month and
+year-over-year, with the band the estimator has actually earned recently.
+
+One month ahead, with no lookahead anywhere:
+
+| measure | inputs | RMSE (pp) | vs CPI only |
+|---|---|---:|---:|
+| headline | CPI | 0.075 | |
+| headline | CPI + PPI | 0.065 | −13% |
+| core | CPI | 0.078 | |
+| core | CPI + PPI | 0.062 | **−21%** |
+
+**The producer price index does most of that work**, because about a fifth of
+PCE is not priced from the CPI at all. Medical services — 17.6% of PCE against
+6.1% of the CPI — is priced from the PPI, since PCE counts what insurers pay
+rather than what a household is billed; adding the series BEA actually uses cuts
+that group's error by **57%**. Portfolio management has no CPI counterpart at
+all, so its PPI is the only monthly reading that exists for it. The seven series
+are pinned in `config/ppi_bridge_series.csv`.
+
+Two things make those error bands honest rather than decorative: the fit never
+sees the month it predicts, and neither do the **weights** — BEA publishes
+expenditure shares with the PCE, so every month aggregates on the last shares
+known before it (using month t's own shares moved a print by 0.004pp and
+flattered every historical band). The quoted band is the trailing 60 months,
+because accuracy is regime-dependent: ~0.17pp through the 1970s–80s, ~0.04pp
+through the 2010s.
+
+The fitted **pass-through** slopes are the other useful output: shelter comes in
+at 1.00 because PCE takes the number straight from the CPI, while medical
+services comes in at 0.31. Those are the rows where a CPI surprise does not mean
+a PCE surprise. They are fitted on CPI alone and reported separately from the
+model's own coefficients, which stop being pass-through once PPI is in the
+regression.
 
 Concordance: `config/cpi_pce_concordance.csv` (all 70 CPI strata and all 130 PCE
 categories → 28 common groups, plus four groups flagged `scope` where the two
@@ -243,6 +276,7 @@ ISMI/
 │   ├── cleveland_ri_by_year.csv  # its December relative importances, 1997-
 │   ├── cpi_ri_by_year.csv     # December relative importances for the 70 strata
 │   ├── cpi_pce_concordance.csv   # CPI strata + PCE categories -> 28 common groups
+│   ├── ppi_bridge_series.csv  # the PPI series BEA prices each group from
 │   ├── pce_categories.csv     # the pinned 130 fourth-level PCE categories
 │   └── cpi_categories.csv     # the pinned ~70 BLS CPI item strata (alt. backbone)
 ├── src/ism/                   # the library (the importable engine + plumbing)
@@ -272,6 +306,7 @@ ISMI/
 │   ├── official_trim.py       # Cleveland Fed + Dallas Fed published files
 │   ├── trim_validate.py       # our measures vs theirs (series + cross-section)
 │   ├── cpi_pce.py             # CPI-PCE gap identity + the nowcast bridge
+│   ├── ppi.py                 # the producer-price inputs to the PCE deflator
 │   ├── figures.py / validate.py / run.py
 ├── scripts/                   # runnable helpers
 │   ├── build_and_validate.py  # build the US index + convergence check

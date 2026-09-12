@@ -115,6 +115,68 @@ vercel --prod
   inflation; the slider trims the sample start; the readout shows the live
   correlation with the authors' published index.
 
+## House style (bzhmacro)
+
+The page follows the `bzhmacro.com` identity: `.site-banner` first in `<body>`,
+a sticky `.section-nav`, `.wrap.wide`, `header.page-head`, numbered sections,
+a sources block and the standing disclaimer in `footer.site-footer`.
+
+`bzh.css` is linked from `https://www.bzhmacro.com/brand/bzh.css` with a
+vendored fallback at `assets/bzh.css` (an `onerror` on the `<link>` swaps to it).
+**Do not edit either.** Tokens are generated from `brand/tokens.json` in the
+brand kit; a local override would silently fork this site from every other
+bzhmacro surface.
+
+`styles.css` is the project layer and loads after. It defines only what the
+house system does not own — the parameter grid, segmented buttons, the category
+picker, chart frames and the export toolbar — and holds no `:root` block.
+
+Two collisions worth knowing about:
+
+- The parameter grid is `.paramgrid`, **not** `.controls`. bzh already defines
+  `.controls` as a flex filter row, so the old name fought the house system
+  head-on.
+- The four view apps emit `.stat > b + span` where bzh expects `.num`/`.lbl`.
+  Rather than change four files, `styles.css` styles those scoped to
+  `.statrow`, leaving the shared `.stat` untouched.
+
+Section numbers (`01`, `02`, …) come from a CSS counter on `.model-view`, so
+each model numbers independently and the markup carries none of it. Add
+`class="nonum"` to a section to opt out.
+
+The four models are toggled views, so the section nav switches views rather
+than scrolling. Each is deep-linkable — `#ism`, `#decomp`, `#trim`, `#cpipce` —
+and `models.js` honours the hash on load and on `hashchange`.
+
+## Exporting a chart
+
+Hover any chart for a small toolbar:
+
+| Button | Output |
+| --- | --- |
+| `PNG` | 1200×675 at 2×, dark palette, matches the screen |
+| `PAPER` | same, on a light background — for notes and PDFs |
+| `CSV` | the plotted series, with a provenance header |
+
+All three carry the chart title, the parameter combo it was computed with, the
+data-through month and a source line, so an image stays self-documenting once
+it has left the site — which is exactly when provenance normally gets lost.
+
+`chart_export.js` reads the figure straight off the Plotly div (`gd.data` /
+`gd.layout`), so **the four view apps know nothing about it** and need no
+changes when charts are added or reshaped. To register a new chart, add its div
+id to the `CHARTS` table at the top of that file.
+
+The paper export deep-clones the figure, rewrites colours through a
+dark→light map that mirrors the `@generated:print` block in `bzh.css`, and
+renders the clone on an offscreen stage. The stage is positioned far
+off-canvas rather than `display:none` — Plotly cannot measure a zero-size node
+and would emit a blank image.
+
+The per-view "Download current series (CSV)" buttons were removed in favour of
+per-chart CSV. `setupDownload()` in `app.js` is now null-safe, so reinstating a
+button is just markup.
+
 ## Auto-refresh to the latest data (GitHub Action)
 
 `.github/workflows/refresh-data.yml` rebuilds `web/data/*.json` from the latest

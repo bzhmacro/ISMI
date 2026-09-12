@@ -607,8 +607,10 @@ class BlsFlatFileClient:
     sidecar; parsing is cheap enough to redo on demand.
     """
 
-    #: ``cu`` = CPI-U/CPI-W, ``su`` = the chained CPI (C-CPI-U).  Both live
-    #: under the same flat-file root with the same row layout.
+    #: ``cu`` = CPI-U/CPI-W, ``su`` = the chained CPI (C-CPI-U), ``pc`` = the
+    #: PPI by industry.  All live under the same flat-file root with the same
+    #: row layout; only the file split differs, which is why ``pc`` callers pass
+    #: the files explicitly (see ``config/ppi_bridge_series.csv``).
     database: str = "cu"
     cache_dir: Path = RAW_DIR / "bls_flat"
     base_root: str = "https://download.bls.gov/pub/time.series/"
@@ -681,16 +683,22 @@ class BlsFlatFileClient:
 
     # -- reading -------------------------------------------------------------
     def fetch_many(self, series_ids: list[str], force: bool = False,
-                   verbose: bool = False) -> dict[str, pd.Series]:
-        """``{series_id: monthly pd.Series}`` for any CPI series ids.
+                   verbose: bool = False,
+                   files: Optional[list[str]] = None) -> dict[str, pd.Series]:
+        """``{series_id: monthly pd.Series}`` for any series ids in this database.
 
         Ids not found in the downloaded files are simply absent from the result
         -- callers decide whether that is fatal (see
         :meth:`seasonally_adjusted`, where it is expected and handled).
+
+        ``files`` overrides the automatic file choice.  The PPI-by-industry
+        database splits across ~80 files with no rule mapping a series id to
+        one of them, so its callers name the file alongside the series id in
+        config rather than have this client download the whole database.
         """
         wanted = set(series_ids)
         found: dict[str, list[tuple[str, float]]] = {s: [] for s in wanted}
-        for name in self._files_for(wanted):
+        for name in (files if files is not None else self._files_for(wanted)):
             path = self._file(name, force=force)
             if verbose:
                 print(f"[bls-flat] scanning {name}")

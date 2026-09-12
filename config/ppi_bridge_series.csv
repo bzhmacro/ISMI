@@ -1,0 +1,8 @@
+group,series_id,label,file,note
+medical_services,PCU622110622110,Hospitals,pc.data.50.Hospitals,"BEA prices hospital care from this PPI rather than the CPI, and counts what insurers pay rather than what a household is billed."
+medical_services,PCU62111-62111-,Offices of physicians,pc.data.47.AmbulatoryHealthCareServices,Same: the physician-services deflator is PPI-sourced.
+medical_services,PCU623110623110,Nursing care facilities,pc.data.51.NursingResidentialCareFacil,
+medical_services,PCU621610621610,Home health care services,pc.data.47.AmbulatoryHealthCareServices,
+health_insurance,PCU524114524114,Direct health and medical insurance carriers,pc.data.58.InsuranceCarriers,PCE values insurance at the carriers' margin; this PPI is that margin. The CPI has no comparable line.
+financial_services,PCU5239405239401,Portfolio management,pc.data.57.Finance,"Portfolio management and investment advice: a PCE line with no CPI counterpart at all, so PPI is its only monthly input."
+public_transport,PCU481111481111,Scheduled passenger air transportation,pc.data.36.AirTransportation,Air fares are priced differently in the two gauges; the PPI is closer to what PCE does.

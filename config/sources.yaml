@@ -201,6 +201,25 @@ cleveland_fed_measures:
     "Revised" (Dec-82=100, current methodology, from 1983) and "Original"
     (Jan-67=100) vintages; validation uses the revised span only.
 
+ppi_bridge_inputs:
+  provider: bls_flat
+  method: "flat file"
+  base: "https://download.bls.gov/pub/time.series/pc/"
+  role: >
+    The producer prices BEA actually uses for the fifth of PCE that is not
+    priced from the CPI. They are published about two weeks before the PCE, so
+    on CPI day they are already known -- which is what makes the CPI->PCE
+    nowcast possible. Adding them cuts the core PCE one-month error by 21% and
+    the medical-services group error by 57%.
+  pinned_to: "config/ppi_bridge_series.csv"
+  seasonal: >
+    The PPI-by-industry flat files carry ONLY unadjusted series. They are
+    deseasonalised in ism.ppi with trailing month effects (no future data).
+  notes: >
+    The database splits across ~80 files with no rule mapping a series id to
+    one of them, so the config names the file alongside each series id rather
+    than have the client download the whole database to find seven series.
+
 dallas_fed_trimmed_mean:
   provider: frbdal
   method: "published workbooks"

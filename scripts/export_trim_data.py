@@ -52,8 +52,11 @@ try:
 except Exception:
     pass
 
-from ism.cpi_pce import (bridge_nowcast, gap_decomposition,  # noqa: E402
-                         load_concordance)
+from ism.cpi_pce import (aggregate, bridge_nowcast,  # noqa: E402
+                         gap_decomposition, load_concordance)
+from ism.decomp_pipeline import core_exclusions  # noqa: E402
+from ism.ppi import (fetch_ppi_levels, group_regressors,  # noqa: E402
+                     load_bridge_series as load_ppi_series, ppi_inflation)
 from ism.trim_engine import (MEDIAN_CPI, TRIM16_CPI, TRIM_PCE,  # noqa: E402
                              TrimConfig, compute_trim)
 from ism.trim_pipeline import (build_cleveland_panel, build_cpi70_panel,  # noqa: E402
@@ -248,7 +251,14 @@ def export_scope(scope: str, panel, official: dict, ism_payload: dict) -> dict:
 # ---------------------------------------------------------------------------
 # the CPI -> PCE page
 # ---------------------------------------------------------------------------
-def export_cpipce(panels: dict, ism_payload: dict) -> dict | None:
+def export_cpipce(panels: dict, ism_payload: dict, force: bool = False) -> dict | None:
+    """The CPI-to-PCE page: the gap identity, the PPI inputs, and the forecast.
+
+    The forecast is the point of the page.  CPI and PPI for a month are
+    published about two weeks before the PCE, so the bridge is run over the
+    CPI's own index and the months with no published PCE come out as estimates.
+    Both headline and core are exported, because core is what the Fed targets.
+    """
     cpi = panels.get("cpi70") or panels.get("cpi45")
     pce = panels.get("pce")
     if cpi is None or pce is None:
@@ -268,28 +278,68 @@ def export_cpipce(panels: dict, ism_payload: dict) -> dict | None:
     if err > 1e-6:
         print("[export_trim] WARNING the decomposition identity does not close")
 
-    bridge = bridge_nowcast(cpi.inflation, cpi.weights, pce.inflation,
-                            pce.weights, conc=conc)
-    print(f"[export_trim] cpipce: bridge RMSE {bridge.rmse:.3f}pp (m/m), "
-          f"window {bridge.window}")
+    # -- the producer-price inputs ------------------------------------------
+    ppi_levels = ppi_infl = None
+    ppi_groups: dict = {}
+    ppi_meta = load_ppi_series()
+    try:
+        ppi_levels = fetch_ppi_levels(ppi_meta, force=force)
+        # "rolling" month effects use no future data and, measured against the
+        # full-sample alternative, also forecast slightly better.
+        ppi_infl = ppi_inflation(ppi_levels, sa="rolling")
+        ppi_groups = group_regressors(ppi_infl, ppi_meta)
+        print(f"[export_trim] cpipce: {ppi_infl.shape[1]} PPI inputs covering "
+              f"{len(ppi_groups)} groups, through {ppi_infl.dropna(how='all').index[-1]:%Y-%m}")
+    except Exception as exc:
+        print(f"[export_trim] cpipce: PPI unavailable ({exc}); the bridge falls "
+              "back to CPI only")
 
-    table = gap.table.dropna(subset=["gap"])
-    index = table.index
+    # -- the bridge, headline and core --------------------------------------
+    bridges = {}
+    for scope_name, excl in (("headline", None), ("core", core_exclusions())):
+        bridges[scope_name] = bridge_nowcast(
+            cpi.inflation, cpi.weights, pce.inflation, pce.weights, conc=conc,
+            ppi=ppi_infl, ppi_groups=ppi_groups, exclude=excl, scope=scope_name)
+        b = bridges[scope_name]
+        if len(b.forecast):
+            f = b.forecast.iloc[-1]
+            print(f"[export_trim] cpipce: {scope_name} forecast "
+                  f"{b.forecast.index[-1]:%Y-%m}  m/m {f['mom']:+.3f}%  "
+                  f"y/y {f['yoy']:.2f}%  +/-{f['se']:.3f}pp  "
+                  f"(recent RMSE {b.se:.4f}, full sample {b.rmse:.4f})")
+        else:
+            print(f"[export_trim] cpipce: {scope_name} has no pending month "
+                  "(PCE is as current as CPI)")
+
+    # The index spans the CPI, so it now reaches past the last published PCE.
+    index = bridges["headline"].monthly.index
+    table = gap.table.reindex(index)
     cols = ["cpi", "pce", "gap"] + list(gap.COMPONENTS) + ["ccpi_proxy"]
+
+    # monthly aggregates, so the page can show m/m beside y/y everywhere
+    cpi_mom = aggregate(gap.group_cpi, gap.weights_cpi).reindex(index)
+    pce_mom = aggregate(gap.group_pce, gap.weights_pce).reindex(index)
 
     lab_cpi = (conc[conc.gauge == "cpi"].groupby("group")["label"]
                .apply(lambda s: "; ".join(s.head(4))).to_dict())
     lab_pce = (conc[conc.gauge == "pce"].groupby("group")["label"]
                .apply(lambda s: "; ".join(s.head(4))).to_dict())
-    roles = conc.drop_duplicates("group").set_index("group")["role"].to_dict()
 
     last_w_cpi = gap.weights_cpi.reindex(index).ffill().iloc[-1]
     last_w_pce = gap.weights_pce.reindex(index).ffill().iloc[-1]
-    slopes = bridge.coefficients.reindex(index)
-    last_slope = slopes.ffill().iloc[-1] if len(slopes) else pd.Series(dtype=float)
+    # the UNIVARIATE CPI slope: "how much of a 1pp CPI move turns up in PCE".
+    # Not the model's CPI coefficient, which once PPI is in the regression is a
+    # partial slope holding producer prices fixed -- a different number, and for
+    # a group with no CPI side not a CPI slope at all.
+    slopes = bridges["headline"].cpi_slope.reindex(index).ffill()
+    last_slope = slopes.iloc[-1] if len(slopes) else pd.Series(dtype=float)
+    ppi_by_group = {g: [ppi_meta.loc[ppi_meta.label == c, "label"].iat[0]
+                        for c in cols_] for g, cols_ in ppi_groups.items()}
 
     groups = []
     for g in sorted(set(gap.group_cpi.columns) | set(gap.group_pce.columns)):
+        c_mom = gap.group_cpi[g].reindex(index) if g in gap.group_cpi else None
+        p_mom = gap.group_pce[g].reindex(index) if g in gap.group_pce else None
         groups.append({
             "group": g,
             "role": "common" if g in gap.common else "scope",
@@ -298,35 +348,86 @@ def export_cpipce(panels: dict, ism_payload: dict) -> dict | None:
             "w_cpi": _round(100 * last_w_cpi.get(g, np.nan), 3),
             "w_pce": _round(100 * last_w_pce.get(g, np.nan), 3),
             "slope": _round(last_slope.get(g, np.nan), 3),
-            "cpi_yoy": _series(gap.group_cpi[g].rolling(12, min_periods=12).sum(),
-                               index) if g in gap.group_cpi else None,
-            "pce_yoy": _series(gap.group_pce[g].rolling(12, min_periods=12).sum(),
-                               index) if g in gap.group_pce else None,
+            "ppi": ppi_by_group.get(g, []),
+            "cpi_mom": _series(c_mom, index) if c_mom is not None else None,
+            "pce_mom": _series(p_mom, index) if p_mom is not None else None,
+            "cpi_yoy": _series(c_mom.rolling(12, min_periods=12).sum(), index)
+                       if c_mom is not None else None,
+            "pce_yoy": _series(p_mom.rolling(12, min_periods=12).sum(), index)
+                       if p_mom is not None else None,
         })
 
-    contrib = bridge.contributions
-    return {
-        "dates": _dates(index),
-        # 5 dp, not the usual 4: the six components have to still sum to the
-        # gap after rounding, and validate_web_data.py checks that they do.
-        "table": {c: _series(table[c], index, 5) for c in cols},
-        "components": list(gap.COMPONENTS),
-        "groups": groups,
-        "roles": roles,
-        "bridge": {
-            "window": bridge.window,
-            "rmse": _round(bridge.rmse, 4),
-            "monthly": {"implied": _series(bridge.monthly["implied"], index),
-                        "actual": _series(bridge.monthly["actual"], index)},
-            "yoy": {"implied": _series(bridge.yoy["implied"], index),
-                    "actual": _series(bridge.yoy["actual"], index)},
-            "latest_month": contrib.attrs.get("month") if len(contrib) else None,
-            "contributions": ([] if contrib.empty else
+    def _bridge_block(b):
+        out = {
+            "rmse": _round(b.rmse, 4),
+            "se": _round(b.se, 4),
+            "se_window": b.se_window,
+            "monthly": {"implied": _series(b.monthly["implied"], index),
+                        "actual": _series(b.monthly["actual"], index)},
+            "yoy": {"implied": _series(b.yoy["implied"], index),
+                    "actual": _series(b.yoy["actual"], index)},
+            "contributions": ([] if b.contributions.empty else
                               [{"group": r["group"], "role": r["role"],
+                                "inputs": r["inputs"],
                                 "implied_rate": _round(r["implied_rate"], 4),
                                 "weight": _round(r["weight"], 5),
                                 "contribution": _round(r["contribution"], 5)}
-                               for r in contrib.to_dict("records")]),
+                               for r in b.contributions.to_dict("records")]),
+            "contributions_month": b.contributions.attrs.get("month"),
+            "contributions_is_forecast": bool(b.contributions.attrs.get("is_forecast")),
+        }
+        act = b.monthly["actual"].dropna()
+        out["last_published"] = {
+            "month": act.index[-1].strftime("%Y-%m") if len(act) else None,
+            "mom": _round(act.iloc[-1], 4) if len(act) else None,
+            "yoy": _round(b.yoy["actual"].dropna().iloc[-1], 4)
+                   if b.yoy["actual"].notna().any() else None,
+        }
+        if len(b.forecast):
+            f = b.forecast.iloc[-1]
+            out["forecast"] = {
+                "month": b.forecast.index[-1].strftime("%Y-%m"),
+                "mom": _round(f["mom"], 4), "yoy": _round(f["yoy"], 4),
+                "se": _round(f["se"], 4), "basis": f["basis"],
+                "n_months": int(len(b.forecast)),
+            }
+        else:
+            out["forecast"] = None
+        return out
+
+    ppi_block = None
+    if ppi_infl is not None and not ppi_infl.empty:
+        notes = dict(zip(ppi_meta["label"], ppi_meta["note"].fillna("")))
+        gmap = {}
+        for row in ppi_meta.itertuples():
+            gmap[row.label] = row.group
+        ppi_block = {
+            "sa": "rolling",
+            "series": [{
+                "label": c, "group": gmap.get(c, ""), "note": notes.get(c, ""),
+                "mom": _series(ppi_infl[c], index),
+                "yoy": _series(ppi_infl[c].rolling(12, min_periods=12).sum(), index),
+            } for c in ppi_infl.columns],
+            "last_month": ppi_infl.dropna(how="all").index[-1].strftime("%Y-%m"),
+        }
+
+    cpi_agg = cpi_mom.dropna()
+    return {
+        "dates": _dates(index),
+        "table": {c: _series(table[c], index, 5) for c in cols},
+        "components": list(gap.COMPONENTS),
+        "mom": {"cpi": _series(cpi_mom, index), "pce": _series(pce_mom, index)},
+        "groups": groups,
+        "bridge": {"window": bridges["headline"].window,
+                   "inputs": bridges["headline"].inputs,
+                   "scopes": {k: _bridge_block(v) for k, v in bridges.items()},
+                   "default_scope": "core"},
+        "ppi": ppi_block,
+        "cpi_latest": {
+            "month": cpi_agg.index[-1].strftime("%Y-%m") if len(cpi_agg) else None,
+            "mom": _round(cpi_agg.iloc[-1], 4) if len(cpi_agg) else None,
+            "yoy": _round(table["cpi"].dropna().iloc[-1], 4)
+                   if table["cpi"].notna().any() else None,
         },
         "notes": list(gap.notes),
         "cpi_scope": cpi.key,
@@ -382,7 +483,7 @@ def main() -> int:
     }
 
     if not args.no_cpipce:
-        cpipce = export_cpipce(panels, ism_payload)
+        cpipce = export_cpipce(panels, ism_payload, force=args.force)
         if cpipce:
             payload["cpipce"] = cpipce
 

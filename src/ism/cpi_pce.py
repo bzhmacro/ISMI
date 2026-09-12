@@ -359,26 +359,77 @@ class BridgeResult:
     ----------
     monthly:
         ``[implied, actual, error]`` monthly PCE inflation in %, one row per
-        month for which a fit existed.
+        month.  ``implied`` extends **past** the last published PCE month --
+        that extension is the forecast.
     yoy:
-        The same, as 12-month rates.
+        The same as 12-month rates.  The forecast months chain the implied
+        monthly rates onto the published history, so a 12-month forecast is
+        eleven actual months plus one estimate, not a guess about all twelve.
+    forecast:
+        The months with an implied value and no published PCE: what this page
+        exists for.  Columns ``mom``, ``yoy``, ``se`` (the standard deviation of
+        the estimator's own past one-month errors) and ``basis``.
     coefficients:
-        Rolling slope per group -- how much of a 1pp CPI move in that group
-        shows up in PCE.  A slope far from 1 is the interesting object: medical
-        services sits well below it because PCE prices it from the PPI.
+        Rolling slope on the first regressor of the fitted (possibly
+        multivariate) model.  Diagnostic only.
+    cpi_slope:
+        The **univariate** rolling slope of the group's PCE inflation on its own
+        CPI inflation -- "how much of a 1pp CPI move turns up in PCE".  Kept
+        separate from ``coefficients`` deliberately: once PPI enters the model
+        the CPI coefficient becomes a partial slope holding producer prices
+        fixed, which is a different quantity, and for a group with no CPI
+        counterpart at all it would not be a CPI slope in any sense.  This is
+        the column the website labels "pass-through", and it is NaN where the
+        group has no CPI side.
     contributions:
-        Latest month's implied contribution per group (pp), so the nowcast can
-        be read as a bar chart rather than a single number.
+        The forecast month's implied contribution per group (pp), so the number
+        can be read as a bar chart rather than taken on trust.
     rmse:
-        Root mean squared error of the implied monthly rate, in pp.
+        Root mean squared one-month error over the whole fitted history, in pp.
+    se:
+        The same over the last ``se_window`` months -- the band the forecast is
+        actually quoted with, because the estimator's accuracy is
+        regime-dependent.
     """
 
     monthly: pd.DataFrame
     yoy: pd.DataFrame
+    forecast: pd.DataFrame
     coefficients: pd.DataFrame
+    cpi_slope: pd.DataFrame
     contributions: pd.DataFrame
     rmse: float
+    se: float
+    se_window: int
     window: int
+    scope: str = "headline"
+    inputs: list[str] = field(default_factory=list)
+
+
+def _ols_predict(y: np.ndarray, X: list[np.ndarray], t: int,
+                 window: int, min_obs: int) -> tuple[float, float]:
+    """Fit on the trailing window EXCLUDING ``t``, then predict ``t``.
+
+    Excluding ``t`` is the whole discipline of a nowcast: on CPI day the PCE for
+    that month does not exist, so no fit may use it.  Returns
+    ``(prediction, slope on the first regressor)``, both NaN when the window is
+    too thin or the month's inputs are incomplete.
+    """
+    n = len(y)
+    design = np.column_stack([np.ones(n)] + X)
+    lo = max(0, t - window)
+    rows = slice(lo, t)
+    ok = np.isfinite(y[rows]) & np.isfinite(design[rows]).all(axis=1)
+    if ok.sum() < min_obs or not np.isfinite(design[t]).all():
+        return np.nan, np.nan
+    A, b = design[rows][ok], y[rows][ok]
+    if np.linalg.matrix_rank(A) < A.shape[1]:
+        return np.nan, np.nan
+    try:
+        beta, *_ = np.linalg.lstsq(A, b, rcond=None)
+    except np.linalg.LinAlgError:
+        return np.nan, np.nan
+    return float(design[t] @ beta), float(beta[1]) if len(beta) > 1 else np.nan
 
 
 def bridge_nowcast(
@@ -387,97 +438,177 @@ def bridge_nowcast(
     pce_inflation: pd.DataFrame,
     pce_weights: pd.DataFrame,
     conc: Optional[pd.DataFrame] = None,
+    ppi: Optional[pd.DataFrame] = None,
+    ppi_groups: Optional[dict[str, list[str]]] = None,
+    exclude: Optional[set[str]] = None,
+    scope: str = "headline",
     window: int = 120,
     min_obs: int = 60,
     periods: int = 12,
+    se_window: int = 60,
 ) -> BridgeResult:
-    """Map a CPI print into an implied PCE print, group by group.
+    """Map the published CPI (and PPI) into an implied PCE print, group by group.
 
-    For each common group and each month t, fit
+    For each group and each month t, fit
 
-        pi^PCE_{g,s} = a_{g,t} + b_{g,t} * pi^CPI_{g,s}    for s in (t-W, t-1]
+        pi^PCE_{g,s} = a + b * pi^CPI_{g,s} + c' * pi^PPI_{g,s}
 
-    on the trailing ``window`` months **excluding t itself**, then apply it to
-    month t's CPI.  Excluding t is what makes the exercise a nowcast rather than
-    a fit: on CPI day, month t's PCE has not been published.
+    on the trailing ``window`` months **excluding t**, and apply it to month t's
+    inputs.  Because CPI and PPI for month t are published about two weeks
+    before the PCE, the fit can be applied to months where PCE does not exist
+    yet -- and those months are the forecast.
 
-    Scope groups have no CPI input, so they are carried at their own trailing
-    12-month average -- a deliberately dumb projection, because pretending to
-    forecast the imputed-financial-services deflator from CPI data would be
-    worse than admitting it is a standing assumption.  Their combined weight is
-    roughly a fifth of PCE, and the error bands include everything that goes
-    wrong there.
+    Parameters
+    ----------
+    ppi:
+        Seasonally adjusted monthly PPI inflation, one column per series
+        (:func:`ism.ppi.ppi_inflation`).  Optional, and worth a lot: it cuts the
+        medical-services error by more than half, and it is the only monthly
+        input to the PCE-only groups.
+    ppi_groups:
+        ``{group: [ppi column]}`` from :func:`ism.ppi.group_regressors`.
+    exclude:
+        PCE category keys to drop -- pass
+        ``ism.decomp_pipeline.core_exclusions()`` for **core** PCE.
+    scope:
+        A label carried through to the result (``"headline"`` / ``"core"``).
+    se_window:
+        Months of recent error used for the forecast's standard error.  The
+        estimator's accuracy is strongly regime-dependent -- one-month RMSE runs
+        about 0.17pp through the high-inflation 1970s and 1980s and about
+        0.04pp through the calm 2010s -- so a full-sample band is wrong for
+        today in one direction and a 2010s band is wrong in the other.  Sixty
+        months is a compromise that still contains the 2021-22 surge, and the
+        full-sample figure is reported alongside as ``rmse``.
+
+    A group with neither a CPI counterpart nor a PPI series is carried at its
+    own trailing 12-month average.  That is deliberately dumb and is labelled as
+    such; the alternative is pretending to forecast an imputation.
     """
     conc = conc if conc is not None else load_concordance()
     common = common_groups(conc)
-    scope = scope_groups(conc)
+    scope_groups_ = scope_groups(conc)
+    ppi_groups = ppi_groups or {}
 
     map_cpi = conc[conc.gauge == "cpi"].set_index("key")["group"]
     map_pce = conc[conc.gauge == "pce"].set_index("key")["group"]
+
+    if exclude:
+        keep = [c for c in pce_inflation.columns if c not in exclude]
+        pce_inflation = pce_inflation[keep]
+        pce_weights = pce_weights.reindex(columns=keep)
+
     gi_cpi, _ = group_panel(cpi_inflation, cpi_weights, map_cpi)
     gi_pce, gw_pce = group_panel(pce_inflation, pce_weights, map_pce)
 
-    idx = gi_cpi.index.intersection(gi_pce.index)
-    gi_cpi, gi_pce, gw_pce = gi_cpi.loc[idx], gi_pce.loc[idx], gw_pce.loc[idx]
+    # The index runs to the end of the CPI, not to the end of the PCE: the
+    # months in between are precisely the ones worth forecasting.
+    idx = gi_cpi.index.union(gi_pce.index)
+    if ppi is not None and not ppi.empty:
+        idx = idx.union(ppi.index)
+    idx = idx.sort_values()
+    last_cpi = gi_cpi.dropna(how="all").index.max()
+    idx = idx[idx <= last_cpi]
+
+    gi_cpi = gi_cpi.reindex(idx)
+    gi_pce, gw_pce = gi_pce.reindex(idx), gw_pce.reindex(idx)
+    ppi = ppi.reindex(idx) if ppi is not None and not ppi.empty else None
 
     implied = pd.DataFrame(np.nan, index=idx, columns=list(gi_pce.columns))
-    slopes = pd.DataFrame(np.nan, index=idx, columns=common)
+    slopes = pd.DataFrame(np.nan, index=idx, columns=list(gi_pce.columns))
+    cpi_slope = pd.DataFrame(np.nan, index=idx, columns=list(gi_pce.columns))
+    used: dict[str, list[str]] = {}
 
-    for g in common:
-        if g not in gi_cpi.columns or g not in gi_pce.columns:
+    for g in gi_pce.columns:
+        regs, names = [], []
+        if g in common and g in gi_cpi.columns:
+            regs.append(gi_cpi[g].to_numpy(float)); names.append("CPI")
+        for col in ppi_groups.get(g, []):
+            if ppi is not None and col in ppi.columns:
+                regs.append(ppi[col].to_numpy(float)); names.append(col)
+        if not regs:
             continue
-        x, y = gi_cpi[g].to_numpy(float), gi_pce[g].to_numpy(float)
+        used[g] = names
+        y = gi_pce[g].to_numpy(float)
+        col_i = implied.columns.get_loc(g)
+        has_cpi = names and names[0] == "CPI"
         for t in range(len(idx)):
-            lo = max(0, t - window)
-            xs, ys = x[lo:t], y[lo:t]
-            ok = np.isfinite(xs) & np.isfinite(ys)
-            if ok.sum() < min_obs or not np.isfinite(x[t]):
-                continue
-            xa, ya = xs[ok], ys[ok]
-            vx = xa.var()
-            if vx <= 0:
-                continue
-            b = float(((xa - xa.mean()) * (ya - ya.mean())).sum() / ((xa - xa.mean()) ** 2).sum())
-            a = float(ya.mean() - b * xa.mean())
-            implied.iat[t, implied.columns.get_loc(g)] = a + b * x[t]
-            slopes.iat[t, slopes.columns.get_loc(g)] = b
+            pred, slope = _ols_predict(y, regs, t, window, min_obs)
+            implied.iat[t, col_i] = pred
+            slopes.iat[t, col_i] = slope
+            if has_cpi:
+                # the plain CPI pass-through, fitted on CPI alone, so the number
+                # the site labels "pass-through" keeps meaning that
+                _, b_uni = _ols_predict(y, [regs[0]], t, window, min_obs)
+                cpi_slope.iat[t, col_i] = b_uni
 
-    # Scope groups: trailing 12-month mean of their own inflation, shifted so
-    # month t never sees itself.
-    for g in scope:
-        if g in gi_pce.columns:
-            implied[g] = gi_pce[g].shift(1).rolling(periods, min_periods=6).mean()
+    # Groups with no monthly input at all: carry their own trailing average.
+    for g in gi_pce.columns:
+        if g in used:
+            continue
+        implied[g] = gi_pce[g].shift(1).rolling(periods, min_periods=6).mean()
 
-    w = gw_pce.reindex(columns=implied.columns).where(implied.notna())
+    # Weights for a forecast month are not published either -- BEA releases the
+    # expenditure shares WITH the PCE, so on CPI day month t's weights do not
+    # exist any more than its prices do. Every month therefore aggregates on the
+    # last shares known BEFORE it. Using month t's own shares where they happen
+    # to exist would make the historical error bands flatter than the live
+    # forecast can ever be; measured, that shortcut moved a print by 0.004pp.
+    w = (gw_pce.shift(1).ffill().reindex(columns=implied.columns)
+         .where(implied.notna()))
     tot = w.sum(axis=1, min_count=1)
     implied_agg = (w * implied).sum(axis=1, min_count=1) / tot.replace(0, np.nan)
     actual_agg = aggregate(gi_pce, gw_pce)
 
     monthly = pd.DataFrame({"implied": implied_agg, "actual": actual_agg})
     monthly["error"] = monthly["implied"] - monthly["actual"]
+    resid = monthly["error"].dropna()
+    rmse = float(np.sqrt((resid ** 2).mean())) if len(resid) else float("nan")
+    recent = resid.tail(se_window)
+    se = float(np.sqrt((recent ** 2).mean())) if len(recent) else rmse
+
+    # 12-month rates. For a forecast month the published months are used as
+    # published and only the missing ones are filled with the estimate, so a
+    # one-month-ahead 12-month forecast carries one month of model error, not
+    # twelve.
+    spliced = monthly["actual"].copy()
+    spliced[spliced.isna()] = monthly["implied"][spliced.isna()]
     yoy = pd.DataFrame({
-        "implied": yoy_from_monthly(monthly["implied"], periods),
+        "implied": yoy_from_monthly(spliced, periods),
         "actual": yoy_from_monthly(monthly["actual"], periods),
     })
     yoy["error"] = yoy["implied"] - yoy["actual"]
 
+    # The forecast: months with an estimate and no published PCE.
+    pending = monthly.index[monthly["implied"].notna() & monthly["actual"].isna()]
+    forecast = pd.DataFrame({
+        "mom": monthly.loc[pending, "implied"],
+        "yoy": yoy.loc[pending, "implied"],
+        "se": se,
+        "basis": ["CPI" + (" + PPI" if ppi is not None else "")] * len(pending),
+    })
+
     contributions = pd.DataFrame()
-    valid = implied_agg.dropna()
-    if len(valid):
-        last = valid.index[-1]
-        wn = (w.loc[last] / tot.loc[last]) if np.isfinite(tot.loc[last]) else w.loc[last]
+    target = pending[-1] if len(pending) else (
+        monthly["implied"].dropna().index[-1] if monthly["implied"].notna().any() else None)
+    if target is not None:
+        wn = w.loc[target] / tot.loc[target] if np.isfinite(tot.loc[target]) else w.loc[target]
         contributions = pd.DataFrame({
             "group": implied.columns,
-            "implied_rate": implied.loc[last].to_numpy(),
+            "implied_rate": implied.loc[target].to_numpy(),
             "weight": wn.to_numpy(),
-            "contribution": (wn * implied.loc[last]).to_numpy(),
-            "role": ["scope" if g in scope else "common" for g in implied.columns],
+            "contribution": (wn * implied.loc[target]).to_numpy(),
+            "role": ["scope" if g in scope_groups_ else "common" for g in implied.columns],
+            "inputs": [", ".join(used.get(g, [])) or "own trailing mean"
+                       for g in implied.columns],
         }).dropna(subset=["contribution"]).sort_values(
             "contribution", ascending=False).reset_index(drop=True)
-        contributions.attrs["month"] = str(last.date())
+        contributions.attrs["month"] = str(target.date())
+        contributions.attrs["is_forecast"] = bool(len(pending))
 
-    rmse = float(np.sqrt((monthly["error"].dropna() ** 2).mean())) \
-        if monthly["error"].notna().any() else float("nan")
-
-    return BridgeResult(monthly=monthly, yoy=yoy, coefficients=slopes,
-                        contributions=contributions, rmse=rmse, window=window)
+    return BridgeResult(monthly=monthly, yoy=yoy, forecast=forecast,
+                        coefficients=slopes, cpi_slope=cpi_slope,
+                        contributions=contributions,
+                        rmse=rmse, se=se, se_window=se_window,
+                        window=window, scope=scope,
+                        inputs=sorted({n for v in used.values() for n in v}))

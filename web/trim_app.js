@@ -33,9 +33,10 @@
   let REQ = 0, REQ_KEY = "", RESULT = null, DEB = null;
   const EXCLUDED = {};
 
-  const PLOT_BG = "#171e26", GRID = "#243240", INK = "#e6edf3";
+  // bzhmacro house tokens — see the note in app.js.
+  const PLOT_BG = "#161D2C", GRID = "#2A3448", INK = "#EDE6D6";
   const OURS = "#f5a623", OFFICIAL = "#4c9aff", HEAD = "#d05ce3";
-  const CUT_LO = "#4c9aff", KEEP = "#8b98a5", CUT_HI = "#f5605a";
+  const CUT_LO = "#4c9aff", KEEP = "#8b98a5", CUT_HI = "#f5605a", EDGE = "#c9b458";
   const $ = id => document.getElementById(id);
 
   // ---- init --------------------------------------------------------------
@@ -425,19 +426,32 @@
     for (let j = 0; j < s.categories.length; j++) {
       if (L.values[j] == null || L.weights[j] == null) continue;
       rows.push({ label: s.categories[j].label, v: L.values[j],
-                  w: 100 * L.weights[j], m: L.membership[j] });
+                  w: 100 * L.weights[j], m: L.membership[j],
+                  kept: L.retained ? 100 * L.retained[j] : null });
     }
     rows.sort((a, b) => a.v - b.v);
-    const colour = m => m === -1 ? CUT_LO : (m === 1 ? CUT_HI : KEEP);
+    /* Four states, not three. A category straddling a trim point had part of
+       its weight retained, so it is neither "cut" nor "included" — colouring it
+       cut would say a category that drove the number was discarded. */
+    const colour = m => m === -1 ? CUT_LO : (m === 1 ? CUT_HI : (m === 2 ? EDGE : KEEP));
+    const straddlers = rows.filter(r => r.m === 2);
     const el = $("t-cross-date");
-    if (el) el.textContent = s.dates[L.row] + " · bar width = weight";
+    if (el) el.textContent = s.dates[L.row]
+      + (straddlers.length
+          ? ` · ${straddlers.length} at the trim point (gold, partly counted)`
+          : "");
 
     Plotly.react(host, [{
       type: "bar", orientation: "h",
       y: rows.map(r => r.label), x: rows.map(r => r.v),
       marker: { color: rows.map(r => colour(r.m)) },
-      text: rows.map(r => `${r.w.toFixed(1)}%`), textposition: "none",
-      hovertemplate: "%{y}<br>%{x:.1f}% ann · weight %{text}<extra></extra>",
+      customdata: rows.map(r => [r.w, r.kept == null ? r.w : r.kept,
+                                 r.m === 2 ? "partly counted (trim point)"
+                                 : (r.m === 0 ? "counted"
+                                 : (r.m === -1 ? "cut from the bottom" : "cut from the top"))]),
+      hovertemplate: "%{y}<br>%{x:.1f}% annualised"
+        + "<br>weight %{customdata[0]:.2f}%, of which %{customdata[1]:.2f}% counted"
+        + "<br>%{customdata[2]}<extra></extra>",
     }], {
       paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG,
       font: { color: INK, size: 10 },

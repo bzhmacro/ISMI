@@ -26,28 +26,34 @@ const ModelBar = (() => {
     if (mounted) build();          // registered late: rebuild the bar
   }
 
+  /* The bar is the house `.section-nav`. Because the four models are toggled
+     views rather than four regions of one scrolling document, the links switch
+     views instead of scrolling to anchors — but they keep real `href="#key"`
+     so each model is deep-linkable and the browser's back button works. */
   function build() {
     const host = $("model");
     if (!host) return;
     host.innerHTML = "";
     MODELS.forEach(m => {
-      const b = document.createElement("button");
-      b.textContent = m.label;
-      b.dataset.model = m.key;
-      b.setAttribute("aria-pressed", String(m.key === (current || MODELS[0].key)));
-      b.onclick = () => show(m.key);
-      host.appendChild(b);
+      const a = document.createElement("a");
+      a.className = "snav-link";
+      a.textContent = m.label;
+      a.href = `#${m.key}`;
+      a.dataset.model = m.key;
+      if (m.key === (current || MODELS[0].key)) a.classList.add("active");
+      a.addEventListener("click", e => { e.preventDefault(); show(m.key, true); });
+      host.appendChild(a);
     });
   }
 
-  function show(key) {
+  function show(key, pushHash) {
     const model = MODELS.find(m => m.key === key);
     if (!model) return;
     current = key;
 
     const host = $("model");
     if (host) [...host.children].forEach(c =>
-      c.setAttribute("aria-pressed", String(c.dataset.model === key)));
+      c.classList.toggle("active", c.dataset.model === key));
 
     MODELS.forEach(m => {
       const view = $(m.viewId);
@@ -57,19 +63,33 @@ const ModelBar = (() => {
     const sub = $("model-sub");
     if (sub && model.sub) sub.textContent = model.sub;
 
+    if (pushHash && location.hash.slice(1) !== key) {
+      history.replaceState(null, "", `#${key}`);
+    }
+
     if (!model._inited) {
       model._inited = true;
       if (typeof model.init === "function") model.init();
     } else if (typeof model.refresh === "function") {
       model.refresh();
     }
+
+    /* chart_export.js attaches its toolbar to whichever charts exist; views are
+       built lazily, so tell it a new one just appeared. */
+    document.dispatchEvent(new CustomEvent("modelshown", { detail: { key } }));
   }
 
   function mount() {
     if (mounted || !MODELS.length) return;
     mounted = true;
     build();
-    show(MODELS[0].key);
+    // Honour a deep link (#trim) on first load, else the first model.
+    const wanted = decodeURIComponent(location.hash.slice(1));
+    show(MODELS.some(m => m.key === wanted) ? wanted : MODELS[0].key);
+    window.addEventListener("hashchange", () => {
+      const k = decodeURIComponent(location.hash.slice(1));
+      if (k && k !== current && MODELS.some(m => m.key === k)) show(k);
+    });
   }
 
   return { register, mount, show, models: MODELS };
