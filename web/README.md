@@ -156,6 +156,19 @@ cron miss every US winter release. It also embeds the vintages present in the
 committed data files, so the panel needs one small fetch instead of re-reading
 27 MB of panels.
 
+**Caching.** `vercel.json` gives `/data/(.*)` a one-hour TTL, which is right for
+the 27 MB panels and wrong for `data/release_calendar.json`: the panel polls that
+file to notice a refresh has gone live, and an hour of staleness would have the
+button claiming "up to date" long after a new print landed. A second, more
+specific rule therefore gives it `max-age=60, must-revalidate`. Both rules match
+that path and Vercel applies them in order, so the specific one must stay
+**after** the general one or it has no effect.
+
+That explanation lives here rather than in `vercel.json` because the file has
+nowhere to put it: JSON has no comments, and Vercel validates each header entry
+with `additionalProperties: false`, so the `"//"` key idiom fails the build with
+``headers[1] should NOT have additional property `//` ``.
+
 **One-time setup for the button** (optional — without it the panel still shows
 freshness accurately, just with no button):
 

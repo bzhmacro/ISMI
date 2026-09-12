@@ -185,6 +185,12 @@ jobs:
           DESTATIS_API_TOKEN: ${{ secrets.DESTATIS_API_TOKEN }}
         run: python scripts/export_decomp_data.py ${{ needs.plan.outputs.decomp }}
 
+      - name: Rebuild trimmed-mean + CPI->PCE data (web/data/trim.json)
+        if: contains(needs.plan.outputs.ism, 'cpi') || contains(needs.plan.outputs.ism, 'pce')
+        env:
+          BLS_API_KEY:        ${{ secrets.BLS_API_KEY }}
+        run: python scripts/export_trim_data.py
+
       # Validation gate on the freshly-built DATA: valid schema, no gauge
       # dropped, dates current and not moving backwards, panels non-empty. If
       # anything fails the job stops here and nothing is committed, so a broken
@@ -209,8 +215,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git status --porcelain web/data/ism.json web/data/decomp.json web/data/release_calendar.json | grep -q .; then
-            git add web/data/ism.json web/data/decomp.json web/data/release_calendar.json
+          if git status --porcelain web/data/ism.json web/data/decomp.json web/data/release_calendar.json web/data/trim.json | grep -q .; then
+            git add web/data/ism.json web/data/decomp.json web/data/release_calendar.json web/data/trim.json
             git commit -m "data: refresh ${{ needs.plan.outputs.gauges }} ($(date -u +%Y-%m-%d))"
             # The 16:00 poll and a human push can collide on a 27 MB binary-ish
             # blob; rebase would try to merge it. Re-export is cheaper than a
