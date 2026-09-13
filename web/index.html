@@ -66,6 +66,106 @@
   </header>
 
   <main>
+    <!-- ================ BREAKDOWN (default view) ================ -->
+    <div id="breakdown-view" class="model-view">
+
+    <section class="paramgrid">
+      <div class="control">
+        <label>Index</label>
+        <div class="seg" id="b-gauge"></div>
+        <small>US CPI uses the BLS major expenditure groups; UK, France and Germany use COICOP divisions. US PCE, Japan and Canada have flat category codes with no parent in the data yet — see the note below.</small>
+      </div>
+      <div class="control">
+        <label>Horizon</label>
+        <div class="seg" id="b-horizon"></div>
+        <small>12-month contributions sum the last twelve monthly contributions — the standard linear approximation to a compounding y/y rate.</small>
+      </div>
+      <div class="control">
+        <label>Benchmark</label>
+        <div class="seg" id="b-ar"></div>
+        <div class="subctl">
+          <label class="mini">rolling window <b id="b-W-label">120</b> months</label>
+          <input type="range" id="b-W" min="60" max="240" step="6" value="120" />
+        </div>
+        <small>The AR(p) forecast each category is measured against. Its residual is the "surprise"; everything else is expected.</small>
+      </div>
+      <div class="control range">
+        <label>Show last <b id="b-span-label">10y</b></label>
+        <input type="range" id="b-span" min="24" max="360" step="12" value="120" />
+        <small>Length of the stacked history. Click any bar to inspect that month below.</small>
+      </div>
+    </section>
+
+    <section>
+      <h2>What the headline is made of</h2>
+      <p id="b-status" class="status"></p>
+      <div class="statrow readout-compact" id="b-readout"></div>
+      <div id="b-chart" class="chart"></div>
+      <p class="note">
+        Contributions are expenditure-weighted category inflation, with weights
+        renormalised monthly over the valid basket — the same convention the
+        momentum model uses. They sum to the <em>sum of contributions</em>, not
+        to the published headline: a 12-month rate compounds while summed
+        monthly contributions are linear. The readout reports both and the gap.
+      </p>
+    </section>
+
+    <section class="grid2">
+      <div>
+        <h2>By group <span id="b-sel-date" class="muted"></span></h2>
+        <div id="b-groups" class="chart small"></div>
+      </div>
+      <div>
+        <h2>Biggest surprises <span class="muted">vs AR benchmark</span></h2>
+        <div id="b-surprises" class="chart small"></div>
+      </div>
+    </section>
+
+    <section class="explain">
+      <h2>What am I looking at?</h2>
+      <p>
+        Each month, every category contributes
+        <strong>weight × its own inflation</strong> to the headline. Stacking
+        those by <strong>major group</strong> shows what the print is actually
+        made of, and how the mix changes.
+      </p>
+      <p>
+        A rolling <strong>AR(<em>p</em>)</strong> benchmark then says what each
+        category's inflation <em>should</em> have been, given its own history.
+        The residual is the part nobody could have read off the past — the
+        <strong>surprise</strong>. Because inflation splits exactly into
+        forecast plus residual, each contribution splits exactly into
+        <strong>expected</strong> and <strong>surprise</strong>, and the two
+        always add back to the bar.
+      </p>
+      <p class="muted">
+        "Surprise" here means deviation from the category's own rolling
+        AR(<em>p</em>) forecast — the working paper's definition of a shock. It
+        is <em>not</em> a deviation from a published consensus or a nowcast;
+        nothing on this site carries those.
+      </p>
+      <p class="muted">
+        <strong>Coverage.</strong> Four gauges carry their official taxonomy in
+        the category code itself, so the grouping is a property of the data and
+        not a mapping anyone maintains by hand: <strong>US CPI</strong> (the
+        BLS major group is the third character of the stratum code, <code>SEF*</code>
+        → food &amp; beverages) and <strong>UK</strong>, <strong>France</strong>
+        and <strong>Germany</strong> (COICOP divisions, from <code>04.1</code>
+        and <code>CP0116</code> respectively).
+        <strong>US PCE</strong>, <strong>Japan</strong> and <strong>Canada</strong>
+        use flat codes — <code>DNEAR</code>, <code>0021</code>, <code>P40</code> —
+        that encode no parent. Their hierarchies do exist, but in the pipelines:
+        Japan's is walked from the e-Stat cat01 parent tree, Canada's is the
+        <code>parent_id</code> column of its category config, and PCE's is the
+        BEA line/level structure. None of it reaches <code>ism.json</code>, which
+        ships only <code>key</code> and <code>label</code>. Adding a
+        <code>group</code> field to the exporter switches those three on with no
+        change to this page. Until then they are shown ungrouped rather than
+        bucketed by guesswork.
+      </p>
+    </section>
+    </div>
+
     <!-- ===================== MODEL 1: ISM ===================== -->
     <div id="ism-view" class="model-view">
     <p id="demo-banner" class="banner" hidden></p>
@@ -127,7 +227,7 @@
     <section>
       <h2>Momentum index</h2>
       <p id="status" class="status"></p>
-      <div class="statrow" id="readout"></div>
+      <div class="statrow readout-compact" id="readout"></div>
       <div id="chart" class="chart"></div>
     </section>
 
@@ -214,7 +314,7 @@
     <section>
       <h2>Supply vs demand contributions</h2>
       <p id="d-status" class="status"></p>
-      <div class="statrow" id="d-readout"></div>
+      <div class="statrow readout-compact" id="d-readout"></div>
       <div id="d-chart" class="chart"></div>
     </section>
 
@@ -322,7 +422,7 @@
     <section>
       <h2>Trimmed mean &amp; median</h2>
       <p id="t-status" class="status"></p>
-      <div class="statrow" id="t-readout"></div>
+      <div class="statrow readout-compact" id="t-readout"></div>
       <p class="notes" id="t-spec"></p>
       <div id="t-chart" class="chart"></div>
       <div class="notes" id="t-notes"></div>
@@ -402,7 +502,7 @@
 
     <section>
       <h2>CPI to PCE bridge</h2>
-      <div class="statrow" id="x-readout"></div>
+      <div class="statrow readout-compact" id="x-readout"></div>
       <div id="x-chart" class="chart"></div>
       <div id="x-table" hidden></div>
       <div class="notes" id="x-notes"></div>
@@ -478,6 +578,9 @@
   </footer>
 
   <script src="models.js"></script>
+  <!-- Registration order is display order, and the first registered model is
+       the default view — so breakdown_app.js must load before app.js. -->
+  <script src="breakdown_app.js"></script>
   <script src="app.js"></script>
   <script src="decomp_app.js"></script>
   <script src="trim_app.js"></script>

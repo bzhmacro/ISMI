@@ -38,6 +38,9 @@
      A chart whose div is absent (view not built yet) is simply skipped and
      picked up on the next pass. */
   const CHARTS = [
+    ["b-chart",         "breakdown-groups",     "Contributions by major group"],
+    ["b-groups",        "breakdown-expected",   "Expected vs surprise, by group"],
+    ["b-surprises",     "breakdown-surprises",  "Biggest surprises vs AR benchmark"],
     ["chart",           "ism-index",            "Inflation Shock Momentum"],
     ["bars",            "ism-last22",           "Last 22 ISM prints"],
     ["drivers",         "ism-drivers",          "Top drivers"],

@@ -37,9 +37,14 @@ init();
 
 async function init() {
   try {
-    const res = await fetch("data/ism.json", { cache: "no-cache" });
-    if (!res.ok) throw new Error(res.status);
-    DATA = await res.json();
+    // Shared with breakdown_app.js, which also needs ism.json and may load
+    // first. One promise on window means the 8 MB payload is fetched once.
+    window.__ismJsonPromise = window.__ismJsonPromise ||
+      fetch("data/ism.json", { cache: "no-cache" }).then((r) => {
+        if (!r.ok) throw new Error(r.status);
+        return r.json();
+      });
+    DATA = await window.__ismJsonPromise;
   } catch (e) {
     $("chart").innerHTML =
       `<div style="padding:24px;color:#f0d28a">Could not load <code>data/ism.json</code>.
