@@ -167,6 +167,20 @@
         btn.addEventListener("click", (e) => { e.preventDefault(); dispatch(btn); });
       }
       sum.appendChild(btn);
+
+      /* Force: for a print you know is out before the calendar agrees, an
+         off-schedule revision, or an annual update. Needs the shared token,
+         because the calendar gate is what makes the plain button safe to leave
+         unauthenticated. Hidden entirely unless the server has REFRESH_TOKEN
+         set, so a stock deployment shows no dead control. */
+      if (STATUS.forceAvailable && !active) {
+        const f = el("button", "refresh");
+        f.type = "button";
+        f.textContent = "Force";
+        f.title = "Rebuild now regardless of the release calendar (requires the token)";
+        f.addEventListener("click", (e) => { e.preventDefault(); forceRefresh(f); });
+        sum.appendChild(f);
+      }
     }
     host.appendChild(sum);
 
@@ -260,6 +274,52 @@
     } catch (e) {
       say(`Could not reach the refresh endpoint. ${e}`, "err");
     }
+    render();
+  }
+
+  const TOKEN_KEY = "bzh.refreshToken";
+
+  /* The token is a convenience credential for one operator, not an identity —
+     it only permits "rebuild the public data now", which the schedule would do
+     anyway. Kept in localStorage so it is not retyped on every print; wrapped
+     because storage throws in some privacy modes. */
+  const readToken = () => {
+    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
+  };
+  const saveToken = (t) => {
+    try { localStorage.setItem(TOKEN_KEY, t); } catch { /* non-persistent */ }
+  };
+
+  async function forceRefresh(btn) {
+    let token = readToken();
+    if (!token) {
+      token = (window.prompt("Refresh token") || "").trim();
+      if (!token) return;
+    }
+    btn.disabled = true;
+    say("Forcing a rebuild…");
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true, token }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (body && body.gauges) STATUS = body;
+      if (res.ok || res.status === 202) {
+        saveToken(token);
+        say(body.detail || "Forced refresh started.", "ok");
+        startPolling();
+      } else {
+        // A rejected token must not stay cached, or every later attempt fails
+        // silently with no way to correct it from the UI.
+        if (res.status === 403) { saveToken(""); }
+        say(body.detail || body.error || `Force failed (${res.status}).`, "err");
+      }
+    } catch (e) {
+      say(`Could not reach the refresh endpoint. ${e}`, "err");
+    }
+    btn.disabled = false;
     render();
   }
 

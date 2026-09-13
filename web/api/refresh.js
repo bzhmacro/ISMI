@@ -35,6 +35,19 @@
  *   GITHUB_REPO    optional, default "bzhmacro/ISMI"
  *   GITHUB_REF     optional, default "main"
  *   COOLDOWN_MIN   optional, default 20
+ *   REFRESH_TOKEN  optional. Enables FORCE (below). Leave unset to disable it.
+ *
+ * FORCE
+ * -----
+ * The calendar gate is what makes an unauthenticated endpoint safe, so force
+ * cannot be unauthenticated too. POST { force:true, token, gauges? } with a
+ * token matching REFRESH_TOKEN skips the "is anything due" test and the
+ * cooldown — for an off-calendar revision, an annual update, or simply knowing
+ * the print is out before the calendar says so.
+ *
+ * It does NOT skip the in-flight check: two concurrent runs would race to
+ * commit the same 27 MB of JSON, and one would lose. That check is about
+ * correctness, not abuse, so force has no business overriding it.
  */
 
 const WORKFLOW = "refresh-data.yml";
@@ -155,6 +168,7 @@ module.exports = async function handler(req, res) {
     localBehind,          // e.g. Canada: behind, but refreshed by hand
     notes: calendar.notes || [],
     configured,
+    forceAvailable: Boolean(process.env.REFRESH_TOKEN),
     run: state.run || null,
     active: Boolean(state.active),
     cooldownMsRemaining: state.cooldownMsRemaining || 0,
@@ -167,15 +181,52 @@ module.exports = async function handler(req, res) {
     return res.status(501).json({ ...status, error: "refresh not configured",
       detail: "Set GITHUB_TOKEN in the Vercel project environment." });
   }
-  if (!due.length) {
+
+  // Vercel parses JSON bodies, but be tolerant of a raw string body.
+  let body = req.body || {};
+  if (typeof body === "string") { try { body = JSON.parse(body); } catch { body = {}; } }
+  const wantForce = Boolean(body.force);
+  const secret = process.env.REFRESH_TOKEN;
+  const supplied = body.token || req.headers["x-refresh-token"] || "";
+
+  let forced = false;
+  if (wantForce) {
+    if (!secret) {
+      return res.status(501).json({ ...status, error: "force not configured",
+        detail: "Set REFRESH_TOKEN in the Vercel project environment to enable force." });
+    }
+    if (!timingSafeEqual(String(supplied), secret)) {
+      return res.status(403).json({ ...status, error: "bad token",
+        detail: "Force requires the shared token." });
+    }
+    forced = true;
+  }
+
+  // A forced run may name its own gauges; otherwise force everything the
+  // calendar knows about that CI can fetch, since "force" usually means the
+  // calendar is the thing that is wrong.
+  const requested = forced && body.gauges
+    ? String(body.gauges).split(/\s+/).filter(Boolean)
+    : null;
+  const known = new Set(calendar.gauges.filter((g) => g.ci).map((g) => g.name));
+  const bad = requested ? requested.filter((g) => !known.has(g)) : [];
+  if (bad.length) {
+    return res.status(400).json({ ...status, error: "unknown gauge",
+      detail: `Not in the calendar, or not CI-refreshable: ${bad.join(", ")}.` });
+  }
+  const target = requested || (forced ? [...known] : due);
+
+  if (!forced && !due.length) {
     return res.status(409).json({ ...status, error: "nothing due",
       detail: "Every CI gauge already holds the newest published vintage." });
   }
+  // In-flight is checked even when forced: concurrent runs would race on the
+  // same commit.
   if (state.active) {
     return res.status(409).json({ ...status, error: "already running",
       detail: "A refresh is in progress." });
   }
-  if (state.cooldownMsRemaining > 0) {
+  if (!forced && state.cooldownMsRemaining > 0) {
     return res.status(429).json({ ...status, error: "cooling down",
       detail: `Try again in ${Math.ceil(state.cooldownMsRemaining / 60000)} min.` });
   }
@@ -193,10 +244,11 @@ module.exports = async function handler(req, res) {
     {
       method: "POST",
       headers: { ...gh(token), "Content-Type": "application/json" },
-      // Only the gauges the calendar says are actually behind. The workflow
-      // validates the list again, so a bad value here cannot rebuild anything
+      // Normally the gauges the calendar says are behind; when forced, the
+      // explicit list. The workflow revalidates the names against the calendar
+      // before fetching, so a bad value here cannot rebuild anything
       // unexpected.
-      body: JSON.stringify({ ref, inputs: { gauges: due.join(" ") } }),
+      body: JSON.stringify({ ref, inputs: { gauges: target.join(" ") } }),
     },
   );
 
@@ -207,6 +259,17 @@ module.exports = async function handler(req, res) {
       detail: detail.slice(0, 400) });
   }
 
-  return res.status(202).json({ ...status, dispatched: due,
-    detail: `Refreshing ${due.join(", ")}. The site updates automatically when the run finishes.` });
+  return res.status(202).json({ ...status, dispatched: target, forced,
+    detail: `${forced ? "Forcing" : "Refreshing"} ${target.join(", ")}. ` +
+            `The site updates automatically when the run finishes.` });
 };
+
+/* Constant-time-ish compare so a wrong token cannot be recovered by timing the
+   response. Node's crypto.timingSafeEqual needs equal lengths, hence the
+   length check first and the fixed-length loop after. */
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}

@@ -111,7 +111,10 @@ class Gauge:
     release_time: dt.time
     timezone: str
     utc_hour_fallback: int
-    fetch_delay_hours: int
+    # Float, not int: a sub-hour delay is the norm for the US gauges (BLS/BEA
+    # publish to the API at the release instant), and int() would truncate 0.5
+    # to 0 — opening the gate AT the release rather than safely after it.
+    fetch_delay_hours: float
     lookback_months: int
     fallback_lag_months: int
     fallback_day: object          # int or the string "last"
@@ -233,8 +236,8 @@ def load_calendar(path: Path | None = None) -> dict[str, Gauge]:
             release_time=dt.time(hh, mm),
             timezone=g.get("timezone", "UTC"),
             utc_hour_fallback=int(g.get("utc_hour_fallback", 12)),
-            fetch_delay_hours=int(g.get("fetch_delay_hours",
-                                        defaults.get("fetch_delay_hours", 3))),
+            fetch_delay_hours=float(g.get("fetch_delay_hours",
+                                          defaults.get("fetch_delay_hours", 3))),
             lookback_months=int(g.get("lookback_months",
                                       defaults.get("lookback_months", 24))),
             fallback_lag_months=int(fb.get("lag_months", 1)),

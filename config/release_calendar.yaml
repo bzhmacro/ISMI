@@ -68,6 +68,12 @@ gauges:
     release_time: "08:30"
     timezone: America/New_York
     utc_hour_fallback: 14          # used only if the tz database is unavailable
+    # BLS publishes to the API and the flat files at the release instant, not
+    # hours later, so the 3h default was far too cautious: it held the gate shut
+    # until 11:30 ET and made the site's Refresh button refuse a print that had
+    # been public since 08:30. 30 minutes covers the few minutes the data needs
+    # to appear plus GitHub cron drift.
+    fetch_delay_hours: 0.5
     rule: >-
       No derivation rule is published. CPI is a Principal Federal Economic
       Indicator under OMB Statistical Policy Directive No. 3, which requires a
@@ -115,6 +121,9 @@ gauges:
     release_time: "08:30"
     timezone: America/New_York
     utc_hour_fallback: 14
+    # As for CPI: the BEA API carries Personal Income and Outlays at the release
+    # instant. See the note on `cpi`.
+    fetch_delay_hours: 0.5
     rule: >-
       No derivation rule is published. BEA states the annual schedule is
       "promulgated several months before the start of the year and is

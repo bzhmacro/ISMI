@@ -244,6 +244,38 @@ freshness accurately, just with no button):
 3. Confirm the Vercel project's **Root Directory** is `web`, so `web/api/` is
    deployed as a serverless function at `/api/refresh`.
 
+### Forcing a refresh when you know the print is out
+
+US CPI and PCE land at 08:30 ET and the BLS/BEA APIs carry them immediately, so
+`fetch_delay_hours` is **0.5** for those two gauges (the 3-hour default held the
+gate shut until 11:30 ET and made the Refresh button refuse a print that had
+been public for three hours). Scheduled polls at **13:15 and 14:15 UTC** cover
+08:30 EDT and 08:30 EST respectively, so a US print is picked up automatically
+within ~45 minutes either side of the DST switch.
+
+For anything the calendar does not know about — an off-schedule revision, the
+BEA annual update, a print you have in hand before the gate opens — set
+`REFRESH_TOKEN` in the Vercel environment and a **Force** button appears next to
+Refresh. It skips the "is anything due" test and the cooldown, but not the
+in-flight check: two concurrent runs would race to commit the same 27 MB of
+JSON. The token is remembered in `localStorage` and cleared automatically if the
+server rejects it.
+
+Without the browser, the same thing from the CLI or the Actions tab:
+
+```bash
+gh workflow run refresh-data.yml -f gauges="cpi pce"     # specific gauges
+gh workflow run refresh-data.yml -f ignore_calendar=true # everything
+```
+
+Both bypass the calendar gate — `ism.release_calendar due --only` still
+revalidates the names, so a typo fails loudly rather than fetching nothing.
+
+> **After editing `config/release_calendar.yaml`, re-run
+> `python scripts/export_release_calendar.py` and commit.** The browser reads
+> precomputed UTC instants from `web/data/release_calendar.json`; a delay change
+> in the YAML has no effect on the page until that file is regenerated.
+
 **Why the endpoint is safe to leave public.** It takes no input from the client
 and enforces two conditions server-side: a refresh is allowed only when a gauge
 is genuinely behind its published release date, and only when no run is in

@@ -59,7 +59,14 @@ on:
     - cron: "0 4 * * *"     # Japan     (e-Stat, 08:30 JST — window opens 03:30 UTC)
     - cron: "0 10 * * *"    # UK        (ONS, 07:00 London)
     - cron: "0 13 * * *"    # FR/DE     (Eurostat, 11:00 Brussels)
-    - cron: "0 17 * * *"    # US + CA   (BLS/BEA/StatCan, 08:30 ET — 16:30 UTC in EST)
+    # US prints land 08:30 ET and the BLS/BEA APIs carry them immediately, so
+    # the gauge is fetchable 30 min later — 13:00 UTC in EDT, 14:00 UTC in EST.
+    # One poll a quarter-hour after each, so a CPI or PCE morning is picked up
+    # within ~45 min of the release whichever side of the DST switch it falls.
+    # The wrong-season one is a no-op: the calendar gate simply finds nothing due.
+    - cron: "15 13 * * *"   # US        (08:30 EDT + 30 min)
+    - cron: "15 14 * * *"   # US        (08:30 EST + 30 min)
+    - cron: "0 17 * * *"    # US + CA backstop, and the Canada monitor slot
   workflow_dispatch:
     inputs:
       gauges:
