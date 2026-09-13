@@ -173,7 +173,9 @@
          because the calendar gate is what makes the plain button safe to leave
          unauthenticated. Hidden entirely unless the server has REFRESH_TOKEN
          set, so a stock deployment shows no dead control. */
-      if (STATUS.forceAvailable && !active) {
+      // Only on an activated device, so ordinary visitors never see a control
+      // they cannot use.
+      if (STATUS.forceAvailable && readToken() && !active) {
         const f = el("button", "refresh");
         f.type = "button";
         f.textContent = "Force";
@@ -290,11 +292,31 @@
     try { localStorage.setItem(TOKEN_KEY, t); } catch { /* non-persistent */ }
   };
 
+  /* One-time device activation: open the site once as
+       https://…/?key=YOUR_REFRESH_TOKEN
+     and the token is stored and stripped from the URL. From then on Force is
+     an ordinary button on that device — no prompt, ever. Bookmark the plain
+     URL, not the ?key= one.
+
+     The key is removed from the address bar immediately so it does not linger
+     in history, in a screenshot, or in the Referer header of the next request. */
+  function captureKeyFromUrl() {
+    const m = /[?&]key=([^&]*)/.exec(location.search);
+    if (!m) return;
+    const token = decodeURIComponent(m[1] || "").trim();
+    if (token) saveToken(token);
+    const url = new URL(location.href);
+    url.searchParams.delete("key");
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }
+
   async function forceRefresh(btn) {
-    let token = readToken();
+    const token = readToken();
     if (!token) {
-      token = (window.prompt("Refresh token") || "").trim();
-      if (!token) return;
+      say("This device is not activated. Open the site once with " +
+          "?key=YOUR_TOKEN appended to the address, then Force works here " +
+          "permanently.", "err");
+      return;
     }
     btn.disabled = true;
     say("Forcing a rebuild…");
@@ -395,6 +417,7 @@
   /* --------------------------------- boot -------------------------------- */
 
   async function boot() {
+    captureKeyFromUrl();          // before anything renders
     const anchor = document.getElementById("asof");
     if (!anchor) return;
 

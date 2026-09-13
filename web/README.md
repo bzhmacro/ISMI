@@ -255,11 +255,24 @@ within ~45 minutes either side of the DST switch.
 
 For anything the calendar does not know about — an off-schedule revision, the
 BEA annual update, a print you have in hand before the gate opens — set
-`REFRESH_TOKEN` in the Vercel environment and a **Force** button appears next to
-Refresh. It skips the "is anything due" test and the cooldown, but not the
-in-flight check: two concurrent runs would race to commit the same 27 MB of
-JSON. The token is remembered in `localStorage` and cleared automatically if the
-server rejects it.
+`REFRESH_TOKEN` in the Vercel environment. A **Force** button then appears next
+to Refresh, but only on an *activated device*, so ordinary visitors never see a
+control they cannot use.
+
+**Activating a device** is a one-time visit to
+
+```
+https://<your-site>/?key=YOUR_REFRESH_TOKEN
+```
+
+The page stores the token and strips `?key=` from the address immediately, so it
+does not linger in history, in a screenshot, or in the next request's `Referer`.
+From then on Force is an ordinary button on that device — no prompt. Bookmark
+the plain URL, not the `?key=` one. Repeat once per device.
+
+Force skips the "is anything due" test and the cooldown, but not the in-flight
+check: two concurrent runs would race to commit the same 27 MB of JSON. A token
+the server rejects is cleared automatically.
 
 Without the browser, the same thing from the CLI or the Actions tab:
 
