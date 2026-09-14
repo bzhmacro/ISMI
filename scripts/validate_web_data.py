@@ -162,13 +162,37 @@ def validate_file(path: Path, schema: int, group_key: str, max_stale_days: int):
     return errors, warnings
 
 
+#: Floors below the global one, with the reason each is lower.  A scope whose
+#: published counterpart is built differently from ours cannot be held to a
+#: replication standard, but it still has to move with the published series --
+#: a floor of its own catches a broken panel without pretending the looser fit
+#: is a bug.  Keyed ``(scope, measure)``; anything absent uses ``--min-corr``.
+TRIM_FLOORS = {
+    #: Bank of Canada: same construction, but its inputs are adjusted for
+    #: changes in indirect taxes and seasonally adjusted with StatCan's own
+    #: per-series specifications.  Observed 0.929.
+    ("ca", "median"): 0.88,
+    ("ca", "trim20"): 0.93,
+    #: Bank of Japan: trims the cross-section of TWELVE-MONTH changes, not the
+    #: monthly one, and strips institutional factors.  Not a replication test.
+    #: Observed 0.942 / 0.754 -- the median is the weakest because a 47-group
+    #: partition with rent at 18% is a poor cross-section to take a median of.
+    ("jp", "trim10"): 0.90,
+    ("jp", "median"): 0.65,
+}
+
+
 def validate_trim_fidelity(min_corr: float) -> tuple[list[str], list[str]]:
     """The trimmed-mean scopes must still track the published series.
 
     ``export_trim_data.py`` writes the comparison table into the payload, so the
     gate is a read rather than a recomputation: every (scope, measure) pair with
-    a published counterpart must clear ``min_corr`` at the 12-month horizon, and
+    a published counterpart must clear its floor at the 12-month horizon, and
     the CPI->PCE identity must still close.
+
+    The floor is ``min_corr`` for the US pairs, which are true replications, and
+    the documented value in :data:`TRIM_FLOORS` for the foreign pairs, which are
+    not.  See ``docs/trim_methodology.md`` s4c.
     """
     errors: list[str] = []
     warnings: list[str] = []
@@ -182,11 +206,13 @@ def validate_trim_fidelity(min_corr: float) -> tuple[list[str], list[str]]:
             if row.get("horizon") != "12m":
                 continue
             checked += 1
+            measure = row.get("measure")
+            floor = TRIM_FLOORS.get((name, measure), min_corr)
             corr = row.get("corr")
-            if corr is None or corr < min_corr:
+            if corr is None or corr < floor:
                 errors.append(
-                    f"trim.json[{name}]: {row.get('measure')} 12-month "
-                    f"correlation {corr} < {min_corr} vs the published series")
+                    f"trim.json[{name}]: {measure} 12-month "
+                    f"correlation {corr} < {floor} vs the published series")
     if checked == 0:
         warnings.append("trim.json: no scope has a published counterpart to "
                         "validate against")
@@ -218,7 +244,9 @@ def main() -> int:
                          "(default 240; covers quarterly lags + release delays)")
     ap.add_argument("--min-corr", type=float, default=0.95,
                     help="minimum 12-month correlation with the published "
-                         "Cleveland/Dallas series (default 0.95)")
+                         "series (default 0.95); the foreign scopes whose "
+                         "publisher builds the measure differently have their "
+                         "own documented floors in TRIM_FLOORS")
     args = ap.parse_args()
 
     all_errors: list[str] = []

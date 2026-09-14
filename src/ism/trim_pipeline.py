@@ -366,17 +366,58 @@ def build_pce_panel(
 # ----------------------------------------------------------------------------
 # Any gauge already shipped to the website
 # ----------------------------------------------------------------------------
+#: What the reader needs to know about each gauge the ISM site already ships,
+#: over and above its source note.  Chiefly: is there a published measure to
+#: check this against, and if so, is it built the same way ours is?
+WEB_SCOPE_NOTES = {
+    None: ["no published limited-influence measure is available for this "
+           "gauge; the overlay is the headline rate only"],
+    "uk": ["the ONS publishes no trimmed-mean or median CPI, so the overlay is "
+           "headline CPI only",
+           "85 COICOP classes, none heavier than 11% of the basket -- the "
+           "widest cross-section here after the euro-area members, and "
+           "markedly better conditioned for an 8% trim than US CPI, where "
+           "owners' equivalent rent alone is a quarter of the basket"],
+    "fr": ["no published trimmed mean exists for France: the ECB's trimmed "
+           "means (ICP, item codes TRIM05-TRIM50) are computed for the euro "
+           "area as a whole, not for member states, and their last observation "
+           "is 2025-12 -- the month Eurostat froze the ECOICOP v1 datasets "
+           "these panels used to come from"],
+    "de": ["no published trimmed mean exists for Germany; see the note on the "
+           "France scope for the euro-area series and why it stops in 2025-12"],
+    "jp": ["the Bank of Japan publishes a 10% trimmed mean, a weighted median "
+           "and a mode, and they are overlaid here -- but the Bank trims the "
+           "cross-section of *twelve-month* changes while this engine trims "
+           "the monthly one, so the two are the same measure in spirit and "
+           "not the same calculation",
+           "the narrowest cross-section on the site: 47 medium groups with "
+           "rent at 18% of the basket, so an 8% tail is on average barely five "
+           "components and half of it is whichever single component leads it"],
+    "ca": ["the Bank of Canada's CPI-trim (20% each tail) and CPI-median are "
+           "overlaid, and they are built the way this engine builds them -- "
+           "monthly cross-section, chained -- so they are a genuine check",
+           "two differences remain: the Bank's inputs are adjusted for changes "
+           "in indirect taxes and seasonally adjusted with StatCan's own "
+           "per-series specifications, while ours are the published NSA index "
+           "with this engine's seasonal estimate"],
+}
+
+
 def panel_from_web_data(payload: dict, backbone: str, sa: str = "rolling",
                         periods_per_year: int = 12) -> TrimPanel:
     """Build a :class:`TrimPanel` from a backbone block of ``web/data/ism.json``.
 
     The ISM site already ships every gauge's raw category panel and weights, so
     the trimmed-mean model gets the UK, France, Germany, Japan and Canada for
-    free.  None of those has a published limited-influence measure to validate
-    against, so they are offered as exploratory scopes -- the same posture the
-    decomposition ports take.
+    free.  Two of them have a published limited-influence measure to be scored
+    against -- the Bank of Canada's CPI-trim and CPI-median, and the Bank of
+    Japan's 10% trimmed mean and weighted median -- and are wired up in
+    :data:`ism.trim_validate.OFFICIAL`.  The other three are exploratory, the
+    same posture the decomposition ports take.  :data:`WEB_SCOPE_NOTES` records
+    which is which, and why.
     """
     block = payload["backbones"][backbone]
+    notes = list(WEB_SCOPE_NOTES.get(backbone, WEB_SCOPE_NOTES[None]))
     idx = pd.to_datetime([d + "-01" for d in block["dates"]])
     keys = [c["key"] for c in block["categories"]]
     inflation = pd.DataFrame(
@@ -393,8 +434,7 @@ def panel_from_web_data(payload: dict, backbone: str, sa: str = "rolling",
         periods_per_year=periods_per_year,
         source_note=block.get("source_note", ""),
         weight_note=block.get("weight_note", ""),
-        notes=["no published trimmed-mean or median series exists for this "
-               "gauge; the overlay is the headline rate only"],
+        notes=notes,
     )
 
 
@@ -415,3 +455,128 @@ def _as_monthly(frame: pd.DataFrame) -> pd.DataFrame:
     out.index = pd.to_datetime(out.index).to_period("M").to_timestamp()
     out = out[~out.index.duplicated(keep="last")].asfreq("MS")
     return out.interpolate(method="time", limit_area="inside")
+
+
+# ----------------------------------------------------------------------------
+# Is this cross-section wide enough to trim?
+# ----------------------------------------------------------------------------
+def cross_section_conditioning(
+    panel: TrimPanel,
+    lower: float = 0.08,
+    upper: float = 0.08,
+    years: int = 10,
+    sa: str | None = None,
+) -> dict:
+    """How much of a trimmed tail rests on a single component.
+
+    A trim is only as informative as the cross-section it cuts.  If one
+    component carries more weight than the whole tail fraction, that tail is
+    that component's price -- the estimator has not averaged anything away, it
+    has just relabelled one series.  US CPI at the 70-stratum cut is the extreme
+    case in this repo: owners' equivalent rent alone is about a quarter of the
+    basket, three times an 8% tail.
+
+    Four numbers, because concentration alone does not settle it.  A very heavy
+    component that habitually sits in the *middle* of the distribution (OER,
+    usually) never touches a tail, while a modest one that is always at an
+    extreme does.  So we measure both the weight vector and what actually
+    happens at the cut:
+
+    ``effective_n``
+        ``1 / sum(w^2)`` on the latest weights -- the number of equally sized
+        components that would be as concentrated as this basket.
+    ``over_trim``
+        How many components weigh more than the trim fraction, i.e. could fill
+        an entire tail on their own.
+    ``tail_components``
+        Mean number of distinct components the lower and upper tails cut
+        through, over the last ``years`` years.
+    ``tail_max_share``
+        Mean share of a tail (%) supplied by that tail's single largest
+        contributor.  100 means the tail was one component.
+
+    ``sa`` overrides the panel's own seasonal treatment; the default follows it,
+    because the ordering of the cross-section -- and therefore which components
+    land in a tail -- depends on it.
+    """
+    from .trim_engine import TrimConfig, compute_trim
+
+    cfg = TrimConfig(lower=lower, upper=upper, sa=sa or panel.sa,
+                     periods_per_year=panel.periods_per_year)
+    res = compute_trim(panel.inflation, panel.weights, cfg)
+    rates, wts = res.sa_panel, res.weights
+
+    usable = res.n_categories[res.n_categories > 0]
+    if usable.empty:
+        return {}
+    end = usable.index[-1]
+    window = rates.index[(rates.index >= end - pd.DateOffset(years=years))
+                         & (rates.index <= end)]
+
+    n_lo, n_hi, max_share = [], [], []
+    for d in window:
+        got = _tail_shape(rates.loc[d].to_numpy(), wts.loc[d].to_numpy(),
+                          lower, upper)
+        if got is None:
+            continue
+        a, b, c = got
+        n_lo.append(a); n_hi.append(b); max_share.append(c)
+
+    last = wts.loc[end].dropna()
+    if last.empty or last.sum() <= 0:
+        return {}
+    last = last / last.sum()
+    biggest = last.idxmax()
+
+    return {
+        "lower": lower, "upper": upper,
+        "n": int(last.size),
+        "effective_n": float(1.0 / float((last ** 2).sum())),
+        "top1": float(100.0 * last.max()),
+        "top3": float(100.0 * last.nlargest(3).sum()),
+        "over_trim": int((last > max(lower, upper)).sum()),
+        "tail_components": {
+            "lower": float(np.mean(n_lo)) if n_lo else None,
+            "upper": float(np.mean(n_hi)) if n_hi else None,
+        },
+        "tail_max_share": float(100.0 * np.mean(max_share)) if max_share else None,
+        "biggest": {"key": str(biggest),
+                    "label": panel.labels.get(biggest, str(biggest)),
+                    "weight": float(100.0 * last.max())},
+        "window": [window[0].strftime("%Y-%m"), end.strftime("%Y-%m")] if len(window) else None,
+        "months": int(len(n_lo)),
+    }
+
+
+def _tail_shape(values: np.ndarray, weights: np.ndarray,
+                lower: float, upper: float):
+    """(components in the lower tail, in the upper tail, largest tail share).
+
+    Boundary components count as being in the tail for whatever part of their
+    weight falls inside it -- the same partial accounting the estimator itself
+    uses, so a tail made of "two components and a sliver of a third" reads as
+    three, not two.
+    """
+    v = np.asarray(values, dtype=float)
+    w = np.asarray(weights, dtype=float)
+    ok = np.isfinite(v) & np.isfinite(w) & (w > 0)
+    if not ok.any():
+        return None
+    vv, ww = v[ok], w[ok]
+    order = np.argsort(vv, kind="mergesort")
+    ww = ww[order]
+    ww = ww / ww.sum()
+    cum_hi = np.cumsum(ww)
+    cum_lo = cum_hi - ww
+
+    tol = 1e-12
+    below = np.clip(np.minimum(cum_hi, lower) - cum_lo, 0.0, None)
+    above = np.clip(cum_hi - np.maximum(cum_lo, 1.0 - upper), 0.0, None)
+
+    shares = []
+    if lower > tol and below.sum() > tol:
+        shares.append(below.max() / lower)
+    if upper > tol and above.sum() > tol:
+        shares.append(above.max() / upper)
+    return (int((below > tol).sum()), int((above > tol).sum()),
+            float(max(shares)) if shares else float("nan"))

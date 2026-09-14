@@ -117,7 +117,10 @@ calibration, not a real-time rule.
 | `cpi45` | 45 components, OER split by census region | BLS `CUSR*` (SA), `CUUR*` where BLS publishes no SA series | December relative importances, price-updated monthly |
 | `cpi70` | the repo's 70 CPI item strata | same | same |
 | `pce` | 130 BEA fourth-level categories | BEA 2.4.4U (already SA) | monthly nominal shares, BEA 2.4.5U |
-| `uk` `fr` `de` `jp` `ca` | whatever the ISM site ships | NSA | as shipped |
+| `uk` | 85 ONS COICOP classes | ONS MM23, NSA | ONS annual weights (per mille) |
+| `ca` | 119 StatCan leaf classes | table 18-10-0004, NSA | StatCan basket-vintage weights |
+| `de` `fr` | 130 / 127 Eurostat ECOICOP items | `prc_hicp_minr`, NSA | annual HICP item weights |
+| `jp` | 47 e-Stat medium groups | 2020-base CPI, NSA | static 2020-base weights |
 
 Three things had to be measured rather than assumed, and each one mattered:
 
@@ -139,6 +142,78 @@ win for the median.** OER is roughly a quarter of the CPI, so with the stratum
 whole it *is* the median in most months and the measure barely moves. The
 Cleveland Fed splits it into four census regions of 5–9% each. Doing the same
 takes the 12-month correlation with the published median from 0.965 to **0.997**.
+
+### 4b. The five foreign gauges — and whether their cross-sections can carry a trim
+
+The other two models on the site already ship category panels for the UK,
+France, Germany, Japan and Canada, so the trimmed mean gets them for the cost of
+a scope entry. Whether that is *worth* doing is a separate question, and it is
+not answered by the component count. A trim is only as informative as the
+cross-section it cuts: if one component outweighs the tail fraction, the tail is
+that component's price and the estimator has relabelled one series rather than
+averaged anything away.
+
+`cross_section_conditioning()` measures it at a reference 8/8 cut, and the page
+prints the answer under the header. Effective breadth is `1 / Σw²` on the latest
+weights; the tail figures are ten-year means of how many components each tail
+actually cuts through, counting a straddling component for the part of its
+weight that falls inside — the same partial accounting the estimator uses.
+
+| scope | components | effective breadth | heaviest | an 8% tail spans | largest share of a tail |
+|---|---:|---:|---|---:|---:|
+| `de` | 130 | **48.7** | rents 6.8% | 12.2 / 10.8 | 46% |
+| `fr` | 127 | **41.0** | restaurants 7.7% | 11.9 / 10.7 | 43% |
+| `ca` | 119 | **38.3** | rent 7.4% | 13.7 / 12.4 | 41% |
+| `uk` | 85 | **29.8** | restaurants 11.0% | 10.4 / 9.9 | 38% |
+| `pce` | 130 | 26.0 | imputed rent 12.0% | 20.3 / 17.8 | 33% |
+| `cpi45` | 45 | 21.9 | OER (South) 9.1% | 7.3 / 6.6 | 48% |
+| `jp` | 47 | **16.7** | rent 18.3% | 5.1 / 5.0 | **53%** |
+| `cpi70` | 69 | **10.9** | OER 26.1% | 11.9 / 10.2 | 48% |
+
+Read it two ways. Germany, France and Canada are the best-conditioned gauges on
+the site — nothing in them outweighs an 8% tail at all. The UK sits comfortably
+above every US cut. Japan is the weakest: 47 medium groups with rent at 18%, so
+an 8% tail is barely five components and half of it is whichever single one
+leads it.
+
+`cpi70` is the instructive case for why breadth alone is not the test. Its
+effective breadth is the worst here (10.9, because owners' equivalent rent is a
+quarter of the basket), yet its tails span about eleven components — OER
+habitually sits in the *middle* of the distribution and never reaches an edge.
+It hurts the **median**, which is a claim about which category sits at the 50th
+percentile, far more than the trimmed mean. Hence the two columns.
+
+### 4c. Which of them have ground truth
+
+| scope | published measure | same construction? |
+|---|---|---|
+| `ca` | Bank of Canada **CPI-trim** (20% each tail), **CPI-median** | yes — monthly cross-section, chained |
+| `jp` | Bank of Japan **10% trimmed mean**, weighted median, mode | **no** — the Bank trims the *twelve-month* cross-section |
+| `uk` `fr` `de` | none | — |
+
+Canada is a real replication target. Two documented differences remain and both
+show up in the bias: the Bank's inputs are adjusted for changes in indirect
+taxes and seasonally adjusted with StatCan's own per-series specifications,
+while ours are the published NSA index with this engine's rolling seasonal.
+
+Japan is an overlay, not a test. The Bank of Japan trims the cross-section of
+year-over-year changes (BoJ Review 2015-E-6, Chart 4); this engine trims the
+monthly one and chains. The Bank also strips "institutional factors" — the
+consumption-tax changes, the free-education policies, the 2021 mobile-phone
+cuts, travel subsidies, energy-cost relief — that the official CPI we trim still
+contains. The two lines agree to 0.94 anyway, which is a statement about how
+little the choice of basis matters at the twelve-month horizon, not a
+replication claim.
+
+For the UK there is nothing to check against: the ONS publishes no
+limited-influence measure. Nor is there one for France or Germany —
+**the ECB's trimmed means are computed for the euro area as a whole** (ICP item
+codes `TRIM05`–`TRIM50`, where the number is the *total* trim, under institution
+code 3), not per member state, and as of September 2026 their last observation
+is December 2025, the same month Eurostat froze the ECOICOP v1 datasets. A
+euro-area scope would come with ten published trim fractions to check against
+and is the obvious next addition; it needs an `EA20` backbone the ISM export
+does not currently build.
 
 ---
 
@@ -213,6 +288,22 @@ the current Dallas methodology both apply):
 
 On the full Dallas sample (1980–) the PCE 12-month correlation is 0.997.
 
+The two foreign scopes with published counterparts, on the same basis:
+
+| scope | measure | horizon | corr | RMSE (pp) | bias (pp) |
+|---|---|---|---:|---:|---:|
+| `ca` | CPI-trim (20/20) | 12-month | 0.963 | 0.315 | +0.181 |
+| `ca` | CPI-median | 12-month | 0.929 | 0.369 | +0.087 |
+| `jp` | 10% trimmed mean | 12-month | 0.942 | 0.408 | +0.178 |
+| `jp` | weighted median | 12-month | 0.754 | 0.445 | +0.141 |
+
+These are looser than the US scopes and should be, for the reasons in §4c: the
+Canadian inputs are tax- and seasonally adjusted differently, and the Japanese
+measures are built on a different cross-section altogether. The Japanese
+*median* is the weakest of the four, which is the §4b point made twice — a
+median asks which single category sits at the 50th percentile, and a 47-group
+partition with rent at 18% is the worst cross-section here to ask it of.
+
 `cpi70` tracking the published **median** less well is not a defect. A median is
 a statement about *which category* sits at the 50th percentile, so it moves when
 you re-cut the cross-section; a trimmed mean averages over that choice and is
@@ -239,6 +330,8 @@ Two sharper checks are available:
 | Median CPI and 16% trimmed mean | `clevelandfed.org/.../usinflationdata.zip` | no |
 | Cleveland component table | `clevelandfed.org/.../mediancpi_component_table.csv` | no |
 | Trimmed mean PCE history and detail | `dallasfed.org/.../pcehist.xlsx`, `detail.xlsx` | no |
+| CPI-trim and CPI-median (Canada) | `statcan.gc.ca/n1/tbl/csv/18100256-eng.zip` | no |
+| BoJ core indicators (Japan) | `boj.or.jp/en/research/research_data/cpi/cpirev.xlsx` | no |
 | PCE category prices and expenditure | BEA 2.4.4U / 2.4.5U | yes (or the committed `web/data/ism.json`) |
 
 Nothing here needs a key. `download.bls.gov` returns **403** to the default
@@ -255,5 +348,8 @@ python scripts/build_cpi_ri.py        # refresh the December weight anchors (onc
 python scripts/build_trim.py          # build every scope + validate vs the banks
 python scripts/build_trim.py --cross-section --optimal-trim
 python scripts/export_trim_data.py    # refresh web/data/trim.json
-python -m pytest tests/test_trim_engine.py tests/test_trim_parity.py
+python scripts/export_trim_data.py uk ca      # or a subset -- BUT this REWRITES
+                                             # trim.json with only those scopes
+python -m pytest tests/test_trim_engine.py tests/test_trim_parity.py \
+                tests/test_trim_foreign.py
 ```

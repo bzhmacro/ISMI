@@ -257,3 +257,28 @@
 .tbl tr.sep td{border-top:2px solid var(--seal);}
 .notes{color:var(--muted);font-size:.76rem;margin:6px 0 14px;max-width:900px;}
 .notes div{margin:3px 0;}
+
+/* ---------------------------------------------------------------------------
+   Wage model (model 5). Everything here is expressed in the house tokens; the
+   only new idea is the scheme-kind chip, which needs three states because the
+   price/income/wage distinction is the whole point of that table.
+   --------------------------------------------------------------------------- */
+#wage-view .subctl { margin-top: 10px; }
+#wage-view .subctl input[type="range"] { width: 100%; }
+#wage-view .subctl .mini { display: block; margin-bottom: 2px; }
+
+#w-table { margin: 18px 0 8px; overflow-x: auto; }
+#w-table .tbl { width: 100%; min-width: 720px; }
+#w-table .tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+#w-table .tbl td.src { font-size: 11px; color: var(--ink-dim, #8b98a5); max-width: 260px; }
+
+.kind {
+  display: inline-block; padding: 1px 7px; border-radius: 3px;
+  font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase;
+}
+/* A price measure lowers the recorded index; an income measure never enters it;
+   a wage measure arrives through the payslip and lands in measured wages but not
+   in the wage base. Three colours because they are three different animals. */
+.kind-price  { background: rgba(76,154,255,.18); color: #8fc0ff; }
+.kind-income { background: rgba(245,166,35,.18); color: #f5c56a; }
+.kind-wage   { background: rgba(63,185,80,.18);  color: #7fd08c; }

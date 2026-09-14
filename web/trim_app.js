@@ -73,6 +73,38 @@
     if (start) { start.max = String(s.dates.length - 1); start.value = String(D.startIdx); }
     buildCatList();
     setNotes();
+    setConditioning();
+  }
+
+  /* Can this cross-section carry a trim at all?
+
+     The question a reader asks when a new country appears on the scope bar is
+     whether 8% off each end is averaging anything away or just handing the tail
+     to whichever component is biggest.  The exporter measures that at a
+     reference 8/8 cut -- how many components each tail actually cuts through,
+     and how much of a tail its largest contributor supplies -- so the page can
+     say it rather than leave it to be guessed from the component count. */
+  function setConditioning() {
+    const el = $("t-cond"); if (!el) return;
+    const c = scope().conditioning;
+    if (!c) { el.textContent = ""; return; }
+    const pc = v => (v == null ? "\u2014" : v.toFixed(1));
+    const tail = c.tail_components || {};
+    const cut = Math.round(100 * Math.max(c.lower, c.upper));
+    const art = /^(8|11|18|8\d)$/.test(String(cut)) ? "an" : "a";
+    el.innerHTML =
+      `<b>${c.n}</b> components carry weight in the latest month; effective `
+      + `breadth <b>${pc(c.effective_n)}</b> `
+      + `(1 / Herfindahl). At a reference ${cut}% cut each tail spans about `
+      + `<b>${pc(tail.lower)}</b> components at the bottom and `
+      + `<b>${pc(tail.upper)}</b> at the top, and its single largest contributor `
+      + `supplies <b>${pc(c.tail_max_share)}%</b> of it on average`
+      + (c.window ? ` (${c.window[0]}\u2013${c.window[1]})` : "") + `. `
+      + `Heaviest component: ${c.biggest.label} at <b>${pc(c.biggest.weight)}%</b>`
+      + (c.over_trim
+          ? ` \u2014 ${c.over_trim} component${c.over_trim > 1 ? "s weigh" : " weighs"} `
+            + `more than ${art} ${cut}% tail and could fill one alone.`
+          : ` \u2014 nothing weighs more than ${art} ${cut}% tail.`);
   }
 
   /* Open on the span where the published series exists, so the first thing you
@@ -233,10 +265,17 @@
      stale; a custom trim is left alone. */
   function adoptPreset() {
     if (D.preset === "custom") return;
-    const off = scope().official || {};
+    const s = scope();
+    const off = s.official || {};
     if (off[D.preset]) return;
-    const next = Object.keys(ui().presets).find(k => off[k]);
-    if (!next) return;
+    /* Prefer the cut this gauge's own statistical agency publishes. A gauge
+       with no published counterpart still needs a sensible landing point --
+       otherwise the UK inherits the Dallas Fed's 24/31 PCE cut from whatever
+       scope the reader came from, which is a US PCE answer to a UK question. */
+    const next = (off[s.default_preset] && s.default_preset)
+              || Object.keys(ui().presets).find(k => off[k])
+              || s.default_preset;
+    if (!next || next === D.preset) return;
     D.preset = next;
     D.lower = ui().presets[next].lower;
     D.upper = ui().presets[next].upper;
@@ -340,6 +379,10 @@
     if (D.official) {
       for (const [key, o] of Object.entries(s.official || {})) {
         const y = D.view === "yoy" ? o.yoy : o.rate;
+        /* A publisher need not release both horizons: the Bank of Japan
+           publishes year-over-year rates only, so on the 1-month view there is
+           no line to draw and a legend entry would only promise one. */
+        if (!y) continue;
         traces.push({ x, y: sliceFrom(y), name: o.label, type: "scatter",
                       mode: "lines",
                       line: { color: OFFICIAL, width: 1, dash: key === D.preset ? "dot" : "dashdot" },
@@ -384,9 +427,9 @@
     const s = scope();
     const latest = lastOf(ours);
     const matched = s.official && s.official[D.preset];
-    const off = matched ? lastOf(D.view === "yoy" ? matched.yoy : matched.rate) : null;
-    const corr = matched ? pearson(sliceFrom(ours),
-                                   sliceFrom(D.view === "yoy" ? matched.yoy : matched.rate)) : NaN;
+    const pub = matched && (D.view === "yoy" ? matched.yoy : matched.rate);
+    const off = pub ? lastOf(pub) : null;
+    const corr = pub ? pearson(sliceFrom(ours), sliceFrom(pub)) : NaN;
     const headline = s.headline ? lastOf(s.headline.series) : null;
 
     const stats = [
@@ -523,11 +566,12 @@
     const s = scope(), res = currentResult(); if (!res) return;
     const off = s.official || {};
     const offKeys = Object.keys(off);
+    const at = (a, i) => (a && a[i] != null ? a[i] : "");
     const rows = [["date", "rate_ann", "yoy", "n_categories"]
       .concat(offKeys.flatMap(k => [`${k}_rate`, `${k}_yoy`]))];
     for (let i = D.startIdx; i < s.dates.length; i++) {
       rows.push([s.dates[i], res.rate[i], res.yoy ? res.yoy[i] : "", res.n ? res.n[i] : ""]
-        .concat(offKeys.flatMap(k => [off[k].rate[i], off[k].yoy[i]])));
+        .concat(offKeys.flatMap(k => [at(off[k].rate, i), at(off[k].yoy, i)])));
     }
     const csv = rows.map(r => r.map(v => v == null ? "" : v).join(",")).join("\n");
     const a = document.createElement("a");
@@ -545,10 +589,11 @@
       label: "Trimmed mean & median",
       viewId: "trim-view",
       sub: "Limited-influence inflation measures — the weighted median and "
-         + "asymmetric trimmed means behind the Cleveland Fed's median CPI and "
-         + "the Dallas Fed's trimmed mean PCE — recomputed live from the "
-         + "category cross-section, with the weights that actually applied in "
-         + "each month.",
+         + "asymmetric trimmed means behind the Cleveland Fed's median CPI, the "
+         + "Dallas Fed's trimmed mean PCE, the Bank of Canada's CPI-trim and "
+         + "the Bank of Japan's 10% trim — recomputed live from the category "
+         + "cross-section, on eight gauges, with the weights that actually "
+         + "applied in each month.",
       init,
       refresh: () => requestCompute(0),
     });

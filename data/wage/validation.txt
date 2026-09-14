@@ -1,0 +1,35 @@
+[PASS] lambda_range/US: lambda in [0.014, 0.124]
+[PASS] panel_nonempty/US: 266 quarters with both wage and price growth
+[PASS] lambda_range/UK: lambda in [0.058, 0.416]
+[PASS] panel_nonempty/UK: 250 quarters with both wage and price growth
+[PASS] lambda_range/FR: lambda in [0.236, 0.375]
+[PASS] panel_nonempty/FR: 264 quarters with both wage and price growth
+[PASS] lambda_range/DE: lambda in [0.043, 0.114]
+[PASS] panel_nonempty/DE: 264 quarters with both wage and price growth
+[PASS] lambda_range/BE: lambda in [1.000, 1.000]
+[PASS] panel_nonempty/BE: 120 quarters with both wage and price growth
+[PASS] lambda_range/IT: lambda in [0.140, 1.000]
+[PASS] panel_nonempty/IT: 264 quarters with both wage and price growth
+[PASS] lambda_range/ES: lambda in [0.000, 0.210]
+[PASS] panel_nonempty/ES: 176 quarters with both wage and price growth
+[PASS] homogeneity: sum of own-lag and trend coefficients = 1.000000000 (restriction: 1)
+[PASS] indexation_sign: three-year catch-up is +0.625 under full indexation vs -0.221 with none
+[PASS] wage_to_price/US: three-year wage-to-price pass-through +0.997
+[PASS] wage_to_price/UK: three-year wage-to-price pass-through +1.285
+[PASS] wage_to_price/FR: three-year wage-to-price pass-through +0.639
+[PASS] wage_to_price/DE: three-year wage-to-price pass-through +0.828
+[PASS] wage_to_price/BE: three-year wage-to-price pass-through +0.265
+[PASS] wage_to_price/IT: three-year wage-to-price pass-through +0.991
+[PASS] wage_to_price/ES: three-year wage-to-price pass-through +0.612
+[PASS] fact/uk_1974_threshold: UK lambda peaks at 0.416 in 1974 vs a maximum of 0.191 in every other year
+[PASS] fact/belgium_indexed: Belgian lambda never falls below 1.000
+[PASS] fact/us_cola_decline: US lambda falls from 0.117 in 1975 to 0.019 today (factor 6.3)
+[PASS] fact/france_smic_survived_desindexation: French minimum-wage channel 0.469 before 1983 and 0.488 after: the 1983 desindexation ended general wage indexation but left the SMIC formula in force
+[PASS] identification/lambda_upper_end: lambda >= 0.9 is contributed by: BE (101 obs, 2001-01-01..2026-01-01)
+[PASS] bernanke_blanchard/full_sample_split: full-sample pooled split 0.598 / 0.402 -- reported, not tested
+[PASS] bernanke_blanchard/us_alone: United States alone splits 0.968 / 0.032 -- reported, not tested; see docstring
+[PASS] bernanke_blanchard/persistence: sum of own lags 0.639 vs published 0.460
+[PASS] bernanke_blanchard/expectations: sum of trend/expectations terms 0.361 vs published 0.540
+[PASS] bernanke_blanchard/tightness_sign: tightness sum +0.093; published v/u sum +0.693 (different slack measure, so only the sign is comparable)
+
+33/33 checks passed

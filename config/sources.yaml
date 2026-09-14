@@ -230,6 +230,57 @@ dallas_fed_trimmed_mean:
   trim: {lower: 0.24, upper: 0.31}
   role: "ground truth for the trimmed mean PCE; detail.xlsx gives the month's cross-section"
 
+bank_of_canada_core_measures:
+  provider: statcan
+  method: "whole-table CSV (zipped)"
+  urls:
+    table: "https://www150.statcan.gc.ca/n1/tbl/csv/18100256-eng.zip"
+    definitions: "https://www.bankofcanada.ca/rates/indicators/key-variables/key-inflation-indicators-and-the-target-range/"
+  table_id: "18-10-0256-01"
+  trim: {lower: 0.20, upper: 0.20}     # CPI-trim; CPI-median is the 50th percentile
+  role: "ground truth for the Canada scope: CPI-trim and CPI-median"
+  notes: >
+    Both measures are taken on the MONTHLY cross-section, as ours are, so this is
+    a real replication target rather than an overlay. Two differences the scores
+    carry: the Bank's inputs are adjusted for changes in indirect taxes and
+    seasonally adjusted with StatCan's own per-series specifications, and since
+    the January 2024 reference month the published year-over-year figures are
+    computed from index values rounded to one decimal. The table carries both the
+    y/y rates and the 1989-01=100 indexes, so the 1-month horizon is derivable.
+
+bank_of_japan_core_indicators:
+  provider: boj
+  method: "published workbook"
+  urls:
+    data: "https://www.boj.or.jp/en/research/research_data/cpi/cpirev.xlsx"
+    page: "https://www.boj.or.jp/en/research/research_data/cpi/index.htm"
+    method_note: "https://www.boj.or.jp/en/research/wps_rev/rev_2015/data/rev15e06.pdf"
+  trim: {lower: 0.10, upper: 0.10}
+  role: "overlay for the Japan scope: 10% trimmed mean, weighted median, mode"
+  notes: >
+    NOT a replication target. The Bank trims the cross-section of TWELVE-MONTH
+    price changes (BoJ Review 2015-E-6, Chart 4) while this engine trims the
+    monthly one and chains; the Bank also strips "institutional factors"
+    (consumption-tax changes, free-education policies, the 2021 mobile-phone
+    cuts, travel subsidies, energy-cost relief) that the official CPI we trim
+    still contains. Every measure is estimated separately on each CPI base
+    (2000, 2005, 2010, 2015, 2020, 2025) and spliced newest-base-first. The Bank
+    publishes year-over-year rates only, so there is no 1-month line.
+
+euro_area_trimmed_means:
+  provider: ecb
+  method: "SDMX REST"
+  urls:
+    example: "https://data-api.ecb.europa.eu/service/data/ICP/M.U2.N.TRIM30.3.ANR"
+  role: "NOT USED -- recorded so the next person does not go looking"
+  notes: >
+    The ECB publishes trimmed means for the euro area only (ICP item codes
+    TRIM05..TRIM50, where the number is the TOTAL trim: TRIM20 is 10% from each
+    tail), under institution code 3, not 4. There is no per-country series, so
+    they cannot validate the France or Germany scopes. As of 2026-09 the last
+    observation is 2025-12 -- the same month Eurostat froze the ECOICOP v1
+    datasets (see src/ism/eurostat.py), which is the likely reason.
+
 # -----------------------------------------------------------------------------
 # 2. Headline aggregate PCE (Figure 1 overlay; forecast target & control)
 # -----------------------------------------------------------------------------

@@ -57,10 +57,11 @@ from ism.cpi_pce import (aggregate, bridge_nowcast,  # noqa: E402
 from ism.decomp_pipeline import core_exclusions  # noqa: E402
 from ism.ppi import (fetch_ppi_levels, group_regressors,  # noqa: E402
                      load_bridge_series as load_ppi_series, ppi_inflation)
-from ism.trim_engine import (MEDIAN_CPI, TRIM16_CPI, TRIM_PCE,  # noqa: E402
-                             TrimConfig, compute_trim)
-from ism.trim_pipeline import (build_cleveland_panel, build_cpi70_panel,  # noqa: E402
-                               build_pce_panel, panel_from_web_data)
+from ism.trim_engine import (MEDIAN_CPI, TRIM10_JP, TRIM16_CPI,  # noqa: E402
+                             TRIM20_CA, TRIM_PCE, TrimConfig, compute_trim)
+from ism.trim_pipeline import (build_cleveland_panel,  # noqa: E402
+                               build_cpi70_panel, build_pce_panel,
+                               cross_section_conditioning, panel_from_web_data)
 from ism.trim_validate import compare_to_official, official_series  # noqa: E402
 
 OUT = ROOT / "web" / "data" / "trim.json"
@@ -69,14 +70,25 @@ ISM_JSON = ROOT / "web" / "data" / "ism.json"
 PANEL_DP = 6          # decimals kept for the shipped panels
 SERIES_DP = 4
 
-ALL_SCOPES = ("cpi45", "cpi70", "pce", "uk", "fr", "de", "jp", "ca")
-DEFAULT_SCOPES = ("cpi45", "cpi70", "pce")
+ALL_SCOPES = ("cpi45", "cpi70", "pce", "uk", "ca", "de", "fr", "jp")
+DEFAULT_SCOPES = ALL_SCOPES
 
 TABS = {"cpi45": "US CPI (Cleveland cut)", "cpi70": "US CPI (70 strata)",
-        "pce": "US PCE", "uk": "UK", "fr": "France", "de": "Germany",
-        "jp": "Japan", "ca": "Canada"}
+        "pce": "US PCE", "uk": "UK CPI", "ca": "Canada CPI", "de": "Germany HICP",
+        "fr": "France HICP", "jp": "Japan CPI"}
 
-MEASURES = {"median": MEDIAN_CPI, "trim16": TRIM16_CPI, "trim_pce": TRIM_PCE}
+MEASURES = {"median": MEDIAN_CPI, "trim16": TRIM16_CPI, "trim_pce": TRIM_PCE,
+            "trim20": TRIM20_CA, "trim10": TRIM10_JP}
+
+#: Which preset a scope should land on when the reader switches to it -- the
+#: one its own central bank publishes, so the "Published" read-out has
+#: something in it.  Falls back to the first preset with an overlay.
+DEFAULT_PRESET = {"cpi45": "trim16", "cpi70": "trim16", "pce": "trim_pce",
+                  "ca": "trim20", "jp": "trim10",
+                  #: no published counterpart, so there is nothing to match --
+                  #: land on the most widely used cut rather than inheriting
+                  #: whichever one the previous scope happened to be showing.
+                  "uk": "trim16", "de": "trim16", "fr": "trim16"}
 
 UI = {
     "lower": {"min": 0, "max": 0.5, "step": 0.01, "default": 0.08},
@@ -88,6 +100,10 @@ UI = {
                    "label": "16% trim (Cleveland)"},
         "trim_pce": {"lower": 0.24, "upper": 0.31,
                      "label": "24/31 trim (Dallas)"},
+        "trim20": {"lower": 0.20, "upper": 0.20,
+                   "label": "CPI-trim (Bank of Canada)"},
+        "trim10": {"lower": 0.10, "upper": 0.10,
+                   "label": "10% trim (Bank of Japan)"},
     },
     "sa_methods": ["none", "rolling", "dummy"],
     "weight_vintages": ["versioned", "latest", "first"],
@@ -99,6 +115,10 @@ SOURCES = {
     "dallas": "https://www.dallasfed.org/research/pce",
     "bls_flat": "https://download.bls.gov/pub/time.series/cu/",
     "bls_ri": "https://www.bls.gov/cpi/tables/relative-importance/home.htm",
+    "statcan": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810025601",
+    "boc": "https://www.bankofcanada.ca/rates/indicators/key-variables/"
+           "key-inflation-indicators-and-the-target-range/",
+    "boj": "https://www.boj.or.jp/en/research/research_data/cpi/index.htm",
 }
 
 
@@ -188,6 +208,33 @@ def official_for(scope: str, official: dict, index: pd.Index):
                 "rate": _series(dal["m1"], index),
                 "yoy": _series(dal["m12"], index),
             }
+    if scope == "ca":
+        sc = official.get("statcan")
+        if sc is not None:
+            out["median"] = {
+                "label": "Bank of Canada CPI-median",
+                "rate": _series(sc["median_saar"], index),
+                "yoy": _series(sc["median_yoy"], index),
+            }
+            out["trim20"] = {
+                "label": "Bank of Canada CPI-trim",
+                "rate": _series(sc["trim_saar"], index),
+                "yoy": _series(sc["trim_yoy"], index),
+            }
+    if scope == "jp":
+        bj = official.get("boj")
+        if bj is not None:
+            # The Bank publishes year-over-year rates only, and builds them from
+            # the twelve-month cross-section rather than the monthly one, so
+            # there is deliberately no 1-month line to draw.
+            out["median"] = {
+                "label": "Bank of Japan weighted median",
+                "rate": None, "yoy": _series(bj["median_yoy"], index),
+            }
+            out["trim10"] = {
+                "label": "Bank of Japan 10% trimmed mean",
+                "rate": None, "yoy": _series(bj["trim10_yoy"], index),
+            }
     return out
 
 
@@ -220,6 +267,19 @@ def export_scope(scope: str, panel, official: dict, ism_payload: dict) -> dict:
     if panel.weights_source is not None:
         block["weights_source"] = list(panel.weights_source.reindex(index)
                                        .fillna("").astype(str))
+
+    cond = cross_section_conditioning(panel, lower=UI["lower"]["default"],
+                                      upper=UI["upper"]["default"])
+    if cond:
+        block["conditioning"] = {
+            k: (_round(v, 2) if isinstance(v, float) else v)
+            for k, v in cond.items() if k not in ("tail_components", "biggest")}
+        block["conditioning"]["tail_components"] = {
+            k: _round(v, 1) for k, v in cond["tail_components"].items()}
+        block["conditioning"]["biggest"] = dict(
+            cond["biggest"], weight=_round(cond["biggest"]["weight"], 2))
+
+    block["default_preset"] = DEFAULT_PRESET.get(scope)
 
     head = headline_for(scope, ism_payload, index)
     if head:

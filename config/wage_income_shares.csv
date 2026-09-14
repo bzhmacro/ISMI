@@ -1,0 +1,41 @@
+# wage_income_shares.csv -- the composition of gross household income by
+# income group, used as the weights s_c in Eq. (W10).
+#
+# group: q1 (bottom quartile), q2, q3, q4 (top quartile), all
+# Components must sum to 1 within a (country, group, year).
+#   wage     market labour earnings
+#   minwage  earnings set at or just above the statutory floor
+#   benefit  indexed social benefits and public pensions
+#   handout  one-off payments and income-based energy support (period-specific;
+#            the share here is the structural placeholder, scaled by the
+#            realised scheme amounts in the pipeline)
+#
+# These are MODEL INPUTS, not measurements: each row is our reading of the
+# cited distributional source, re-based from that source's own income concept
+# and quantile definition onto a common four-component, quartile split. The
+# per-row `source` field is authoritative -- US from CBO's Distribution of
+# Household Income, UK from ONS's Effects of taxes and benefits, France from
+# INSEE and DREES, Germany from Destatis EVS and DIW SOEP -- and none of them
+# publishes this decomposition directly. Treat the levels as calibrated, and
+# see the Limitations section of paper/wage_inflation.md.
+country,group,year,wage,minwage,benefit,handout,source
+US,q1,2019,0.42,0.18,0.39,0.01,"CBO Distribution of Household Income 2022; BLS CE"
+US,q2,2019,0.66,0.09,0.24,0.01,"CBO"
+US,q3,2019,0.79,0.03,0.17,0.01,"CBO"
+US,q4,2019,0.85,0.00,0.15,0.00,"CBO"
+US,all,2019,0.73,0.05,0.21,0.01,"CBO; BEA NIPA Table 2.1 (transfers ~20% of personal income)"
+UK,q1,2019,0.34,0.20,0.45,0.01,"ONS Effects of taxes and benefits on household income"
+UK,q2,2019,0.60,0.11,0.28,0.01,"ONS"
+UK,q3,2019,0.78,0.04,0.17,0.01,"ONS"
+UK,q4,2019,0.88,0.00,0.12,0.00,"ONS"
+UK,all,2019,0.71,0.06,0.22,0.01,"ONS; UK sector accounts D.62"
+FR,q1,2019,0.30,0.22,0.47,0.01,"INSEE, Revenus et patrimoine des menages; DREES"
+FR,q2,2019,0.55,0.14,0.30,0.01,"INSEE"
+FR,q3,2019,0.72,0.06,0.21,0.01,"INSEE"
+FR,q4,2019,0.83,0.00,0.17,0.00,"INSEE"
+FR,all,2019,0.64,0.08,0.27,0.01,"INSEE; Eurostat nasq_10_nf_tr D62 (transfers ~30% of French household income)"
+DE,q1,2019,0.33,0.14,0.52,0.01,"Destatis EVS; DIW SOEP"
+DE,q2,2019,0.58,0.08,0.33,0.01,"Destatis EVS"
+DE,q3,2019,0.75,0.03,0.21,0.01,"Destatis EVS"
+DE,q4,2019,0.85,0.00,0.15,0.00,"Destatis EVS"
+DE,all,2019,0.67,0.05,0.27,0.01,"Destatis EVS; Eurostat nasq_10_nf_tr D62"

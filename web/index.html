@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inflation Breakdown Explorer</title>
-  <meta name="description" content="Interactive explorer for four inflation models — the Inflation Shock Momentum index (Lansing &amp; Shapiro 2026), the Supply/Demand decomposition (Shapiro 2022-18), trimmed-mean and median inflation validated against the Cleveland and Dallas Feds, and a CPI-to-PCE bridge. Recomputed live in your browser." />
+  <meta name="description" content="Interactive explorer for five inflation models — the Inflation Shock Momentum index (Lansing &amp; Shapiro 2026), the Supply/Demand decomposition (Shapiro 2022-18), trimmed-mean and median inflation validated against the Cleveland and Dallas Feds, a CPI-to-PCE bridge, and a wage model in which statutory wage floors, indexed benefits and one-off handouts count as part of the wage. Recomputed live in your browser." />
   <!-- bzhmacro house identity. Hosted first, vendored fallback second — see
        assets/bzh.css. styles.css is the project layer and MUST load after it:
        it carries no :root block and expresses everything in the house tokens,
@@ -33,7 +33,7 @@
     <span class="header-flag">📉</span>
     <div>
       <h1>INFLATION BREAKDOWN EXPLORER</h1>
-      <p>Four ways to break down a headline inflation print</p>
+      <p>Five ways to read an inflation print</p>
     </div>
     <div class="header-right">
       <a class="bzh-brand" href="https://www.bzhmacro.com" target="_blank" rel="noopener">
@@ -557,6 +557,91 @@
     </section>
     </div>
 
+
+    <!-- ================ WAGES & INDEXATION (model 5) ================ -->
+    <div id="wage-view" class="model-view" hidden>
+
+    <section class="paramgrid">
+      <div class="control">
+        <label>Country</label>
+        <div class="seg" id="w-country"></div>
+        <small>The first four are the paper's subject. Belgium, Italy and Spain are reference cases: &lambda; barely moves inside any one country, so the indexation interaction is identified across the panel, and Belgium and Germany share a currency, a central bank and the 2022 energy shock while differing in exactly the institution under study.</small>
+      </div>
+      <div class="control">
+        <label>View</label>
+        <div class="seg" id="w-view"></div>
+        <small>Spiral gain is the headline object. Effective wage is what a household actually received. Indexation is the institutional database. Simulator closes the loop. Handouts is the 2021-26 scheme register.</small>
+      </div>
+      <div class="control" id="w-group-ctl" hidden>
+        <label>Income group</label>
+        <div class="seg" id="w-group"></div>
+        <small>Income composition weights from CBO (US), ONS (UK), INSEE (France) and Destatis EVS (Germany). The bottom quartile takes 39% of its income from indexed benefits in the United States and 52% in Germany; the top quartile takes none from the statutory floor.</small>
+      </div>
+      <div class="control" id="w-fit-ctl">
+        <label>Lag length</label>
+        <div class="seg" id="w-lags"></div>
+        <label style="margin-top:10px">Gain horizon</label>
+        <div class="seg" id="w-horizon"></div>
+        <div class="subctl" id="w-anchor"></div>
+        <small>The long-run pass-through is one by construction &mdash; the homogeneity restriction makes the Phillips curve vertical &mdash; so the gains are always read at a finite horizon. Three years is the horizon the euro-area pass-through literature reports.</small>
+      </div>
+      <div class="control" id="w-el-ctl">
+        <label>Channel elasticities</label>
+        <div class="subctl" id="w-el-automatic"></div>
+        <div class="subctl" id="w-el-public"></div>
+        <div class="subctl" id="w-el-minwage"></div>
+        <div class="subctl" id="w-el-benchmark"></div>
+        <small>&lambda; is not measured. It is documented coverage weighted by an assumed pass-through per channel: 0.90 for a contractual escalator (Card 1986), 1.00 for statutory public pay, 0.35 for a minimum-wage-benchmarked agreement (Cengiz et al. 2019 put spillovers at about 40% of the wage gain), 0.30 for a formal inflation reference (ECB OP 299). These four numbers carry the institutional story, so they are the first thing you should be able to disagree with.</small>
+      </div>
+      <div class="control" id="w-sim-ctl" hidden>
+        <label>Simulator</label>
+        <div class="subctl" id="w-sim-lam"></div>
+        <div class="subctl" id="w-sim-phiE"></div>
+        <div class="subctl" id="w-sim-mpc"></div>
+        <div class="subctl" id="w-sim-taylor"></div>
+        <div class="subctl" id="w-sim-shock"></div>
+        <small>The fiscal dial is percentage points of household income handed out per point of inflation above trend. The monetary dial is slack opened per point of excess inflation &mdash; a reduced-form sacrifice rate, not a Taylor rule.</small>
+      </div>
+    </section>
+
+    <div class="statrow" id="w-stats"></div>
+
+    <div class="chart-wrap"><div class="chart" id="w-chart"></div></div>
+    <div class="chart-wrap"><div class="chart" id="w-chart2"></div></div>
+
+    <div id="w-table" hidden></div>
+
+    <p class="status" id="w-status"></p>
+    <div class="notes"><p id="w-note"></p></div>
+
+    <div class="explain">
+      <h3>What this model is</h3>
+      <p>The other four models on this site break a price index apart. This one asks the
+      question from the other side: when prices move, what happens to what households are
+      paid &mdash; and does that feed back?</p>
+      <p>Three things pay a household, and only one of them is a wage. There is the market
+      bargain; there is the statutory floor, which in France has been indexed to prices by
+      formula since 1970 and in the United States has not moved since 2009; and there are
+      indexed benefits and pensions, which cover about 70 million Americans and rose 8.7%
+      in a single January in 2023. Since 2021 there is a fourth: discretionary payments and
+      energy subsidies worth several percent of GDP across Europe, some of which enter the
+      consumer price index and some of which do not. The <strong>effective wage index</strong>
+      adds all four, weighted by an income group's actual composition.</p>
+      <p>The <strong>spiral gain</strong> is the product of two pass-throughs: how much of a
+      real-wage loss gets recovered (&Lambda;), and how much of a wage impulse reaches prices
+      (M). A spiral needs both. Belgium has the highest indexation intensity in the panel
+      and among the lowest wage-to-price pass-through, which is why automatic indexation
+      there did not produce excess inflation; Italy under the <em>scala mobile</em> had
+      both, and a gain of 0.76.</p>
+      <p><a href="paper/wage_inflation.html"><strong>Read the paper →</strong></a>
+      &nbsp;·&nbsp; <a href="paper/wage_inflation.html">The Spiral Gain</a> sets out the
+      literature, the institutional database, the twelve equations and the limitations.
+      The maths-to-code map is <code>docs/wage_methodology.md</code>; every institutional
+      number is sourced row by row in <code>config/indexation_coverage.csv</code>.</p>
+    </div>
+
+    </div>
+
   </main>
 
   <section id="sources" class="nonum">
@@ -585,6 +670,8 @@
   <script src="decomp_app.js"></script>
   <script src="trim_app.js"></script>
   <script src="cpipce_app.js"></script>
+  <script src="wage_engine.js"></script>
+  <script src="wage_app.js"></script>
   <!-- Freshness panel + on-demand refresh button. Self-contained: it injects
        its own markup under #asof and its own styles, reads
        data/release_calendar.json, and hides itself if that file is absent. -->

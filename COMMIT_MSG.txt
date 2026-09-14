@@ -1,48 +1,45 @@
-Add trimmed-mean/median inflation and a CPI->PCE bridge
+Add model 5: wages, indexation and the spiral gain
 
-Two new models behind the existing Model bar, built to the same contract as
-the ISM index and the supply/demand decomposition: a Python engine whose
-functions map to numbered equations, a parity-tested browser twin, pinned
-config, and validation against published ground truth.
+A fifth model for the site, asking the inflation question from the other
+side: when prices move, what happens to what households are paid, and does
+that feed back into prices?
 
-Trimmed mean & median (Eqs. T1-T4, src/ism/trim_engine.py)
-  Weighted median and asymmetric trimmed means over the category
-  cross-section, with partial inclusion at the trim points so the estimator
-  stays continuous in the trim fractions. Three scopes: the Cleveland Fed's
-  45-component cut (owners' equivalent rent split by census region), this
-  repo's 70 CPI item strata, and BEA PCE underlying detail.
+Two objects. The Effective Wage Index adds statutory wage floors, indexed
+benefits and one-off handouts to market pay, weighted by an income group's
+actual composition, and deflates both by the recorded price index and by the
+index that would have been recorded without caps and tariff shields. The
+Spiral Gain G = Lambda x M is the product of price-to-wage catch-up and
+wage-to-price pass-through.
 
-  vs the published series, 1998-:
-    Cleveland median CPI      12m corr 0.997  RMSE 0.083  bias  0.000
-    Cleveland 16% trimmed CPI 12m corr 0.998  RMSE 0.114  bias +0.084
-    Dallas trimmed mean PCE   12m corr 0.990  RMSE 0.127  bias +0.063
+The indexation intensity lambda is built from a hand-assembled, row-by-row
+sourced database of who was indexed to what across seven countries from 1960
+(config/indexation_coverage.csv): contractual escalators, statutory public
+pay, minimum-wage-benchmarked agreements and formal inflation references.
+Estimated on a pooled panel with country fixed effects, because lambda barely
+moves inside any one country -- Belgium and Germany share a currency, a
+central bank and the 2022 energy shock and differ in exactly the institution
+under study.
 
-  Three things measured rather than assumed: BEA's 2.4.4U price indexes
-  already arrive seasonally adjusted (re-adjusting costs 0.9970 -> 0.9951);
-  BLS publishes no CUSR series for every stratum and where it does not the
-  NSA index is the adjusted one (7 of 70); splitting OER by region takes the
-  median replication from 0.965 to 0.997.
+Headline estimates: Lambda(0) = -0.23 and Lambda(1) = +0.77, so without an
+escalator a real-wage loss is not recovered within three years; M runs from
+0.27 (Belgium, France) to 1.29 (UK); G was 0.76 in Italy under the scala
+mobile and is negative in five of seven countries today.
 
-Versioned CPI weights (src/ism/cpi_ri.py)
-  December relative importances 1997-2025, price-updated month by month.
-  Within a weight regime this is BLS's own method, and it checks out: in the
-  non-update years of the biennial regime the price-updated and published
-  December weights agree to ~0.02pp summed across seventy strata. Pre-1998
-  months are back-updated from the 1997 anchor and labelled as such.
+Two specification decisions are load-bearing and documented in
+docs/DECISIONS.md: the panel is estimated on four-quarter growth rates
+because annualised quarterly growth of non-ECI wage series is close to white
+noise, and the catch-up term is a one-sided real-wage gap rather than
+Bernanke & Blanchard's inflation surprise, which is collinear with a filtered
+trend by construction and returned coefficient sums of +54.
 
-CPI -> PCE (Eqs. C1-C6, src/ism/cpi_pce.py)
-  A six-term telescoping identity for the CPI-PCE wedge - rebuild residual,
-  coverage, weight, price-measure, scope, formula - closing to 4e-16, plus a
-  group-level nowcast bridge that never sees the month it predicts (monthly
-  RMSE 0.121pp). The fitted pass-through slopes are the useful output:
-  shelter 1.00, medical services 0.31.
+Includes: keyless data clients for FRED, ONS, Eurostat and INSEE; an
+employment-weighted effective US minimum wage; statutory benefit uprating
+rules implemented and validated against published decisions; a parity-tested
+browser twin; the interactive page; and the paper, with a house-style HTML
+build and a LaTeX PDF.
 
-New data sources, all keyless: the BLS flat files (which carry the
-seasonally adjusted CUSR series and the chained CPI), the BLS relative-
-importance archives, and the Cleveland and Dallas Feds' own published files.
-download.bls.gov 403s the default python-requests agent; the repo's
-USER_AGENT is accepted, and that trap is documented on the client.
+31/31 validation checks pass; 29 Python/JavaScript parity and unit tests pass.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_0186rm3FJ6Ce9Yzv2gs5Ujk7
+Claude-Session: https://claude.ai/code/session_01QbhU99rAqbGdJ6nMdBUash
 

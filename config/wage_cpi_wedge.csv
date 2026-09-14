@@ -1,0 +1,30 @@
+# wage_cpi_wedge.csv -- the contribution of PRICE-based support measures to
+# measured y/y consumer price inflation, percentage points.
+#
+# Negative while a cap or excise cut is in force; positive as it unwinds. This
+# is the wedge between what a statistician recorded and what households would
+# have paid, and it is what Eq. (W11) removes to build the subsidy-neutral real
+# effective wage.
+#
+# Values are annual and are applied to every quarter of the year unless a
+# quarter-specific row is given (period = YYYY or YYYY-Qn).
+country,period,wedge_pp,source
+FR,2022,-2.6,"Banque de France, projections macroeconomiques; effect of the bouclier tarifaire and the remise carburant on HICP"
+FR,2023,0.4,"Banque de France"
+FR,2024,1.0,"Banque de France"
+FR,2025,0.8,"Banque de France"
+FR,2026,0.0,"assumed: the shield had fully unwound by end-2025"
+DE,2022-Q2,-0.3,"Destatis: Tankrabatt and 9-Euro-Ticket from June 2022"
+DE,2022-Q3,-1.0,"Destatis: the two measures together lowered the CPI by about 1pp while in force"
+DE,2022-Q4,-0.2,"Destatis: measures expired 31 Aug 2022; EEG-Umlage abolition persists"
+DE,2023,-0.8,"Jannsen & Sonnenberg (IfW Kiel): the electricity and gas price brakes"
+DE,2024,0.6,"unwind of the price brakes"
+DE,2025,0.0,"no active price measures"
+DE,2026,0.0,"no active price measures"
+UK,2022-Q4,-1.2,"PIPELINE ASSUMPTION. Anchored on the OBR EFO (November 2022) estimate that the Energy Price Guarantee held CPI about 2.5pp below where it would otherwise have peaked; the quarterly profile is ours, not the OBR's."
+UK,2023,-2.0,"PIPELINE ASSUMPTION, same anchor. The OBR publishes the peak effect, not an annual average; -2.0 is our reading of the profile."
+UK,2024,1.4,"PIPELINE ASSUMPTION: the unwind as the EPG ended in March 2024, imposed to make the wedge cumulate to roughly zero."
+UK,2025,0.0,"no active price measures"
+UK,2026,0.0,"no active price measures"
+US,2022,-0.1,"state fuel tax holidays only; no federal price intervention"
+US,2023,0.1,"unwind"

@@ -62,6 +62,38 @@ CLEVELAND_COMPONENTS_URL = f"{CLEVELAND_BASE}/mediancpi_component_table.csv?sc_l
 DALLAS_HISTORY_URL = f"{DALLAS_BASE}/pcehist.xlsx"
 DALLAS_DETAIL_URL = f"{DALLAS_BASE}/detail.xlsx"
 
+#: Statistics Canada table 18-10-0256 ("measures of core inflation - Bank of
+#: Canada definitions").  The whole-table ZIP is one request, no key, whole
+#: history -- the same posture as the two Reserve Bank files above.
+STATCAN_CORE_URL = "https://www150.statcan.gc.ca/n1/tbl/csv/18100256-eng.zip"
+STATCAN_CORE_MEMBER = "18100256.csv"
+
+#: Bank of Japan, "Indicators for Core CPI".  One workbook, one sheet, every
+#: measure on every CPI base.
+BOJ_CORE_URL = "https://www.boj.or.jp/en/research/research_data/cpi/cpirev.xlsx"
+BOJ_CORE_SHEET = "chart"
+BOJ_HEADER_ROW = 3          # English measure names
+BOJ_BASE_ROW = 4            # "2020base", "2015base", ...
+BOJ_FIRST_ROW = 5           # first month
+
+#: Substrings that identify each StatCan series in the "Alternative measures"
+#: dimension.  Matched as an AND of plain substrings, because the labels are
+#: long sentences that StatCan rewords.
+_STATCAN_MEASURES = {
+    "trim_yoy": ("CPI-trim", "year-over-year"),
+    "median_yoy": ("CPI-median", "year-over-year"),
+    "trim_index": ("CPI-trim", "index"),
+    "median_index": ("CPI-median", "index"),
+}
+
+#: Bank of Japan measure names as they appear in the workbook's English header.
+_BOJ_COLUMNS = {
+    "trim10_yoy": "Trimmed mean(y/y % chg.)",
+    "median_yoy": "Weighted median(y/y % chg.)",
+    "mode_yoy": "Mode(y/y % chg.)",
+    "diffusion": "Diffusion index(% points)",
+}
+
 #: Column fragments identifying the series we lift out of the Cleveland file.
 #: Matching on a fragment rather than the full string keeps the loader working
 #: when they re-word a header, which they have done.
@@ -205,6 +237,119 @@ def dallas_detail(force: bool = False) -> pd.DataFrame:
                      np.where(prev >= hi, "cut_top", "included"))
     return body
 
+
+
+# ----------------------------------------------------------------------------
+# Bank of Canada / Statistics Canada
+# ----------------------------------------------------------------------------
+def statcan_core_history(force: bool = False) -> pd.DataFrame:
+    """The Bank of Canada's preferred core measures, from StatCan table 18-10-0256.
+
+    CPI-trim and CPI-median are the two limited-influence measures in the pair;
+    both are computed on the *monthly* cross-section, which is the same object
+    our estimator trims -- so unlike most foreign gauges these are a real
+    validation target, not just an overlay.
+
+    Two caveats that the comparison cannot paper over, both stated in the table's
+    own metadata:
+
+    * the Bank's inputs are **tax-adjusted** (the effect of changes in indirect
+      taxes is removed) and seasonally adjusted with StatCan's per-series
+      specifications; ours are neither, so a gap of a tenth or two is expected
+      rather than a bug;
+    * since the January 2024 reference month the published year-over-year
+      figures are computed from index values rounded to one decimal.
+
+    Returns columns ``trim_yoy``, ``median_yoy`` (published y/y, %),
+    ``trim_index``, ``median_index`` (1989-01 = 100) and ``trim_saar`` /
+    ``median_saar`` (annualised month-over-month, derived from those indexes so
+    the 1-month horizon can be scored at all).
+    """
+    path = fetch_url_bytes(STATCAN_CORE_URL, "statcan_18100256.zip", force=force)
+    raw = pd.read_csv(_maybe_unzip(path, STATCAN_CORE_MEMBER),
+                      encoding="utf-8-sig", low_memory=False)
+    raw = raw[raw["GEO"].astype(str).str.strip() == "Canada"]
+    raw["date"] = pd.to_datetime(raw["REF_DATE"], format="%Y-%m", errors="coerce")
+    raw = raw.dropna(subset=["date"])
+    raw["VALUE"] = pd.to_numeric(raw["VALUE"], errors="coerce")
+
+    measure = raw["Alternative measures"].astype(str)
+    out = {}
+    for name, needles in _STATCAN_MEASURES.items():
+        hit = measure.str.contains(needles[0], case=False, regex=False)
+        for extra in needles[1:]:
+            hit &= measure.str.contains(extra, case=False, regex=False)
+        block = raw[hit]
+        if block.empty:
+            continue
+        out[name] = (block.set_index("date")["VALUE"]
+                     .groupby(level=0).last().sort_index())
+    frame = pd.DataFrame(out).sort_index()
+
+    for m in ("trim", "median"):
+        lvl = frame.get(f"{m}_index")
+        if lvl is not None:
+            frame[f"{m}_saar"] = 100.0 * ((lvl / lvl.shift(1)) ** 12 - 1.0)
+    frame.index.name = "date"
+    return frame
+
+
+# ----------------------------------------------------------------------------
+# Bank of Japan
+# ----------------------------------------------------------------------------
+def boj_core_history(force: bool = False) -> pd.DataFrame:
+    """The Bank of Japan's core indicators from ``cpirev.xlsx``.
+
+    The Research and Statistics Department publishes a 10% trimmed mean, a
+    weighted median, a mode and a diffusion index, each as a **year-over-year**
+    rate and each estimated separately on every CPI base (2000, 2005, 2010,
+    2015, 2020, 2025).  We splice newest-base-first, which is how the Bank's own
+    charts present them.
+
+    The methodological difference that matters: the Bank trims the
+    cross-section of *twelve-month* price changes (Hogen, Kawamoto and Nakahama,
+    "Core Inflation and the Business Cycle", BoJ Review 2015-E-6, Chart 4),
+    whereas Cleveland, Dallas and the Bank of Canada trim the *monthly*
+    cross-section and chain the result.  Our engine does the latter, so the BoJ
+    series belongs on the chart as a published reference -- the same measure in
+    spirit, built on a different cross-section -- and the scores in
+    :func:`ism.trim_validate.compare_to_official` should be read as agreement
+    between two constructions, not as a replication test.
+
+    The Bank's figures also strip "institutional factors" (consumption-tax
+    changes, free-education policies, the 2021 mobile-phone cuts, travel
+    subsidies, energy-cost relief); the official CPI we trim does not.
+
+    Returns ``trim10_yoy``, ``median_yoy``, ``mode_yoy``, ``diffusion``.
+    """
+    path = fetch_url_bytes(BOJ_CORE_URL, "boj_cpirev.xlsx", force=force)
+    raw = pd.read_excel(path, sheet_name=BOJ_CORE_SHEET, header=None)
+
+    dates = pd.to_datetime(raw.iloc[BOJ_FIRST_ROW:, 0], errors="coerce")
+    keep = dates.notna().to_numpy()
+    idx = pd.DatetimeIndex(dates[keep]).to_period("M").to_timestamp()
+
+    #: newest base first, so ``combine_first`` down the list back-fills history
+    def _base_rank(label: str) -> int:
+        digits = "".join(ch for ch in str(label) if ch.isdigit())
+        return -int(digits) if digits else 1
+
+    out = {}
+    for name, fragment in _BOJ_COLUMNS.items():
+        cols = [c for c in range(raw.shape[1])
+                if fragment.lower() in " ".join(str(raw.iat[BOJ_HEADER_ROW, c])
+                                                .split()).lower()]
+        cols.sort(key=lambda c: _base_rank(raw.iat[BOJ_BASE_ROW, c]))
+        series = None
+        for c in cols:
+            s = pd.Series(pd.to_numeric(raw.iloc[BOJ_FIRST_ROW:, c][keep],
+                                        errors="coerce").to_numpy(), index=idx)
+            series = s if series is None else series.combine_first(s)
+        if series is not None:
+            out[name] = series.groupby(level=0).last()
+    frame = pd.DataFrame(out).sort_index().dropna(how="all")
+    frame.index.name = "date"
+    return frame
 
 # ----------------------------------------------------------------------------
 # helpers

@@ -1,0 +1,50 @@
+# wage_schemes.csv -- discretionary payments and price interventions, 2021-2026
+#
+# The "handouts" block of the Effective Wage Index (Eq. W10) and the source of
+# the CPI wedge in Eq. (W11). One row per scheme.
+#
+# kind
+#   income   a cash payment or voucher. Does NOT enter the CPI/HICP (Eurostat
+#            guidance of 16 Dec 2022: a transfer unrelated to the quantity
+#            consumed is income, not a price). It supports demand, so it enters
+#            the price equation through h_t.
+#   price    a retail-price intervention: a cap, a tariff freeze, an excise
+#            cut, a subsidised fare. It lowers measured inflation while in
+#            force and raises it on expiry, and it does NOT add to nominal
+#            household income.
+#   wage     a payment made through the payslip. It is in measured wages but
+#            not in the permanent wage base -- Germany's
+#            Inflationsausgleichspraemie is the case that forced this category
+#            to exist.
+#
+# cost_bn is in the country's own currency (GBP, EUR, USD).
+# hh_share is the share of households reached, where published.
+country,scheme,kind,start,end,amount,cost_bn,currency,hh_share,source
+UK,Council tax rebate,income,2022-04,2022-04,GBP150 per band A-D household,3.0,GBP,0.80,"ONS classification statement 28 Feb 2022"
+UK,Energy Bills Support Scheme,income,2022-10,2023-03,GBP400 in six monthly instalments,11.9,GBP,1.00,"ONS classification statement 31 Aug 2022; HMT"
+UK,Energy Price Guarantee,price,2022-10,2024-03,typical bill capped at GBP2500 then GBP3000,23.0,GBP,1.00,"ONS classification statement 31 Oct 2022; OBR EFO"
+UK,Energy Bill Relief Scheme,price,2022-10,2023-03,unit-price discount for non-domestic users,6.7,GBP,0.00,"OBR EFO; affects PPI not CPI"
+UK,Alternative Fuel Payment,income,2022-12,2023-02,GBP100 then GBP200 off-grid,0.6,GBP,0.04,"DESNZ"
+UK,Cost of Living Payments,income,2022-07,2024-02,GBP650 / GBP900 / GBP300 / GBP150,20.0,GBP,0.30,"DWP; OBR EFO"
+FR,Bouclier tarifaire gaz,price,2021-10,2023-12,regulated gas tariff frozen at its October 2021 level,10.0,EUR,0.35,"Cour des comptes; Banque de France"
+FR,Bouclier tarifaire electricite,price,2022-02,2023-12,regulated electricity tariff +4% instead of +35.4%,24.7,EUR,0.80,"CRE; Banque de France"
+FR,Remise carburant,price,2022-04,2022-12,15 then 30 then 10 centimes per litre off fuel,8.0,EUR,0.60,"DGFiP; INSEE"
+FR,Indemnite inflation,income,2021-12,2022-02,EUR100 to ~38m people earning under EUR2000 net,3.8,EUR,0.85,"DGFiP; Ministere de l'Economie"
+FR,Cheque energie exceptionnel,income,2022-12,2023-03,EUR100 or EUR200 to 12.6m households,2.9,EUR,0.40,"Ministere de la Transition energetique"
+FR,Indemnite carburant travailleurs,income,2023-01,2023-03,EUR100 to low-income workers who drive to work,1.0,EUR,0.15,"DGFiP"
+FR,Prime de partage de la valeur,wage,2022-07,2026-12,tax-advantaged employer bonus up to EUR3000 (EUR6000 with an interessement scheme),0.0,EUR,0.00,"Loi 2022-1158; INSEE (in SMPT, not in SMB)"
+DE,Tankrabatt,price,2022-06,2022-08,excise cut of 29.55 c/l petrol and 14.04 c/l diesel,3.2,EUR,0.60,"BMF; Destatis"
+DE,9-Euro-Ticket,price,2022-06,2022-08,EUR9 monthly national transport pass; 52m sold,2.5,EUR,0.50,"BMDV; Destatis"
+DE,EEG-Umlage abolition,price,2022-07,2026-12,renewables levy cut to zero,6.6,EUR,1.00,"BMWK; Destatis"
+DE,Energiepreispauschale Arbeitnehmer,income,2022-09,2022-09,EUR300 taxable one-off to all employees,10.4,EUR,0.75,"BMF"
+DE,Energiepreispauschale Rentner,income,2022-12,2022-12,EUR300 one-off to pensioners,6.2,EUR,0.25,"BMF"
+DE,Energiepreispauschale Studierende,income,2023-03,2023-09,EUR200 tax-free to students,0.7,EUR,0.05,"BMBF"
+DE,Dezember-Soforthilfe,price,2022-12,2022-12,one month of gas and district heating paid by the state,8.5,EUR,0.50,"BMWK; tied to a consumption instalment"
+DE,Strompreisbremse,price,2023-01,2023-12,40 c/kWh on 80% of prior consumption,16.3,EUR,1.00,"BMWK; Jannsen & Sonnenberg (IfW)"
+DE,Gas- und Waermepreisbremse,price,2023-01,2023-12,12 c/kWh gas and 9.5 c/kWh heat on 80% of prior consumption,14.3,EUR,0.50,"BMWK; Jannsen & Sonnenberg (IfW)"
+DE,Inflationsausgleichspraemie,wage,2022-10,2024-12,up to EUR3000 free of tax and social contributions; 86.3% of collectively-agreed employees received one at an average of EUR2680,0.0,EUR,0.00,"Par 3 Nr 11c EStG; Destatis PD25_023_622; ECB OP 338"
+DE,Deutschlandticket,price,2023-05,2026-12,EUR49 monthly national transport pass (EUR58 from 2025),3.0,EUR,0.15,"BMDV; Destatis"
+US,Economic Impact Payments round 3,income,2021-03,2021-12,USD1400 per person,411.0,USD,0.85,"BEA NIPA Table 2.6; IRS"
+US,Expanded Child Tax Credit,income,2021-07,2021-12,USD250-300 per child per month,93.0,USD,0.36,"BEA; IRS"
+US,Pandemic unemployment compensation,income,2021-01,2021-09,USD300 per week federal supplement,270.0,USD,0.10,"BEA NIPA Table 2.6; DOL"
+US,State fuel tax holidays,price,2022-03,2022-12,suspension of state motor fuel excise in GA MD CT NY FL,1.5,USD,0.20,"state legislatures; negligible for the national CPI"

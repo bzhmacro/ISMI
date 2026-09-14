@@ -29,7 +29,7 @@ web/
 ├── cpipce_app.js     # model 4 — CPI → PCE (no client-side recompute: see below)
 ├── data/ism.json     # ISM panels + one precomputed baseline combo
 ├── data/decomp.json  # supply/demand panels
-├── data/trim.json    # SA panels, versioned weights, the Cleveland/Dallas
+├── data/trim.json    # SA panels, versioned weights, the published
 │                     # overlays, and the CPI→PCE payload
 └── vercel.json
 ```

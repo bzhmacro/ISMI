@@ -36,24 +36,48 @@ you re-cut the cross-section, while a trimmed mean averages over that choice.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
-from typing import Optional
+from typing import Iterable, Optional
 
 import numpy as np
 import pandas as pd
 
-from .official_trim import (cleveland_components, cleveland_history,
-                            dallas_detail, dallas_history)
+from .official_trim import (boj_core_history, cleveland_components,
+                            cleveland_history, dallas_detail, dallas_history,
+                            statcan_core_history)
 from .trim_engine import MEDIAN_CPI, TRIM16_CPI, TRIM_PCE, TrimConfig, compute_trim
 from .trim_pipeline import TrimPanel
 
 #: Which published series each (scope, measure) pair should be judged against.
+#:
+#: The four US pairs are replication tests: same cross-section, same
+#: construction, so a poor score is a bug.  The Canadian pair is close to one --
+#: the Bank of Canada trims the monthly cross-section exactly as we do, but on
+#: tax-adjusted, StatCan-seasonally-adjusted inputs.  The Japanese pair is not a
+#: replication test at all: the Bank of Japan trims the *twelve-month*
+#: cross-section.  See :func:`ism.official_trim.boj_core_history`.
 OFFICIAL = {
     ("cpi45", "median"): ("cleveland", "median"),
     ("cpi45", "trim16"): ("cleveland", "trim16"),
     ("cpi70", "median"): ("cleveland", "median"),
     ("cpi70", "trim16"): ("cleveland", "trim16"),
     ("pce", "trim_pce"): ("dallas", "trim_pce"),
+    ("ca", "median"): ("statcan", "median"),
+    ("ca", "trim20"): ("statcan", "trim"),
+    ("jp", "median"): ("boj", "median"),
+    ("jp", "trim10"): ("boj", "trim10"),
+}
+
+#: How to find the 1-month-annualised and 12-month columns of each publisher's
+#: frame.  ``None`` means the publisher does not release that horizon -- the
+#: Bank of Japan publishes year-over-year rates only -- and the pair is skipped
+#: rather than scored against a series it is not.
+_PAIR_COLUMNS = {
+    "cleveland": ("{series}_saar", "{series}_yoy"),
+    "dallas": ("m1", "m12"),
+    "statcan": ("{series}_saar", "{series}_yoy"),
+    "boj": (None, "{series}_yoy"),
 }
 
 #: The revised-vintage Cleveland series and the current Dallas methodology both
@@ -98,10 +122,33 @@ def _score(ours: pd.Series, official: pd.Series, start: Optional[str],
     )
 
 
-def official_series(force: bool = False) -> dict[str, pd.DataFrame]:
-    """Fetch both banks' published histories, keyed ``cleveland`` / ``dallas``."""
-    return {"cleveland": cleveland_history(force=force),
-            "dallas": dallas_history(force=force)}
+#: Publisher key -> loader, for :func:`official_series`.
+_HISTORIES = {
+    "cleveland": cleveland_history,
+    "dallas": dallas_history,
+    "statcan": statcan_core_history,
+    "boj": boj_core_history,
+}
+
+
+def official_series(force: bool = False,
+                    banks: Optional[Iterable[str]] = None) -> dict[str, pd.DataFrame]:
+    """Fetch the publishers' histories, keyed by publisher.
+
+    A publisher that cannot be reached is omitted rather than raising: the
+    export skips overlays it does not have, and one unreachable foreign
+    statistical agency should not take the US scopes down with it.
+    """
+    out = {}
+    for name in (banks or _HISTORIES):
+        loader = _HISTORIES.get(name)
+        if loader is None:
+            continue
+        try:
+            out[name] = loader(force=force)
+        except Exception as exc:                       # noqa: BLE001
+            warnings.warn(f"{name} history unavailable: {exc}", stacklevel=2)
+    return out
 
 
 def compare_to_official(
@@ -135,12 +182,12 @@ def compare_to_official(
                          periods_per_year=panel.periods_per_year)
         res = compute_trim(panel.inflation, panel.weights, cfg)
 
-        if bank == "cleveland":
-            pairs = [("1m", res.rate, pub.get(f"{series}_saar")),
-                     ("12m", res.yoy, pub.get(f"{series}_yoy"))]
-        else:
-            pairs = [("1m", res.rate, pub.get("m1")),
-                     ("12m", res.yoy, pub.get("m12"))]
+        saar_fmt, yoy_fmt = _PAIR_COLUMNS.get(bank, (None, None))
+        pairs = []
+        for horizon, ours, fmt in (("1m", res.rate, saar_fmt),
+                                   ("12m", res.yoy, yoy_fmt)):
+            if fmt is not None:
+                pairs.append((horizon, ours, pub.get(fmt.format(series=series))))
 
         for horizon, ours, theirs in pairs:
             if theirs is None:

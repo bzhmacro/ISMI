@@ -78,6 +78,8 @@ Presets
 ``MEDIAN_CPI``  Cleveland Fed median CPI (lower = upper = 0.5).
 ``TRIM16_CPI``  Cleveland Fed 16% trimmed-mean CPI (8% each tail).
 ``TRIM_PCE``    Dallas Fed trimmed mean PCE (24% lower, 31% upper).
+``TRIM20_CA``   Bank of Canada CPI-trim (20% each tail).
+``TRIM10_JP``   Bank of Japan 10% trimmed mean (10% each tail).
 """
 
 from __future__ import annotations
@@ -154,8 +156,18 @@ MEDIAN_CPI = TrimConfig(lower=0.5, upper=0.5)
 TRIM16_CPI = TrimConfig(lower=0.08, upper=0.08)
 #: Dallas Fed trimmed mean PCE (asymmetric: 24% lower tail, 31% upper tail).
 TRIM_PCE = TrimConfig(lower=0.24, upper=0.31)
+#: Bank of Canada CPI-trim: 20% of the weighted monthly price variations cut
+#: from each tail.  Same construction as the Cleveland measures -- monthly
+#: cross-section, chained -- just a much heavier cut.
+TRIM20_CA = TrimConfig(lower=0.20, upper=0.20)
+#: Bank of Japan 10% trimmed mean.  The *fraction* is the Bank's; the
+#: construction is not: the Bank trims the cross-section of twelve-month
+#: changes, while this preset (like every other here) trims the monthly one.
+#: See :func:`ism.official_trim.boj_core_history`.
+TRIM10_JP = TrimConfig(lower=0.10, upper=0.10)
 
-PRESETS = {"median": MEDIAN_CPI, "trim16": TRIM16_CPI, "trim_pce": TRIM_PCE}
+PRESETS = {"median": MEDIAN_CPI, "trim16": TRIM16_CPI, "trim_pce": TRIM_PCE,
+           "trim20": TRIM20_CA, "trim10": TRIM10_JP}
 
 
 # ----------------------------------------------------------------------------

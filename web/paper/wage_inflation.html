@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Spiral Gain — bzhmacro</title>
+<meta name="description" content="A wage–price spiral is a product, not a sum. It requires that prices come back as wages, and that wages go back out as prices. This paper measures both halves separately, for seven advanced economies over sixty-five years, using an institutional database of who is indexed to what; and it asks what happens to the loop when the government, rather than the labour market, is the agent that returns the inflation to households." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" />
+<link rel="stylesheet" href="https://www.bzhmacro.com/brand/bzh-doc.css"
+      onerror="this.onerror=null;this.href='assets/bzh-doc.css';" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<style>
+  /* Project layer only. No token is overridden here: the house rule is that a
+     value that needs changing is changed in tokens.json so every site and
+     document moves together. */
+  .doc-head { border-bottom:2px solid var(--rule); padding-bottom:18px; margin-bottom:26px; }
+  .doc-head .kicker { font-family:var(--font-mono); font-size:9.5pt; letter-spacing:.12em;
+                       text-transform:uppercase; color:var(--gold); }
+  .doc-head h1 { margin:.25em 0 .15em; }
+  .doc-head .meta { font-family:var(--font-mono); font-size:9pt; color:var(--muted); }
+  .abstract { background:var(--panel); border-left:3px solid var(--seal);
+               padding:16px 20px; margin:22px 0 30px; }
+  .abstract-label { font-size:9.5pt; font-family:var(--font-mono); letter-spacing:.12em;
+                     text-transform:uppercase; color:var(--muted); margin:0 0 8px !important; }
+  .abstract p { margin:0; }
+  .backlink { font-family:var(--font-mono); font-size:9pt; }
+  .site-footer { margin-top:46px; padding-top:14px; border-top:1px solid var(--line);
+                  font-family:var(--font-mono); font-size:8.5pt; color:var(--muted); }
+  .katex-display { overflow-x:auto; overflow-y:hidden; padding:2px 0; }
+  table { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main class="wrap doc">
+  <header class="doc-head">
+    <div class="kicker">bzhmacro · research</div>
+    <h1>The Spiral Gain</h1>
+    <p class="lede">A wage–price spiral is a product, not a sum. It requires that prices come back as wages, and that wages go back out as prices. This paper measures both halves separately, for seven advanced economies over sixty-five years, using an institutional database of who is indexed to what; and it asks what happens to the loop when the government, rather than the labour market, is the agent that returns the inflation to households.</p>
+    <p class="meta">bzhmacro · 2026-09-14</p>
+    <p class="backlink"><a href="../index.html#wage">← the interactive model</a></p>
+  </header>
+  <section class="abstract"><p class="abstract-label">Abstract</p><p>We ask whether consumer price inflation feeds back into household incomes, and whether governments close that loop when labour markets do not. We build a hand-collected database of wage indexation for seven advanced economies from 1960 — contractual escalators, statutory indexation of public pay, price-indexed wage floors, and a formal role for inflation in bargaining — and map it into one state variable, the indexation intensity lambda. Interacting it with a one-sided real-wage gap in a pooled Bernanke–Blanchard wage equation, we estimate a price-to-wage catch-up schedule Lambda(lambda) = -0.221 + 0.846 lambda: without indexation a real-wage loss is not recovered within three years, and the fitted line crosses zero only at lambda = 0.26. Its upper end is an extrapolation from Belgium, the one country supplying in-sample observations near full indexation, and is labelled as such throughout. Combining Lambda with country-specific wage-to-price pass-through M gives the Spiral Gain G = Lambda x M, which was 0.62 in Italy in 1975 and is negative in five of seven countries today. Belgium pairs the highest lambda with the lowest M, which is why its indexation has not produced excess inflation. An Effective Wage Index adding statutory floors, indexed benefits and handouts to market pay shows the bottom quartile tracking the average within a point.</p></section>
+  
+<h2 id="introduction">Introduction</h2>
+<p>The question is narrow and old: when the consumer price level jumps, does that jump come back as household income, and if it does, does the income come back as prices? The 1970s answer was yes on both counts. The 2021–24 answer was, on the evidence assembled here and elsewhere, no on the first almost everywhere and only partially on the second. What changed was not the shock, and on any evidence we can find not the way firms set prices. What changed was the set of institutions that convert a realised price level into a contractual wage claim.</p>
+<p>That set of institutions is the object of this paper, and we treat it as observable rather than latent. Bernanke and Blanchard (2025) write a wage equation in which past inflation surprises enter with a constant coefficient, and find it economically and statistically indistinguishable from zero in the United States before the pandemic (sum of lags −0.024, <em>p</em> = 0.77); their multi-country extension finds the same near-zero in most of eleven economies (Bernanke and Blanchard 2024). Theory says the coefficient should not be a constant: Afrouzi, Blanco, Drenik and Hurst (2024) microfound a catch-up parameter that is state-dependent rather than structural. The euro-area evidence is consistent with that though weaker than the theory — the ECB's post-mortem reports that catch-up was a dominant driver of wage growth after the shock while the prevalence of formal indexation remained low, a statement about the size of the <em>contribution</em>, not about a rising <em>coefficient</em> (Bates, Bodnár, Healy and Roca I Llevadot 2025). The standard response would be to filter a latent time-varying parameter. We do something more literal: we build the state variable from institutions — statutes, collective-agreement coverage statistics, minimum-wage legislation, central-bank surveys — and interact it with the catch-up term directly.</p>
+<p>The paper proceeds along three angles, corresponding to three ways an inflation shock can be returned to a household. The first is <strong>formal indexation</strong>: a contractual escalator, a statutory rule for public pay, or a named role for inflation in a bargaining round — the classical channel, the one Gray (1976) and Fischer (1977b) modelled. We assemble coverage shares for four such channels by country and year and collapse them into a single intensity $\lambda_t \in [0,1]$. The second is <strong>statutory wage floors and benefit uprating</strong>. A price-indexed minimum wage, or a pension uprated by a legislated formula, transmits the price level into incomes as surely as a COLA clause, but outside the bargaining system and invisible in every negotiated-wage indicator. France is the sharp case: the 1983 <em>désindexation</em> prohibited general wage indexation but left the SMIC formula in force, so the French wage floor has been continuously price-indexed since 1952 while French wage bargaining has not been since 1983. The United Kingdom is the other, where the triple lock delivered pension upratings of 10.1% and 8.5% while negotiated pay did nothing of the kind. The third is <strong>discretionary handouts and subsidies</strong>: between September 2021 and January 2023 European governments allocated €758.3 billion, roughly 4.4% of GDP on average, to shielding households and firms from energy prices (Sgaravatti, Tagliapietra, Trasi and Zachmann 2023), roughly half acting on prices and half on incomes (Bańkowski et al. 2023). The statistical treatment of the two is entirely different — a per-unit cap enters the HICP and a lump-sum payment does not (Eurostat 2022) — while their effect on purchasing power is similar. Any wage or price equation estimated across 2021–24 that ignores the distinction is mis-specified, and any measure of real income using the published CPI is using a deflator that policy has moved.</p>
+<p><strong>Contribution.</strong> Three. First, an institutional database: 94 sourced coverage observations across seven countries, 1960–2026, four channels, each row carrying its source and, where it is a derived number, its derivation. Second, a decomposition of the spiral into a product of two separately estimated gains — the price-to-wage catch-up $\Lambda(\lambda)$ and the wage-to-price pass-through $M$ — whose product we call the <strong>Spiral Gain</strong>, $G = \Lambda \times M$. Third, an <strong>Effective Wage Index</strong>: a share-weighted index of everything that pays a household — market earnings, the statutory floor, indexed benefits, one-off handouts — deflated both by the published CPI and by a subsidy-neutral CPI reconstructed without the price-based support measures.</p>
+<p><strong>Headline findings.</strong> The estimated catch-up schedule is exactly linear in the indexation intensity, $\Lambda(\lambda) = -0.221 + 0.846\lambda$. In an economy with no indexation, a real-wage loss is not recovered within three years; the point estimate is that wage growth is marginally <em>slower</em> after such a loss. At the top of the range the fitted line implies about five-eighths recovered — but that end is an extrapolation off a single country, and we label it as one throughout. The crossover is at $\lambda = 0.261$, and none of the four modelled countries is above it today; France, at 0.236, is the closest.</p>
+<p>Wage-to-price pass-through $M$ at three years is high in the United States (0.997), the United Kingdom (1.285) and Italy (0.991), and low in Belgium (0.265), Spain (0.612) and France (0.639). The Spiral Gain was 0.620 in Italy in 1975 — the largest value anywhere in the sample, still below the self-reproduction threshold of one — and is negative in five of seven countries today, marginally negative in France, +0.049 in Italy and +0.166 in Belgium.</p>
+<p>Belgium is the case that disciplines the whole exercise and the case it leans on. It has the highest $\lambda$, at unity throughout, and the lowest $M$: nearly complete pass-through of prices into wages, almost none back out into prices. That is what Bernanke and Blanchard (2024) find directly — Belgian cumulative wage inflation of 17.8% against a euro-area 7.5%, with cumulative price inflation of 15.6% against 15.8% — and what the National Bank of Belgium reports from its own models, that "wages barely explain core inflation in Belgium" (Jonckheere and Zimmer 2024). An indexation regime is not automatically an inflation regime; whether it becomes one depends on the other factor in the product. Belgium is also the only country supplying in-sample observations anywhere near the top of the $\lambda$ range, so the same country that makes the result interpretable makes it fragile.</p>
+<p>Finally, the Effective Wage Index shows measured real income for the bottom quartile tracking the all-household average to within a percentage point through 2022–24 in all four modelled countries, despite radically different income composition, because statutory floors and indexed benefits roughly kept pace with prices while market wages did not. The subsidy-neutral variant shows how much of the measured outcome was a statistical consequence of the delivery mechanism: for France, 2.4 index points at end-2022, reflecting a <em>bouclier tarifaire</em> worth about −2.6pp of HICP inflation in 2022 (Lemoine, Petronevich and Zhutova 2024).</p>
+<p>We are explicit about what this exercise cannot deliver. There is no published series of any of these objects to validate against. The interaction block that carries the central claim has the right sign in sum and a strongly significant fourth lag, but also a strongly significant negative second lag. The standard errors are classical and computed on overlapping year-on-year observations, so they understate uncertainty. The elasticities converting coverage into $\lambda$ are calibrated from the literature, not estimated. These are not incidental caveats and they have their own section.</p>
+<h2 id="related-literature">Related literature</h2>
+<h3 id="indexation-theory-and-the-spiral">Indexation theory and the spiral</h3>
+<p>The frame is Gray (1976) and Fischer (1977b). Gray's result is conditional: full indexation replicates the flexible-wage equilibrium and is optimal against nominal disturbances, but against real ones it blocks the real-wage adjustment the economy needs, and the optimal index parameter falls as the variance of real shocks rises. Fischer (1977b) states the corollary that matters here — indexing to the <em>consumer</em> price index means an imported energy shock, which requires a fall in the real consumption wage, is automatically resisted, converting a one-off relative price change into persistent inflation. Fischer (1977a) supplies the contracting foundation. Two qualifications travel with the frame: Jadresic (1996) shows that with realistic <em>lagged</em> indexation the conditional result does not survive, indexation destabilising output "regardless of whether shocks are nominal or real"; and Ball (1988) shows that costly, partial indexation is inefficient in equilibrium, so observed coverage should not be read as optimal.</p>
+<p>Blanchard (1986) formalises the spiral as staggered wage and price decisions generating persistence. Blanchard and Galí (2007) supply the modern mechanism: real wage rigidity breaks the "divine coincidence" and generates a genuine inflation–output trade-off after supply shocks, and consumer-price indexation is precisely a device that produces it. Blanchard and Galí (2010) apply this to why the 2000s oil shocks were milder than the 1970s, concluding that all four candidate explanations mattered — good luck, lower oil intensity, more credible policy, less real wage rigidity. Gagliardone and Gertler (2023) give the sharpest quantitative version: a real wage rigidity parameter of 0.697, an oil–labour substitution elasticity of 0.37, and a fall in the marginal product of labour accounting for more than half of the rise in marginal cost. Modigliani and Padoa-Schioppa (1978) remain the reference for indexation above unity, which under Italy's 1975 <em>punto unico</em> applied to a large range of wages: any cost shock is then amplified through successive rounds, with no stable full-employment equilibrium without a fall in unit labour costs. That is the analytical ancestor of the condition $G &gt; 1$ used below.</p>
+<h3 id="how-rare-spirals-actually-are">How rare spirals actually are</h3>
+<p>The most important modern result for this paper is negative. Alvarez et al. (2024), from IMF Working Paper 2022/221, define an episode as at least three of four consecutive quarters with both accelerating consumer prices and rising nominal wages, find 79 such episodes across advanced economies since the 1960s, and show that only a small minority led to sustained acceleration; typically "inflation and nominal wage growth tended to stabilize, leaving real wage growth broadly unchanged". Where the starting point was falling real wages plus a tight labour market, inflation subsequently declined while nominal wage growth rose. The companion chapter (IMF 2022) identifies 22 prior episodes matching the 2021 configuration, finds no spirals followed, and estimates roughly 10% wage-to-services-price pass-through after five quarters and none to goods. Bernanke and Blanchard (2025) attribute most of the US surge to shocks to prices given wages; their multi-country extension (2024) finds "little evidence, in any economy, that a wage-price or price-wage spiral emerged", with catch-up coefficients close to zero in most countries. Lorenzoni and Werning (2023) reinterpret a spiral as equilibrium leapfrogging over a contested real pie rather than an unstable loop, and Shapiro (2024) documents that wage growth <em>lags</em> price growth and that labour-cost pass-through to core PCE is small and confined to services.</p>
+<p>Against this stands the warning that is this paper's null hypothesis. Boissay, De Fiore, Igan, Pierres Tejada and Rees (2022) argue that relationships estimated on low-inflation samples are an unreliable guide, because sustained inflation may change wage-setting <em>institutions</em>, and the adoption of automatic indexation is the mechanism that would lock inflation into ongoing cycles. It was not borne out over 2022–25, but it is the right warning, and the reason to measure institutions rather than assume them. The ECB's 1970s-versus-today comparison (Battistini, Grapow, Hahn and Soudan 2022) states the contrast compactly: in the 1970s the wage share rose after the oil shock and real consumer wages strongly increased; after 2021–22 the wage share fell slightly and real consumer wages declined, with second-round effects "largely absent on average in the period since the euro was launched".</p>
+<h3 id="indexation-regimes-country-by-country">Indexation regimes, country by country</h3>
+<p>The US COLA literature supplies the elasticity we calibrate on. Card (1986) estimates marginal indexation elasticities of 0.75–0.95 on 189 indexed contracts in Canadian manufacturing, 1968–75, and shows the degree of indexation rises with the co-movement of the industry's output price with the CPI — optimal risk-sharing, not mechanics. (He motivates with US COLA coverage but estimates on Canadian data.) Hendricks and Kahn (1983), on some 5,570 US union contracts over 1969–81, find that bargaining power and inflation uncertainty both raise the probability and strength of a COLA clause, and that wage inflation was higher under <em>uncapped</em> COLAs than under all others, with the gap widening in unanticipated inflation. Ehrenberg, Danziger and San (1983) synthesise the determinants and Ragan and Bratsberg (2000) is the reference on the decline; the coverage series comes from BLS (Lacombe and Borum 1987; BLS 1995).</p>
+<p>The national episodes themselves — the Italian <em>scala mobile</em> and its dismantling (Modigliani and Padoa-Schioppa 1978; Manacorda 2004; Pastore 2010), the French sequence of 1981–83 (Sachs and Wyplosz 1986), the UK threshold agreements of 1973–74 (Bordo, Bush and Thomas 2025) and Belgian automatic indexation (Geis, Wong and Vernon 2023; Bijnens, Karimov and Konings 2023) — are set out with the institutional database below, where they are used, rather than twice.</p>
+<h3 id="did-indexation-come-back">Did indexation come back?</h3>
+<p>It did not, at scale. Koester and Grapow (2021) give the pre-shock euro-area baseline: about 3% of private-sector employees under general automatic indexation, about 18% where inflation has a formal role in negotiations, about 18% with minimum-wage indexation only, more than half with no formal role, and automatic indexation concentrated in Belgium, Cyprus, Malta and Luxembourg. Górnicka and Koester (2023) find indexation clauses "rather infrequent" across the ECB wage tracker's seven countries, Spain excepted, and document the substitute: in Germany about 65% of agreements signed since 2021 included one-off payments averaging 64% of a monthly salary, against 24% before 2021. Bates, Bodnár, Healy and Roca I Llevadot (2025) conclude the euro area compensated through negotiation rather than formal indexation, with post-pandemic shocks accounting for around 3 percentage points of negotiated wage growth; Bates, Bodnár, Botelho and Rousseau (2025) put HICP-deflated compensation per employee about 5% below its 2021Q4 level in 2022Q4 and only about 0.5% below by 2025Q1; Bing, Holton, Koester and Roca I Llevadot (2024) report negotiated wage growth including one-offs rising from 1.4% in 2021 to 4.5% in 2023. De Spiegelaere (2023) and ILO (2024) document the Spanish revival in units that differ between them. Rodriguez Contreras and Molina (2023) find negotiated wages mostly grew slower than inflation across France, Germany and Italy, that minimum wage upratings played an "indirect but significant" role, and that "hardly any specific measures have influenced collective wage negotiations, except for the inflation allowance in Germany" — the sentence this paper's second and third angles are built on.</p>
+<h3 id="statutory-floors-and-indexed-benefits">Statutory floors and indexed benefits</h3>
+<p>This angle has a literature of its own, largely disconnected from the spiral literature, which is part of the point.</p>
+<p>How much of a floor increase reaches workers above the floor determines how much of the wage bill a price-indexed floor actually indexes. Cengiz, Dube, Lindner and Zipperer (2019) bound it: wage gains extend to roughly \$3 above the new minimum and account for about <strong>40% of the overall wage increase</strong>, accruing to incumbents. Dube (2019) confirms the 40% share and notes that in US states with recent large increases more than half the increase comes from spillovers; Gopalan, Hamilton, Kalda and Sovich (2021) put the reach at up to \$2.50 above the minimum in payroll data. Autor, Manning and Smith (2016) enter the important dissent — they cannot reject that measured spillovers are reporting artefacts. Our <code>minwage</code> elasticity of 0.35 sits just below the central estimate and carries most of the modern French and British results, so the dissent matters; we return to it in the limitations.</p>
+<p>How much comes back out as prices is the minimum-wage analogue of $M$. Lemos (2008) surveys the US evidence: a 10% increase raises food prices by no more than 4% and overall prices by no more than 0.4%. Point estimates cluster low — Aaronson (2001) and Aaronson, French and MacDonald (2008) find a 10% rise raising food-away-from-home prices about 0.7%, limited-service restaurants 1.55% against full-service 0.31%; Renkin, Montialoux and Siegenthaler (2022) find +0.36% on grocery prices, with adjustment in the three months after legislative <em>passage</em> rather than implementation; Leung (2021) estimates 0.06–0.08. Incidence estimates run higher: Harasztosi and Lindner (2019) find about 75% of the cost passed to consumers, Ashenfelter and Jurajda (2022) near-full pass-through in McDonald's franchise prices. MaCurdy (2015) draws the consequence that matters for the index built below: under full pass-through a minimum wage behaves like a value-added tax on consumer prices, more regressive than a typical state sales tax.</p>
+<p>Aggregate magnitudes are small. The ECB (2022) puts the minimum-wage contribution to euro-area wage growth below 0.1pp per year over 2008–2018, rising to about 0.1–0.2pp in 2022 and 0.2–0.4pp in 2023. The Low Pay Commission (2026) estimates the 6.7% National Living Wage rise of April 2025 added roughly 0.06–0.24pp to the April 2025 inflation rate, and reports that minimum-wage jobs are about 6% of jobs but only about 2.5% of the weekly wage bill, while spillovers to the 35th percentile bring the NLW's reach to just under one-fifth of the economy-wide wage bill; the Bank of England's February 2026 <em>Monetary Policy Report</em> called the effect on overall wage growth "negligible". Glover and Mustre-del-Río (2021) connect this back to the loop: a doubling of the US federal minimum raises inflation about 2.5pp annualised under a fixed nominal rate but only about 1pp under the Taylor principle. The inflationary sign of a statutory wage floor is a monetary-policy choice, not a property of the floor.</p>
+<p>On the benefit and public-pay side there is one indispensable source. Checherita-Westphal (2022) documents that automatic price indexation of public wages exists in only five euro-area countries — Belgium, Luxembourg, Cyprus, Malta and Italy — covering 19% of euro-area public wage expenditure and 18% of government employees, while public pensions are fully price-indexed in six countries covering 37% of pension expenditure, partially in ten more covering 33%, and wage-indexed in Germany and the Netherlands covering a further 30%; the magnitudes are a public wage bill of €922bn (7.6% of GDP) and public pensions of €1,484bn (12.1% of GDP) in 2021. Its panel estimates put the private wage reaction at 0.3–0.5pp per 1pp of public wage growth, the source of our <code>benchmark</code> elasticity and deliberately the bottom of that range. Directive (EU) 2022/2041 adds a supranational layer from 2022, with indicative reference values of 60% of the gross median and 50% of the gross average wage and updating at least every two years — or four where automatic indexation exists — making the minimum-wage channel, alone among the four, subject to an upward institutional ratchet. Wilcox (1989) established the awkward stylised fact that Social Security increases are announced at least six weeks ahead and yet consumption jumps on receipt: an argument for treating a benefit uprating as a genuine dated income impulse.</p>
+<h3 id="pass-through-in-both-directions">Pass-through in both directions</h3>
+<p>The literature is unusually clear that the two directions behave differently. On wages to prices, Bernanke and Blanchard (2025) report a sum of coefficients on nominal wage growth of 0.665 in the US price equation with an implied long-run pass-through near unity; Haskel, Martin and Brandt (2023) find about 0.30 in the UK; Shapiro (2023) finds a 1pp rise in ECI growth raising the non-housing-services contribution to core PCE by 0.15pp over four years, so that labour costs explain roughly 0.1pp of the roughly 3pp rise in core PCE; Ampudia, Lombardi and Renault (2024) estimate euro-area sectoral pass-through at about 40% after eight quarters and 50% after three years, concentrated overwhelmingly in private services (up to 86%) rather than industry (35–40%); Hahn (2020) shows the price Phillips curve flattens in recessions while the wage Phillips curve is stable.</p>
+<p>On prices to wages, the estimates are regime objects. Under automatic indexation the coefficient approaches the contractual elasticity — 0.75–0.95 in Card, about 0.96 for Italian industry, near-mechanical in Belgium. Without it, the estimated catch-up coefficient is statistically indistinguishable from zero in the US and in most of the eleven economies of Bernanke and Blanchard (2024), though the <em>cumulated</em> contribution can still be sizeable, as Haskel, Martin and Brandt (2023) show for the UK. A regime-dependent first leg and a market-structure-dependent second leg is the reason to write the spiral as a product.</p>
+<h3 id="modelling-practice">Modelling practice</h3>
+<p>We follow Bernanke and Blanchard (2025) in specification and depart in two places documented below. Their four-equation system — wage inflation, price inflation, short- and long-run expectations, estimated recursively with homogeneity restrictions making the long-run Phillips curve vertical — is the only fully written-out, publicly estimable, independently replicated wage–price system in the modern literature; the Banque de France replication (Aldama, Le Bihan and Le Gall 2024) confirms its portability.</p>
+<p>The alternative traditions inform the details. Galí (2011) supplies the New Keynesian wage Phillips curve and indexation to a <em>four-quarter average</em> of price inflation, with estimated indexation coefficients of roughly 0.50–0.69; Galí and Gambetti (2020) show about half the apparent flattening of that curve disappears once the endogenous wage-markup component is purged — a caution against reading any single-equation slope as structural. FRB/US adopts the four-quarter device, crediting Galí, with a shipped indexation parameter of 0.6847 and a long-run attractor equal to trend inflation plus trend productivity growth (Brayton 2013); ECB-BASE writes the same attractor as $\bar\pi_t + \Delta\bar y_t$ (Angelini, Bokan, Christoffel, Ciccarelli and Zimic 2019); NAWM II carries separate indexation parameters on past price inflation and productivity growth (Coenen, Karadi, Schmidt and Warne 2018); COMPASS indexes to lagged <em>wage</em> rather than <em>price</em> inflation (Burgess et al. 2013). Our anchor is a fixed-gain local-level filter, the limiting case of Stock and Watson (2007). On the level-versus-difference question driving our main specification change, DeLuca and Van Zandweghe (2023) estimate a VECM whose error-correction term is on the <em>level</em> of the real wage.</p>
+<h3 id="handouts-subsidies-and-the-mechanism-by-which-a-transfer-becomes-a-price">Handouts, subsidies and the mechanism by which a transfer becomes a price</h3>
+<p>Three literatures meet here. On the <strong>accounting</strong>, Sgaravatti, Tagliapietra, Trasi and Zachmann (2023) put national fiscal responses at €758.3 billion over September 2021 to January 2023 — €646bn in the EU, €103bn in the UK, €8bn in Norway — ranging from 7.4% of GDP in Germany to under 1% in Denmark, with 73% of household-directed funding untargeted; Sgaravatti, Tagliapietra and Trasi (2024) is the peer-reviewed version. Bańkowski et al. (2023) put euro-area discretionary support at about 2% of GDP in 2022 and again in 2023, about half affecting prices directly and only about 12% explicitly targeted; Ferdinandusse and Delgado-Téllez (2024) update it to 1.8% of GDP in 2022 and 1.3% in 2023 and confirm the targeted share stayed very low.</p>
+<p>On the <strong>statistical treatment</strong>, which is what makes "de-facto income" measurable, Eurostat (2022) sets the rule and the UK applied identical logic in three classification statements (ONS 2022a, 2022b, 2022c); we set the rule out with the data below. The magnitudes are large: the OBR's November 2022 outlook put the Energy Price Guarantee at cutting the peak CPI inflation rate from 13.6% to 11.1%; Bourgeois and Lafrogne-Joussier (2022) estimate French inflation between 2021Q2 and 2022Q2 would have been 3.1 points higher without the shield; Lemoine, Petronevich and Zhutova (2024) give the through-time profile that is the single most useful number in this literature, −2.6pp on HICP inflation in 2022, +0.4pp in 2023, +1.0pp in 2024 and +0.8pp in 2025, cumulating to −0.4pp; Destatis (2022) attributes roughly a percentage point of CPI damping to the <em>Tankrabatt</em> and the 9-Euro-Ticket; Jannsen and Sonnenberg (2023) put the 2023 price brakes at about −0.8pp. Price measures move inflation through time; they do not remove it.</p>
+<p>On the <strong>mechanism by which the income half becomes a price</strong>, Jordà, Liu, Nechio and Rivera-Reyes (2022) attribute about 3pp of US inflation by 2021Q4 to income transfers, cautioning that the estimate carries considerable uncertainty. di Giovanni, Kalemli-Özcan, Silva and Yıldırım (2023) find that removing government expenditure from the demand shock cuts predicted US inflation from 8.89pp to 5.91pp, and their companion paper (2022) establishes the state-dependence that matters most here: demand stimulus "would not have produced as high an inflation as the one observed" absent the sectoral supply shocks. Bianchi and Melosi (2022) attribute about half the surge to fiscal origins; Barro and Bianchi (2023) find a coefficient on composite government spending of 0.78 on headline CPI across 21 OECD economies with $R^2 = 0.79$ and note that the United States is not an outlier, cutting against the US-exceptionalism reading of Jordà et al.; Kindberg-Hanlon (2024) puts US Economic Impact Payments of about 4% of GDP at raising inflation by over a percentage point for several years. Against all of this sits Coibion, Gorodnichenko and Weber (2020), who find households spent only about 40% of the CARES Act transfer. Auclert, Rognlie and Straub (2024) make the theoretical point that a transfer's bite depends on the distribution of MPCs, which is why an untargeted handout is not the same object as a targeted one.</p>
+<p>Orchard, Ramey and Wieland (2025) supply the mechanism that reconciles the tension, and it is the one this paper's fiscal block needs. Re-examining the 2008 US rebates, they find a corrected micro MPC of about 0.3 — higher than the survey estimates — but concentrated almost entirely in durables. Because the short-run supply curve for durables is steep, that concentrated demand shows up in the relative price rather than the quantity: the relative price of motor vehicles spiked about 1.0% in June 2008, and their preferred general-equilibrium consumption multiplier is about 0.06. A transfer paid to high-MPC households when the binding constraint is supply does not do what the micro MPC says it does; it becomes a price. That is why the price equation here carries a transfer term at all, and why the term is restricted to income-based measures; we take the implication up in the fiscal-loop section. Parker, Souleles, Johnson and McClelland (2013) give the benchmark micro estimate, an MPC of 12–30% on nondurables within three months; Dupor, Karabarbounis, Kudlyak and Mehkari (2023) supply the regional-to-aggregate bridge; de Soyres, Santacreu and Young (2022) put the aggregate outcome at about 2.5pp of US inflation from pandemic stimulus, with spillovers adding about 0.5pp to UK inflation.</p>
+<p>On the <strong>political economy</strong>, Dornbusch and Edwards (1991) give the four-phase populist cycle — expansion, bottlenecks, inflation and shortages, collapse with real wages below the starting point — and the mechanism that populist programmes substitute administered prices and transfers for relative-price adjustment. Funke, Schularick and Trebesch (2023) supply modern cross-country evidence from 51 populist leaders over 1900–2020, with GDP per capita 10% lower after fifteen years than a synthetic counterfactual; the published abstract gives no inflation coefficient and we do not attribute one. Black, Liu, Parry and Vernon (2023) put explicit and implicit global fossil-fuel subsidies at \$7 trillion, 7.1% of global GDP, in 2022. On instrument choice, Komatsu (2025) finds caps in some euro-area countries added roughly 10pp of energy inflation and 0.5pp of headline inflation in the <em>uncapped</em> members in 2022, with the cooperative optimum no cap anywhere; Amores, Christl, De Agostini, De Poli and Maier (2023) give the two-sided microsimulation result that lump-sum transfers are more efficient per euro against the inequality effects of inflation while caps are more efficient against energy poverty specifically; and Hidalgo-Pérez, Collado Van-Baumberghen, Galindo and Mateo Escobar (2023) add the distributional counterpart for the Spanish gas cap, −0.3pp on headline inflation but −1.59pp for low-income households against −0.76pp for high-income ones.</p>
+<h2 id="an-institutional-database-of-indexation">An institutional database of indexation</h2>
+<h3 id="the-four-channels">The four channels</h3>
+<p>The database records, for each country and documented year, the share of employees whose pay moves through each of four channels: <strong>automatic</strong>, a contractual escalator moving pay with a price index by formula; <strong>public</strong>, statutory indexation of public-sector pay; <strong>minwage</strong>, pay set by or benchmarked to a price-indexed statutory floor; and <strong>benchmark</strong>, a formal, named role for inflation in collective bargaining.</p>
+<p>The channels are deliberately not mutually exclusive — a French employee can be covered by a SMIC-benchmarked grid <em>and</em> by an agreement in which inflation has a named role; a Belgian public employee is covered by two channels. Coverage is recorded where documented, linearly interpolated between documented dates, held flat outside the documented range, and treated as zero before a channel's first documented date. Every row carries its source, and where a number is an arithmetic combination of two sourced numbers — typically union density times the COLA share among covered contracts — the derivation is recorded in the row. Interpolation is a modelling choice, not a measurement: institutions change on a date, but the <em>share of employees</em> affected drifts as contracts expire on a rolling basis. The one place this would actively mislead — the UK's 1974 threshold agreements, in force for a single year — is encoded as a step with adjacent zero rows so that it is not smoothed away.</p>
+<h3 id="constructing-lambda">Constructing $\lambda$</h3>
+<p>The four coverage shares are collapsed into a single intensity by Eq. (W3): each channel's coverage is multiplied by a pass-through elasticity and the products summed and clipped to the unit interval. The elasticities are calibrated, not estimated:</p>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th style="text-align: right;">Elasticity $e_j$</th>
+<th>Calibration source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>automatic</td>
+<td style="text-align: right;">0.90</td>
+<td>Card (1986): marginal escalator elasticity 0.75–0.95</td>
+</tr>
+<tr>
+<td>public</td>
+<td style="text-align: right;">1.00</td>
+<td>statutory indexation of public pay is mechanical</td>
+</tr>
+<tr>
+<td>minwage</td>
+<td style="text-align: right;">0.35</td>
+<td>Cengiz, Dube, Lindner and Zipperer (2019): spillovers about 40% of the total wage gain, extending to roughly \$3 above the floor</td>
+</tr>
+<tr>
+<td>benchmark</td>
+<td style="text-align: right;">0.30</td>
+<td>Checherita-Westphal (2022), ECB Occasional Paper 299: private wage reaction of 0.3–0.5pp per 1pp of public wage growth</td>
+</tr>
+</tbody>
+</table>
+<p>Each is set at or below the central estimate in its source — 0.90 against Card's 0.75–0.95, 0.35 against the 40% spillover share, 0.30 at the bottom of Checherita-Westphal's 0.3–0.5 range. The bias is deliberately conservative, because an overstated elasticity would manufacture the paper's result. The <code>public</code> value of 1.00 is an accounting identity in the five euro-area countries where the statute is mechanical.</p>
+<p>The clip at unity keeps $\lambda$ interpretable as "the fraction of the wage bill that moves one-for-one with past prices", and it binds in two countries. Belgium is at the clip throughout: automatic coverage of 0.960 at elasticity 0.90 plus public coverage of 0.180 at 1.00 sums to 1.044 before clipping. Italy is at the clip during the <em>scala mobile</em> years: 0.960 automatic plus 0.140 public gives a raw 1.004 — the arithmetic counterpart of Modigliani and Padoa-Schioppa's observation that Italian indexation exceeded 100% for a large part of the wage distribution, and the point at which our construction, capped at one, stops being able to represent what was happening. Nowhere else does the sum approach unity.</p>
+<p>One further point bears on what $\lambda$ measures. Indexing a wage floor does not merely change its path; it changes behaviour around it. Brummund and Strain (2020) find the immediate disemployment effect of a minimum-wage increase in an indexing state about three times that of an equivalent nominal increase elsewhere, presumably because an automatic increase is understood to be permanent while a discretionary one may be eroded. A given coverage share therefore carries more behavioural content where the rule is automatic than where it is discretionary — an argument for entering $\lambda$ as an interaction in Eq. (W4) rather than treating coverage as a scaling factor.</p>
+<h3 id="the-lambda-table">The $\lambda$ table</h3>
+<table>
+<thead>
+<tr>
+<th>country</th>
+<th style="text-align: right;">1965</th>
+<th style="text-align: right;">1975</th>
+<th style="text-align: right;">1985</th>
+<th style="text-align: right;">1995</th>
+<th style="text-align: right;">2005</th>
+<th style="text-align: right;">2015</th>
+<th style="text-align: right;">2024</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US</td>
+<td style="text-align: right;">0.050</td>
+<td style="text-align: right;">0.112</td>
+<td style="text-align: right;">0.079</td>
+<td style="text-align: right;">0.032</td>
+<td style="text-align: right;">0.014</td>
+<td style="text-align: right;">0.017</td>
+<td style="text-align: right;">0.019</td>
+</tr>
+<tr>
+<td>UK</td>
+<td style="text-align: right;">0.106</td>
+<td style="text-align: right;">0.120</td>
+<td style="text-align: right;">0.088</td>
+<td style="text-align: right;">0.063</td>
+<td style="text-align: right;">0.076</td>
+<td style="text-align: right;">0.078</td>
+<td style="text-align: right;">0.102</td>
+</tr>
+<tr>
+<td>FR</td>
+<td style="text-align: right;">0.359</td>
+<td style="text-align: right;">0.370</td>
+<td style="text-align: right;">0.279</td>
+<td style="text-align: right;">0.244</td>
+<td style="text-align: right;">0.242</td>
+<td style="text-align: right;">0.238</td>
+<td style="text-align: right;">0.236</td>
+</tr>
+<tr>
+<td>DE</td>
+<td style="text-align: right;">0.112</td>
+<td style="text-align: right;">0.107</td>
+<td style="text-align: right;">0.092</td>
+<td style="text-align: right;">0.066</td>
+<td style="text-align: right;">0.052</td>
+<td style="text-align: right;">0.064</td>
+<td style="text-align: right;">0.070</td>
+</tr>
+<tr>
+<td>BE</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+<tr>
+<td>IT</td>
+<td style="text-align: right;">0.668</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.534</td>
+<td style="text-align: right;">0.320</td>
+<td style="text-align: right;">0.320</td>
+<td style="text-align: right;">0.320</td>
+<td style="text-align: right;">0.320</td>
+</tr>
+<tr>
+<td>ES</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.150</td>
+<td style="text-align: right;">0.042</td>
+<td style="text-align: right;">0.150</td>
+</tr>
+</tbody>
+</table>
+<p>Three features of this table carry the paper. The cross-sectional range at any date is an order of magnitude wider than the time-series range within any country. The United States moves from 0.112 to 0.019 across sixty years, a factor of six, but never leaves the bottom of the distribution. Belgium never moves. And Italy traverses almost the whole range within twenty years — though, as the data and results sections set out, that traverse happens almost entirely before the Italian estimation sample opens, so it is a fact the database records rather than variation the regression uses.</p>
+<p>Two conventions in the table should be stated rather than inferred. Coverage is zero, not missing, before a channel's first documented date: Spain's wage-guarantee clauses are documented only from 2000, so Spanish $\lambda$ reads zero for the four earlier columns, which means "no documented coverage" and not "verified absence". And the table samples 1 January of each year, which is why it misses events lasting less than a year.</p>
+<p>The sharpest single event is one of those. The UK's threshold agreements were in force through 1974 only, so the 1975 column shows 0.120 rather than the peak. On the coverage shares and elasticities above, UK $\lambda$ reaches <strong>0.416</strong> in 1974Q1 — the automatic channel contributing $0.330 \times 0.90 = 0.297$ and the benchmark channel about 0.119 — decaying through the year as contracts rolled off. That figure is the UK's in-sample maximum and the second-highest observation anywhere in the estimation sample outside Belgium. The model's validation suite checks precisely this: UK $\lambda$ must peak in 1974 and nowhere else.</p>
+<h3 id="country-narratives">Country narratives</h3>
+<p><strong>United States: the COLA decline.</strong> The automatic channel is union density times the COLA share among workers under major agreements. Coverage rises from 0.056 in 1960 (density 0.28 times a COLA share of about 0.20) to a peak of 0.138 over 1976–80 (0.230 times 0.60) — at an elasticity of 0.90, a $\lambda$ contribution of 0.124, the US maximum anywhere — then falls with both factors together: 0.088 in 1985, 0.070 in 1986, 0.047 in 1991, 0.037 in 1993, 0.035 in 1995 when the BLS programme was discontinued, after which the database carries an assumed decay to 0.005 by 2026. Ragan and Bratsberg (2000) is the authority for the direction; nobody is the authority for the level. The minimum-wage channel is identically zero until Washington's Initiative 688 of 1998, the first state indexing law, then rises with the indexing states — 0.004 in 2000, 0.010 in 2005, 0.026 in 2010 after the 2006 ballot wave, 0.038 in 2022 with thirteen states plus DC, 0.041 by 2026. The public channel is zero: FEPCA 1990 ties federal pay to the ECI, but the formula is routinely overridden and is a wage link, not a price link.</p>
+<p><strong>United Kingdom: the 1974 thresholds and the floor that replaced them.</strong> The automatic channel is zero except in 1974, at 0.330 — Stage 3 of the Heath pay policy, announced 3 October 1973, triggered once the RPI rose 7% above base, covering roughly a third of the workforce and firing eleven times in twelve months (Bordo, Bush and Thomas 2025). The benchmark channel declines with bargaining coverage, from 0.330 in 1960 through a peak of 0.400 in 1975 to 0.130 by 2026 (coverage about 0.26 times a weight of 0.5). What arrests the decline in $\lambda$ from 2016 is the statutory floor: a first NMW rate in April 1999 covering about 6% of jobs, the National Living Wage from April 2016 raising coverage to 0.10, and spillover estimates putting the effective reach at about 0.17 of the wage bill by 2021 and 0.18 by 2026 — minimum-wage jobs are about 6% of jobs but only 2.5% of the weekly wage bill, and spillovers to the 35th percentile bring the reach to just under one-fifth of it (Low Pay Commission 2026). UK $\lambda$ is therefore <em>higher</em> in 2024 (0.102) than in 1995 (0.063), for statutory rather than contractual reasons.</p>
+<p><strong>France: the 1983 <em>désindexation</em> that left the SMIC alone.</strong> Ordonnance 58-1374 of 1958 prohibited indexation on the general price level — confirmed in Code monétaire et financier art. L112-2 — with an explicit exception for the SMIG, so the automatic channel is zero throughout. The benchmark channel, standing for the <em>échelle mobile</em> norm, sits at 0.700 until the June 1982 <em>blocage</em>, falls to 0.400 in 1984 after the <em>tournant de la rigueur</em>, to 0.250 by 1990 and 0.180 from 2021. The minimum-wage channel does the opposite: the SMIG was indexed by the law of 18 July 1952, and the law of 2 January 1970 created the SMIC, whose formula — now Code du travail arts. L3231-4 and L3231-5 — sets the annual revalorisation equal to the consumer price index for first-quintile households plus half the gain in the purchasing power of the basic hourly wage, with an automatic mid-year trigger at a cumulative 2% and a discretionary <em>coup de pouce</em> on top. That channel rises from 0.400 in 1960 to 0.450 in 1970, 0.500 by 2000 — France is the country the ECB names on minimum-wage indexation — and 0.520 from 2021, with 17.3% of employees at the SMIC on 1 January 2024, the SMIC at 62.5% of the median wage, and nine revalorisations between end-2020 and end-2024, four automatic. The public channel is zero, on Checherita-Westphal's (2022) five-country list: the <em>point d'indice</em> is discretionary and was frozen over 2010–2016 and 2017–2021. The validation suite tests exactly this — the French minimum-wage channel must not fall after 1983 — and because it did not, French $\lambda$ falls from 0.370 in 1975 only to 0.236 in 2024: a decline of 36%, against 83% for the United States and 68% for Italy, but slightly more than Germany's 35% and 2.4 times the United Kingdom's 15%. France is mid-pack in the <em>rate</em> of decline and, among the four modelled countries, first in the <em>level</em> — Belgium at 1.000 and Italy at 0.320 are both higher — because the floor held while the bargain did not.</p>
+<p><strong>Germany: absence, and its substitute.</strong> The automatic and public channels are zero throughout, the latter again on Checherita-Westphal (2022). The benchmark channel tracks <em>Tarifbindung</em> with a weight that itself changes: 0.380 in the 1960s–70s (coverage about 0.85 times a weight of 0.45), 0.350 in 1980, then 0.220 in 1995, 0.150 in 2010 and 0.130 from 2022 (coverage about 0.43 times 0.30). The database records the weight change explicitly — 0.45 before 1990, 0.30 after — on the ground that the share of covered employees for whom inflation had a <em>named</em> role fell with the shift from Bundesbank-era norm-setting to the post-1995 framework. It is a judgement, and it flatters the pre-1990 numbers. The minimum-wage channel does not exist before 2015: the <em>Mindestlohngesetz</em> took effect on 1 January 2015 at €8.50, and the statutory rise to €12.00 on 1 October 2022, by legislation bypassing the <em>Mindestlohnkommission</em>, sharply raised the bite. Under MiLoG s.9 the Commission decides every two years under a backward-looking orientation to the collectively agreed wage index, so the German rule is a lagged peg to negotiated wages, not to prices, and its contribution to $\lambda$ is a coverage effect rather than an indexation effect in the strict sense.</p>
+<p>Germany is where indexation was substituted for rather than adopted. The <em>Inflationsausgleichsprämie</em>, up to €3,000 free of income tax and social contributions, payable 26 October 2022 to 31 December 2024, reached 86.3% of collectively-agreed employees at an average of €2,680 — full coverage at the maximum in public administration, against 11.6% in hospitality and an average of €1,103 in construction (Destatis 2025). It is tax-privileged, concentrated in the public sector and unionised manufacturing, invisible in the CPI, present in measured negotiated wages, and delivers a one-off top-up without entering the permanent wage base: precisely the design objective of a country that does not want an escalator. It is also a measurement problem we cannot fully solve.</p>
+<p><strong>Belgium: the system that never stopped.</strong> Coverage of 0.960 on the automatic channel and 0.180 on the public channel — the latter the share of <em>all</em> employees who are public employees, not the share of public employees who are indexed — puts Belgian $\lambda$ at the clip throughout. Indexation runs off the health index and, in most of the private sector and all of the public sector, its smoothed four-month average; roughly half of private-sector employees are on a 2% pivot trigger and about 40% index annually in January, and the 1996 Wage Law caps real wage growth by reference to France, Germany and the Netherlands (Geis, Wong and Vernon 2023). The discretionary suspensions (<em>saut d'index</em>) of the 1980s and 2015–16 are one-off level events rather than regime changes, and we do not encode them as coverage reductions.</p>
+<p><strong>Italy: the <em>scala mobile</em> and its dismantling.</strong> The automatic channel is 0.400 before 1975, 0.960 from 1975 to 1983 under the <em>punto unico</em>, 0.500 from 1984 after the <em>decreto di San Valentino</em>, and zero from 1992. The benchmark channel takes over at 0.600 from 1993 with the Protocol's forward-looking concertation, benchmarked to ISTAT's three-year forecast of consumer prices excluding imported energy rather than to realised inflation — an important distinction, since a forward-looking index is not a catch-up device at all. Italy also indexes public pay, one of Checherita-Westphal's five countries, with public employment about 14% of the total, contributing 0.140 throughout. Italian $\lambda$ therefore traverses from 0.668 in 1965 to 1.000 in 1975 to 0.320 from 1995: the largest traverse in the database, and not identifying variation, because the Italian estimation sample begins 1985Q4.</p>
+<p><strong>Spain: collapse and partial revival.</strong> The benchmark channel stands at 0.700 in 2000 on the estimate that wage-guarantee clauses covered over 70% of workers in the early 2000s, falls to a trough of 0.140 over 2014–21, and rebounds to 0.500 from 2023 on the ILO's report that about half of employees under agreements in force in 2023 had indexation mechanisms. Two weaknesses: Spanish coverage before 2000 is undocumented and therefore reads 0.000 under the database's no-back-filling rule, which is certainly wrong as a description of Franco-era and transition-era Spain and should be read as missing data recorded as zero; and the 2022–23 revival figures come from two sources reporting in different units, which we have not reconciled against the primary MITES statistics.</p>
+<h2 id="model">Model</h2>
+<p>The system is quarterly. Growth rates are year-on-year log changes in percent, $100 \times [\log x_t - \log x_{t-4}]$, throughout; the reason is a data constraint discussed in the next section rather than a modelling preference. Estimation is least squares with at most one linear restriction imposed analytically, so that the whole estimator can be reproduced exactly in a browser implementation; standard errors are classical.</p>
+<h3 id="trend-inflation">Trend inflation</h3>
+<p>The expectations anchor is a fixed-gain local-level filter:</p>
+<p>$$\pi^{<em>}_{t} \;=\; \pi^{</em>}<em t>{t-1} \;+\; k(q)\,\bigl(\pi</em>\bigr),
+\qquad k(q) = \frac{\sqrt{q^{2}+4q}\;-\;q}{2} \tag{W1}$$} - \pi^{*}_{t-1</p>
+<p>where $q$ is the signal-to-noise ratio of a random-walk-plus-noise model for inflation. $q \to 0$ gives $k = 0$, a constant trend and perfectly anchored expectations; $q \to \infty$ gives $k \to 1$ and no anchor at all. This is the fixed-gain limit of the Stock–Watson (2007) unobserved-components model with stochastic volatility, chosen over the full version because a single gain is one readable number. The baseline is $q = 0.05$, which gives $k = 0.20$ exactly. The filter is initialised at the mean of the first four observations, so no future information enters.</p>
+<p>$\pi^{*}$ plays the role of Bernanke and Blanchard's short-run expectations term $gexp$, and the anchoring parameter $q$ plays the role of their $\gamma$, with the difference that ours is a calibrated dial rather than an estimated coefficient.</p>
+<h3 id="the-catch-up-term-and-why-it-is-not-bernanke-and-blanchards">The catch-up term, and why it is not Bernanke and Blanchard's</h3>
+<p>Bernanke and Blanchard's catch-up regressor is realised four-quarter inflation minus the one-year-ahead survey expectation formed four quarters earlier:</p>
+<p>$$\text{catchup}^{BB}<em t>{t} \;=\; \pi^{\text{yoy}}</em>$$} \;-\; \pi^{*}_{t-4} \tag{W2$'$</p>
+<p>We retain this object for reference but do not use it, and the reason is a genuine methodological point rather than a convenience. Their term relies on a <em>survey</em> expectation, which is an independent data series. Outside the United States the survey is unavailable over most of the sample, and the natural substitute is to difference realised inflation against the filtered trend. That substitution is fatal. With a fixed-gain filter, the trend's own recursion can be inverted:</p>
+<p>$$\pi_{t} \;=\; \pi^{<em>}_{t-1} \;+\; \frac{\pi^{</em>}<em t-1>{t} - \pi^{*}</em>$$}}{k</p>
+<p>so realised inflation is an exact linear function of current and lagged values of the trend. The catch-up block and the trend block then span the same space, and the regression is singular in the limit and explosive near it. In our panel the symptom was unmistakable: catch-up coefficients of $+54$ at a gain of $k = 0.20$ — that is, $1/k$ times noise.</p>
+<p>We therefore replace it with a one-sided real-wage gap. Let $rw_t = 100\log(W_t/P_t)$ be the log real wage. For each $t$, fit $rw = a + b\,\tau$ by least squares on the 40 observations <em>ending at $t-1$</em>, project one period forward, and define</p>
+<p>$$\text{catchup}<em t>{t} \;=\; -\bigl(rw</em>} - \hat{a<em t>{t} - \hat{b}</em>$$}\,t\bigr) \tag{W2</p>
+<p>The term is positive when the real wage has fallen below the trend it was on — the state in which workers have something to catch up. Nothing dated after $t$ enters, so the series can be computed in real time. A trailing moving average would do the same job badly: real wages trend, a centred window is unavailable at the sample end, and an MA gap therefore inherits a bias of half the window's drift; projecting the fitted trend removes it.</p>
+<p>The cost of this substitution is real and we state it plainly: the coefficient is no longer comparable with Bernanke and Blanchard's Table 1, and the validation exercise against their published numbers is correspondingly weakened. The gain is a coefficient that means something, and a specification that the theoretical literature actually describes. Bernanke and Blanchard's own structural Eq. (2) has wages chase an <em>aspiration real wage</em>, a level object; DeLuca and Van Zandweghe (2023) make the same argument in favour of an error-correction term on the level of the real wage. Our term is the one-sided, real-time version of that error correction.</p>
+<h3 id="indexation-intensity">Indexation intensity</h3>
+<p>$$\lambda_{t} \;=\; \min\Bigl{\,1,\; \sum_{j \in {\text{auto, pub, mw, bench}}} c_{j,t}\, e_{j}\,\Bigr} \tag{W3}$$</p>
+<p>with $c_{j,t}$ the coverage share of channel $j$ from the institutional database and $e_j$ the calibrated elasticities of the table above. Missing channels count as zero coverage, so a country with no minimum wage in a given era contributes nothing rather than breaking the construction.</p>
+<h3 id="the-wage-equation">The wage equation</h3>
+<p>The estimated wage equation, for a single country, is</p>
+<p>$$
+gw_{t} \;=\; a_{0} \;+\; \sum_{k=1}^{p} a_{k}\, gw_{t-k}
+\;+\; \sum_{k=1}^{p} b_{k}\, \pi^{*}<em k="1">{t-k}
+\;+\; \sum</em>
+\;+\; \sum_{k=1}^{p} d_{k}\, \text{catchup}}^{p} c_{k}\, x_{t-k<em k="1">{t-k}
+\;+\; \sum</em>}^{p} \tilde{d<em t-k>{k}\, \bigl[\lambda</em>}\,\text{catchup<em 1>{t-k}\bigr]
+\;+\; e</em>
+\tag{W4}
+$$}\, gpty_{t-1} \;+\; f_{1}\, dmw_{t} \;+\; u_{t</p>
+<p>subject to $\sum_k a_{k} + \sum_k b_{k} = 1$, with $p = 4$, $x_t$ labour-market tightness, $gpty$ trend productivity growth and $dmw$ minimum-wage growth. The restriction makes the long-run Phillips curve vertical, as in Bernanke and Blanchard.</p>
+<p>The catch-up block enters <strong>twice</strong>: at its own level, and multiplied by $\lambda_t$. The level coefficients $d_k$ are then the pass-through of a real-wage loss in a country with no indexation at all; the interaction coefficients $\tilde{d}_k$ are the additional pass-through per unit of intensity. The test that matters is $\sum_k \tilde{d}_k &gt; 0$. Setting $\tilde{d}_k \equiv 0$ recovers a constant-coefficient specification of exactly the Bernanke–Blanchard form, which is what the validation suite compares against their Table 1.</p>
+<p>The headline estimate is the pooled version, with country fixed effects replacing the constant and common slopes:</p>
+<p>$$
+gw_{i,t} \;=\; \alpha_{i} \;+\; \sum_{k=1}^{p} a_{k}\, gw_{i,t-k}
+\;+\; \sum_{k=1}^{p} b_{k}\, \pi^{*}<em k="1">{i,t-k}
+\;+\; \sum</em>
+\;+\; \sum_{k=1}^{p} d_{k}\, \text{catchup}}^{p} c_{k}\, x_{i,t-k<em k="1">{i,t-k}
+\;+\; \sum</em>}^{p} \tilde{d<em i_t-k="i,t-k">{k}\, \bigl[\lambda</em>}\,\text{catchup<em i_t="i,t">{i,t-k}\bigr]
+\;+\; u</em>
+\tag{W4$'$}
+$$</p>
+<p>The pooled specification drops the productivity and minimum-wage-growth terms, unavailable on a consistent basis across all seven countries; homogeneity is imposed on the dynamic coefficients only.</p>
+<p><strong>Identification.</strong> Within any one country $\lambda_t$ moves slowly and over a narrow range: across sixty-five years of US data from 0.014 to 0.124, a factor of nine but never more than eleven points in absolute terms, and moving monotonically with union density, which is correlated with everything. France's in-sample range is narrower still, 0.236 to 0.274, because the French panel begins after the 1983 <em>désindexation</em>. The interaction is identified across the panel or not at all.</p>
+<p>Where in the panel matters, because it disciplines what can be claimed. Across the estimation sample $\lambda$ runs from 0.000 (Spain before 2000, where no coverage is documented) to 1.000 (Belgium). The dense region is $[0, 0.3]$: the United States, Germany, Spain and France all live there. Above 0.3 there are exactly three sources — the United Kingdom's 1974 threshold episode at 0.416, inside the sample, which begins 1973Q4; Italy at 0.492 in the mid-1980s; and Belgium at exactly 1.000 for all 101 of its quarters. Inside the estimation sample there is nothing at all between 0.5 and 1.0. The sharpest cross-country contrast remains Belgium against Germany — two economies sharing a currency, a central bank, a broadly common trade structure and, in 2022, the same energy shock, differing in exactly the institution under study, $\lambda = 1.000$ against $\lambda = 0.069$ — but because Belgian $\lambda$ never moves, that contrast enters only through the interaction, the level being absorbed by the Belgian fixed effect.</p>
+<p>Italy does <strong>not</strong> supply the within-country traverse one would want. Its <em>scala mobile</em> years, when $\lambda$ was at the clip, lie outside the estimation sample: the Italian panel begins 1985Q4, after the 1984 <em>decreto di San Valentino</em>, and its in-sample $\lambda$ runs 0.140 to 0.492. The dismantling of the <em>scala mobile</em> is a fact the database records and the figures display; it is not variation the regression sees. Common slopes are a binding restriction: country-specific catch-up slopes are arithmetically identical to estimating each country separately, which cannot identify the interaction at all.</p>
+<h3 id="the-price-equation">The price equation</h3>
+<p>$$
+gp_{t} \;=\; \beta_{0} \;+\; \sum_{k=1}^{p} B_{k}\, gp_{t-k}
+\;+\; \sum_{k=0}^{p} M_{k}\, gw_{t-k}
+\;+\; \sum_{k=0}^{p} E_{k}\, grpe_{t-k}
+\;+\; \sum_{k=0}^{p} F_{k}\, grpf_{t-k}
+\;+\; \sum_{k=0}^{p} P_{k}\, h_{t-k}
+\;+\; B_{m}\, gpty_{t-1} \;+\; v_{t}
+\tag{W5}
+$$</p>
+<p>subject to $\sum_k B_k + \sum_k M_k = 1$. Relative energy and food prices $grpe$, $grpf$ are measured against <strong>wages</strong>, not against the headline index — Bernanke and Blanchard's own convention, which makes them real-product-wage terms, and the commonest error in replications of their work.</p>
+<p>There are two deliberate departures. The first is the term $h_t$: the <strong>income-based</strong> fiscal support impulse, cash transfers and one-off payments to households expressed as a change in the share of household disposable income. Bernanke and Blanchard have no fiscal block; this is the term through which a government's response to an energy shock feeds back into prices. The second is what is deliberately excluded from it: price-based support — tariff shields, fuel-duty cuts, subsidised transport fares — does not add demand, subtracts mechanically from the measured index, and is handled instead as a CPI wedge in the effective-wage block.</p>
+<h3 id="the-spiral-gain_1">The Spiral Gain</h3>
+<p>Define the response of a scalar autoregression to a permanent unit step in a driver,</p>
+<p>$$y_{t} \;=\; \sum_{k=1}^{p} \rho_{k}\, y_{t-k} \;+\; \sum_{k=0}^{q} \theta_{k}\, z_{t-k},
+\qquad z_{t} = 1 \;\text{for}\; t \ge 0$$</p>
+<p>and write $\mathcal{C}(\rho, \theta; H) = y_{H-1}$. The <strong>price-to-wage gain</strong> is</p>
+<p>$$\Lambda(\lambda) \;=\; \mathcal{C}\Bigl({a_k},\; \bigl{0,\; d_1 + \lambda \tilde{d}_1,\; \dots,\; d_p + \lambda \tilde{d}_p\bigr};\; 12\Bigr) \tag{W6}$$</p>
+<p>the three-year cumulative response of wage growth to a permanent 1pp rise in realised inflation at intensity $\lambda$; the <strong>wage-to-price gain</strong> is</p>
+<p>$$M \;=\; \mathcal{C}\Bigl({B_k},\; {M_0, \dots, M_p};\; 12\Bigr) \tag{W7}$$</p>
+<p>and the <strong>Spiral Gain</strong> is the product:</p>
+<p>$$G_{t} \;=\; \Lambda(\lambda_{t}) \times M \tag{W8}$$</p>
+<p>$G &gt; 1$ is the spiral condition: one turn of the loop more than reproduces itself within three years, so the shock is self-sustaining without further impulse.</p>
+<p>Three choices need defending. First, the <strong>horizon</strong>. The natural object is the long-run multiplier $\sum \theta / (1 - \sum \rho)$, but homogeneity makes it uninformative by construction: imposing $\sum B + \sum M = 1$ sets the price equation's long-run wage pass-through to exactly one whatever the data say, because that is the assumption of a vertical Phillips curve. The restriction is right, but it means the long run cannot be where regimes differ. Three years can: it is where the euro-area sectoral pass-through literature reports its estimates (Ampudia, Lombardi and Renault put wage-to-price at about 40% after two years and 50% after three), long enough for an indexation clause to fire several times, short enough that monetary policy has not undone the shock.</p>
+<p>Second, $\Lambda$ reads only the catch-up channel and holds $\pi^{<em>}$ fixed. A permanent 1pp rise in inflation also moves the trend, but that is the </em>expectations* route and is common to every regime; what distinguishes 1975 from 2023 is the catch-up route, and the two are added back together in the simulator.</p>
+<p>Third, $M$ is estimated once per country and held constant, so time variation in $G$ is entirely institutional — which is the point: the claim being tested is that what changed between the 1970s and 2020s is who is indexed, not how firms price. A rolling-window variant in which both gains move is the honest robustness check.</p>
+<p>The fiscal route enters additively on the first leg:</p>
+<p>$$\Phi \;=\; \varphi_{e} \cdot \text{mpc} \cdot \mathcal{C}\bigl({B_k},\, {P_0,\dots,P_p};\, 12\bigr),
+\qquad G^{\text{fiscal}}_{t} \;=\; \bigl[\Lambda(\lambda_t) + \Phi\bigr]\times M \tag{W8b}$$</p>
+<p>with $\varphi_e$ the transfer response to a one-point inflation shock, in percent of household disposable income, and $\text{mpc}$ the share reaching demand.</p>
+<h3 id="the-fiscal-reaction-function">The fiscal reaction function</h3>
+<p>$$
+h_{t} \;=\; \rho\, h_{t-1} \;+\; \varphi_{e}\, \text{energyshock}<em _pi="\pi">{t}
+\;+\; \varphi</em>}\bigl(\pi_{t} - \pi^{*<em x>{t}\bigr)
+\;+\; \varphi</em>}\, x_{t} \;+\; \varphi_{P}\, \text{populist<em i>{t}
+\;+\; \alpha</em>
+\tag{W9}
+$$} \;+\; \varepsilon_{t</p>
+<p>estimated on the pooled panel with country fixed effects. $\varphi_P$ is the coefficient the policy discussion turns on: the extra transfer response associated with a populist executive, over and above the response to the shock itself.</p>
+<h3 id="the-effective-wage-index">The Effective Wage Index</h3>
+<p>$$\text{EWI}<em _neq_="\,\neq\," _text_handout="\text{handout" c>{t} \;=\; \sum</em>
+\;+\; \bigl(X_{\text{handout},t} - 100\bigr) \tag{W10}$$}} \frac{s_{c}}{\sum_{c' \neq \text{handout}} s_{c'}}\; X_{c,t</p>
+<p>where the components $X_c$ are level indices, each 100 in 2019Q4: <code>wage</code> (market earnings), <code>minwage</code> (the statutory floor), <code>benefit</code> (indexed social benefits and public pensions, built from the statutory uprating rule rather than from spending), and <code>handout</code> (one-off payments and income-based energy support).</p>
+<p>The asymmetry is deliberate. The three recurring sources are weighted by their share of income — market earnings are 42% of the bottom quartile's income in the United States, so a 10% raise is worth 4.2 index points — and the three weights are renormalised to one. A one-off payment has no share, because it is a flow that exists in one year and not the next; its component index is one plus the payment as a fraction of household disposable income, so $X_{\text{handout}} - 100$ is <em>already</em> the payment measured in index points, and weighting it again by a notional one per cent "handout share" would shrink a €300 <em>Energiepreispauschale</em> to a rounding error. The composition tables carry a <code>handout</code> column for completeness; the index does not use it as a weight.</p>
+<p>Deflation is done twice:</p>
+<p>$$\text{REWI}<em t>{t} \;=\; \frac{\text{EWI}</em>,
+\qquad
+\widetilde{\text{REWI}}}}{P_{t}<em t>{t} \;=\; \frac{\text{EWI}</em>}}{\tilde{P<em t>{t}},
+\qquad
+\tilde{P}</em>\Bigr)
+\tag{W11}
+$$} \;=\; P_{t}\exp\Bigl(-\tfrac{1}{400}\textstyle\sum_{s \le t} \omega_{s</p>
+<p>where $\omega_s$ is the estimated contribution, in percentage points of year-on-year inflation, of price-based support measures — negative while a shield is in force, positive as it unwinds. $\text{REWI}$ is what a statistician sees; $\widetilde{\text{REWI}}$ is what households would have faced had the same money been delivered as income. The gap is the part of measured real income that is a consequence of the delivery mechanism rather than of what households received.</p>
+<h3 id="the-simulator">The simulator</h3>
+<p>$$
+\begin{aligned}
+gp_{t} &amp;= \textstyle\sum_k B_k\, gp_{t-k} + \sum_k M_k\, gw_{t-k} + \sum_k E_k\, grpe_{t-k} + \sum_k P_k\, h_{t-k}\
+gw_{t} &amp;= \textstyle\sum_k a_k\, gw_{t-k} + \sum_k b_k\, \pi^{<em>}<em t-k>{t-k} + \sum_k c_k\, x</em>} + \sum_k \bigl(d_k + \lambda\tilde{d<em t-k>k\bigr)\,\text{catchup}</em>\
+\pi^{</em>}<em t-1>{t} &amp;= \pi^{<em>}_{t-1} + k(q)\bigl(gp_t - \pi^{</em>}</em>\bigr)\
+rw_{t} &amp;= rw_{t-1} + \tfrac{1}{4}\bigl(gw_t - gp_t\bigr)\
+\text{catchup}<em t>{t} &amp;= -\,rw</em>\
+h_{t} &amp;= \varphi_{e}\cdot \max\bigl(gp_t - \pi^{<em>}<em t>t,\,0\bigr)\cdot \text{mpc}\
+x</em> &amp;= -\,\tau\,\bigl(gp_t - \pi^{</em>}_t\bigr)
+\end{aligned}
+\tag{W12}
+$$</p>
+<p>Two features of this system deserve comment. The first is the catch-up line, which must be, and now is, the same object the coefficients were estimated on: the deviation of the log real wage from its trend, in percent. An earlier version of the simulator drove it with the Bernanke–Blanchard inflation surprise — the very object the specification section rejects — which fed coefficients estimated on a level gap a regressor measured in inflation differences. Different units, different scale, and every simulated path wrong. In a deviation-from-baseline simulation the trend real wage <em>is</em> the baseline, so the gap is simply the cumulated real-wage shortfall; since $gw$ and $gp$ are four-quarter rates, one quarter contributes a quarter of the annual rate, which is the $\tfrac{1}{4}$ in the $rw$ recursion.</p>
+<p>The second is the monetary rule, written as a direct slack response rather than as an interest-rate rule. The estimated wage equation takes slack, not the policy rate, so a Taylor rule would require an IS curve we have not estimated; $\tau$ is therefore a reduced-form sacrifice-rate dial, "percentage points of slack opened per percentage point of inflation above trend". The handout rule is one-sided: governments hand out money when inflation is above trend and do not claw it back when inflation is below.</p>
+<h2 id="data">Data</h2>
+<h3 id="country-samples">Country samples</h3>
+<p>Seven countries. The four <strong>modelled</strong> economies are the United States, the United Kingdom, France and Germany; the three <strong>reference</strong> economies are Belgium, Italy and Spain. The reference countries are not the paper's subject but they carry most of the cross-sectional range in $\lambda$, without which the interaction would be identified only off time series in which $\lambda$ never exceeds 0.124 (the US), 0.416 for a single year (the UK), 0.274 (France) or 0.071 (Germany).</p>
+<p>What matters is not the nominal start but the quarters each country actually contributes once every regressor is present:</p>
+<table>
+<thead>
+<tr>
+<th>Country</th>
+<th>Estimation sample</th>
+<th style="text-align: right;">Obs.</th>
+<th style="text-align: right;">$\lambda$ min</th>
+<th style="text-align: right;">$\lambda$ max</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US</td>
+<td>1961Q1 – 2026Q2</td>
+<td style="text-align: right;">262</td>
+<td style="text-align: right;">0.014</td>
+<td style="text-align: right;">0.124</td>
+</tr>
+<tr>
+<td>UK</td>
+<td>1973Q4 – 2026Q2</td>
+<td style="text-align: right;">211</td>
+<td style="text-align: right;">0.058</td>
+<td style="text-align: right;">0.416</td>
+</tr>
+<tr>
+<td>FR</td>
+<td>1985Q4 – 2026Q1</td>
+<td style="text-align: right;">162</td>
+<td style="text-align: right;">0.236</td>
+<td style="text-align: right;">0.274</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>1993Q4 – 2026Q1</td>
+<td style="text-align: right;">130</td>
+<td style="text-align: right;">0.043</td>
+<td style="text-align: right;">0.071</td>
+</tr>
+<tr>
+<td>BE</td>
+<td>2001Q1 – 2026Q1</td>
+<td style="text-align: right;">101</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+<tr>
+<td>IT</td>
+<td>1985Q4 – 2026Q1</td>
+<td style="text-align: right;">162</td>
+<td style="text-align: right;">0.140</td>
+<td style="text-align: right;">0.492</td>
+</tr>
+<tr>
+<td>ES</td>
+<td>1989Q1 – 2026Q1</td>
+<td style="text-align: right;">149</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.210</td>
+</tr>
+</tbody>
+</table>
+<p>The rows sum to 1177, the regression's $n$ exactly; they are counted off its own design matrix.</p>
+<p>Three consequences are load-bearing. The <strong>United States</strong> carries the historical identification, as the only country contributing through the 1960s and 1970s and the one whose COLA episode is documented at contract level. The <strong>United Kingdom</strong> sample begins 1973Q4 and therefore contains the threshold agreements, which is why its in-sample maximum of 0.416 is the third-highest in the panel, behind Belgium's 1.000 and Italy's 0.492. And <strong>Italy's <em>scala mobile</em> years are not in the sample at all</strong>: the Italian panel begins 1985Q4, after the <em>decreto di San Valentino</em>, so the episode that dominates the narrative contributes nothing to the estimates. The German sample excludes the pre-reunification period and the French sample begins after the 1983 <em>désindexation</em>, which is why French in-sample $\lambda$ varies by less than four hundredths across forty years.</p>
+<h3 id="sources-and-series-choices">Sources and series choices</h3>
+<p>Prices are CPI or HICP headline, with core and the energy and food components alongside: FRED for the US (CPIAUCSL, CPILFESL, CPIENGSL, CPIUFDSL), ONS for the UK (RPI CDKO spliced forward onto CPI D7BT), Eurostat <code>prc_hicp_midx</code> for the euro-area countries, back-extended with the OECD's legacy quarterly series on FRED.</p>
+<p>Wages are the mix-controlled series wherever one exists. For the US, the Employment Cost Index (wages and salaries), which FRED carries only from 2001, extended backwards with average hourly earnings of production and non-supervisory workers (1964–) and then nonfarm business compensation per hour. The splice is on growth rates, with the modern series authoritative for the level and at least four overlapping observations required so the rescaling ratio is an average rather than one possibly-revised point. For the UK, AWE regular pay (2000–) on the OECD hourly earnings index (1963–). For the euro-area countries, compensation per employee from the quarterly national accounts (<code>namq_10_a10</code> D1 over <code>namq_10_a10_e</code> EMP_DC), falling back to the labour cost index (<code>lc_lci_r2_q</code>, D11).</p>
+<p>All series are pulled keylessly, with one substantive consequence: Destatis's <em>Tarifverdienstindex</em> is the German negotiated-wage analogue and the only series separating the <em>Inflationsausgleichsprämie</em> from base pay, but Genesis-Online serves it only behind a session API, so German measured wage growth in 2023–24 <strong>includes</strong> the tax-free bonus.</p>
+<p>Labour-market tightness is the unemployment gap: a slow-moving reference rate minus the actual rate, using the CBO's NAIRU for the US and a five-year <em>trailing</em> moving average elsewhere, so no future information enters. The vacancy-to-unemployment ratio is Bernanke and Blanchard's preferred measure and clearly better over 2021–23, but exists only from 2001 for the US and UK; making it the default would cut the UK sample to 2001 and throw away the threshold episode. It is offered as an alternative rather than imposed.</p>
+<h3 id="four-notable-constructions">Four notable constructions</h3>
+<p><strong>The employment-weighted effective US minimum wage.</strong> The federal floor has been \$7.25 since July 2009, so a series using it alone says the American wage floor has been frozen for seventeen years. That is false for most American workers: the binding minimum is the higher of the federal and state rate, and by 2026 roughly three-fifths of US employment is in a state with a higher one. We compute</p>
+<p>$$MW_{t} \;=\; \sum_{s} \frac{E_{s,t}}{E_{t}} \, \max\bigl(MW^{\text{fed}}<em s_t="s,t">{t},\, MW^{\text{state}}</em>\bigr)$$</p>
+<p>over the fifty states and DC, with state minima from FRED's <code>STTMINWG&lt;ST&gt;</code> and state employment from <code>&lt;ST&gt;NA</code>. States whose series are unavailable fall back to the federal rate, biasing the index <em>down</em>, never up. Without this the US minimum-wage channel in Eq. (W3) would be mechanically frozen after 2009.</p>
+<p><strong>Year-on-year rather than annualised quarterly growth.</strong> Bernanke and Blanchard can use annualised quarterly growth because their wage measure is the ECI, a fixed-weight index built for it. Outside the United States there is no ECI, and the available series — compensation per employee, OECD hourly earnings, average weekly earnings — carry enough quarter-to-quarter noise that their annualised quarterly growth is close to white; estimated on those, the wage equation returns a <em>negative</em> sum of own-lag coefficients, the signature of differencing noise rather than wage dynamics. Year-on-year growth is what the ECB wage tracker, the national negotiated-wage indicators and the statistical releases publish, and it is the natural unit for a catch-up term. The cost is overlapping observations and serially correlated residuals, so reported standard errors understate uncertainty; this is why the paper leans on coefficient sums and sign tests, and why the $t$-statistics below are upper bounds on the evidence. Annualised quarterly variants are retained so the choice can be inspected.</p>
+<p><strong>The transfer-share impulse.</strong> $h_{t} = 100(T_{t}/Y_{t} - T_{t-4}/Y_{t-4})$, with $T$ household social benefits in cash (Eurostat <code>nasq_10_nf_tr</code> D.62, ONS RVFJ, BEA A063RC1) and $Y$ gross household disposable income. A difference of ratios rather than a deflated flow, because the seven national accounts are published in six currencies, three base years and — for the UK, which left the Eurostat sector-account collection after 2019 — a different vintage discipline. A share is unit-free, so a units error in one source cannot silently rescale its coefficient, and $\varphi_e$ reads directly as points of household income handed out per point of excess inflation.</p>
+<p><strong>Cyclical adjustment of transfers.</strong> Total transfers are dominated by automatic stabilisers: unemployment insurance rises in recessions, when inflation is falling, so entered raw $h$ carries a spurious negative sign into the price equation. We project $h$ on the contemporaneous and four lagged changes in the unemployment rate and keep the residual — the part of the impulse policy chose rather than the cycle delivered.</p>
+<h3 id="the-priceincome-distinction-and-the-cpi-wedge">The price/income distinction and the CPI wedge</h3>
+<p>Every scheme in the 2021–26 database is classified as <code>income</code>, <code>price</code> or <code>wage</code>, following the Eurostat (2022) criteria and the ONS classification statements. An <code>income</code> measure is a cash payment or voucher unrelated to the quantity consumed: it does not enter the HICP, it supports demand, and it enters the model through $h_t$. A <code>price</code> measure is a cap, a tariff freeze, an excise cut or a subsidised fare: it lowers measured inflation while in force, raises it on expiry, and adds nothing to nominal household income. A <code>wage</code> measure is paid through the payslip — Germany's <em>Inflationsausgleichsprämie</em> and France's <em>prime de partage de la valeur</em> are the cases that forced this third category to exist: they are in measured wages but not in the permanent wage base.</p>
+<p>The price measures are then summarised as a wedge, in percentage points of year-on-year inflation:</p>
+<table>
+<thead>
+<tr>
+<th>Country</th>
+<th>Period</th>
+<th style="text-align: right;">Wedge (pp)</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR</td>
+<td>2022</td>
+<td style="text-align: right;">−2.6</td>
+<td>Banque de France: <em>bouclier tarifaire</em> and <em>remise carburant</em></td>
+</tr>
+<tr>
+<td>FR</td>
+<td>2023</td>
+<td style="text-align: right;">+0.4</td>
+<td>Banque de France</td>
+</tr>
+<tr>
+<td>FR</td>
+<td>2024</td>
+<td style="text-align: right;">+1.0</td>
+<td>Banque de France</td>
+</tr>
+<tr>
+<td>FR</td>
+<td>2025</td>
+<td style="text-align: right;">+0.8</td>
+<td>Banque de France</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>2022Q2</td>
+<td style="text-align: right;">−0.3</td>
+<td>Destatis: <em>Tankrabatt</em> and 9-Euro-Ticket from June</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>2022Q3</td>
+<td style="text-align: right;">−1.0</td>
+<td>Destatis: the two measures together</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>2022Q4</td>
+<td style="text-align: right;">−0.2</td>
+<td>measures expired 31 Aug; EEG-Umlage abolition persists</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>2023</td>
+<td style="text-align: right;">−0.8</td>
+<td>Jannsen and Sonnenberg: the electricity and gas price brakes</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>2024</td>
+<td style="text-align: right;">+0.6</td>
+<td>unwind of the price brakes</td>
+</tr>
+<tr>
+<td>UK</td>
+<td>2022Q4</td>
+<td style="text-align: right;">−1.2</td>
+<td>pipeline assumption, anchored on the OBR's −2.5pp at the CPI peak</td>
+</tr>
+<tr>
+<td>UK</td>
+<td>2023</td>
+<td style="text-align: right;">−2.0</td>
+<td>pipeline assumption, same anchor</td>
+</tr>
+<tr>
+<td>UK</td>
+<td>2024</td>
+<td style="text-align: right;">+1.4</td>
+<td>pipeline assumption: unwind as the EPG ended in March 2024</td>
+</tr>
+<tr>
+<td>US</td>
+<td>2022</td>
+<td style="text-align: right;">−0.1</td>
+<td>state fuel-tax holidays only</td>
+</tr>
+<tr>
+<td>US</td>
+<td>2023</td>
+<td style="text-align: right;">+0.1</td>
+<td>unwind</td>
+</tr>
+</tbody>
+</table>
+<p>The French and German rows are published estimates. The <strong>UK rows are not</strong>: the literature supplies only the OBR's statement that the Energy Price Guarantee cut the peak CPI inflation rate by 2.5 percentage points, and the quarterly and annual profile in the table is the pipeline's own interpolation around that anchor. The US rows are likewise assumptions, though of a size that cannot matter. Readers should treat the UK subsidy-neutral figures reported later as illustrative in a way the French ones are not.</p>
+<p>The French profile is the clearest demonstration in the European literature that price measures shift inflation through time rather than removing it: a cumulative effect of about −0.4pp across four years on a scheme costing roughly 1.1% of GDP per year.</p>
+<h3 id="benefit-uprating-implemented-from-statute">Benefit uprating, implemented from statute</h3>
+<p>The <code>benefit</code> component of the Effective Wage Index is built from each country's uprating rule applied to observed data, not from a spending aggregate, since a spending aggregate moves with caseloads while the rule sets the entitlement of a representative recipient. The four rules are: Social Security Act s.215(i) for US OASDI (the increase in the third-quarter average CPI-W over the highest previous third-quarter average, floored at zero); SSAA 1992 s.150 for UK working-age benefits (September CPI, applied the following April) with the triple lock for the State Pension (the highest of September CPI, the May–July average of total-pay earnings growth, and 2.5%); CSS art. L161-25 for French pensions (the average of the twelve most recent monthly CPI-excluding-tobacco indices over the same average a year earlier, applied 1 January and floored at zero); and the <em>Rentenanpassungsformel</em> in its post-2024 form, where the 48% <em>Niveauschutzklausel</em> binds and the adjustment follows gross wage growth with the dampening factors suspended.</p>
+<p>These are a genuine out-of-sample test of the data plumbing, since the US COLA is a deterministic function of CPI-W and any error in the price series shows up immediately. The implemented rules are checked against published decisions — 51 US COLA announcements from 1975, UK working-age and State Pension upratings from 2022, French pension revalorisations from 2022, German <em>Rentenanpassungen</em> from 2022 — at a tolerance of 0.35pp rather than 0.1pp, because three of the four are applied to a slightly different index from the statutory one, as the limitations set out.</p>
+<h2 id="results">Results</h2>
+<h3 id="the-pooled-wage-equation">The pooled wage equation</h3>
+<p>Eq. (W4$'$), seven countries, country fixed effects, full sample, homogeneity imposed:</p>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th style="text-align: right;">Sum of coefficients</th>
+<th>$t$ by lag (1, 2, 3, 4)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>own lags of wage growth</td>
+<td style="text-align: right;">+0.5992</td>
+<td>17.64, 0.07, 3.48, −3.13</td>
+</tr>
+<tr>
+<td>trend inflation $\pi^{*}$</td>
+<td style="text-align: right;">+0.4008</td>
+<td>8.23, −3.90, 0.12, 1.69</td>
+</tr>
+<tr>
+<td>tightness</td>
+<td style="text-align: right;">+0.0992</td>
+<td>1.00, 0.15, −2.11, 3.06</td>
+</tr>
+<tr>
+<td>real-wage gap (level)</td>
+<td style="text-align: right;">−0.0881</td>
+<td>−6.47, −0.45, −1.82, 5.53</td>
+</tr>
+<tr>
+<td>real-wage gap $\times\ \lambda$</td>
+<td style="text-align: right;">+0.3393</td>
+<td>1.38, −3.06, 1.03, 4.14</td>
+</tr>
+</tbody>
+</table>
+<p>$n = 1177$, $R^{2} = 0.840$.</p>
+<p>The homogeneity restriction splits the dynamics 0.60 / 0.40 between persistence and the anchor — more persistent than Bernanke and Blanchard's US pre-COVID 0.46 / 0.54, unsurprisingly, given a year-on-year left-hand side with mechanically higher autocorrelation. The comparison with their numbers moves with the window and is worth making without flattery. On the restricted specification — no interaction, pooled — the full-sample split is <strong>0.598 / 0.402</strong>, reported by the validation suite as its own check (<code>bernanke_blanchard/full_sample_split</code>) so that it cannot go stale. On <strong>their</strong> window, 1990Q1–2019Q4, it is <strong>0.639 / 0.361</strong> against their 0.460 / 0.540: a 0.179 gap, clearing the module's 0.20 tolerance by 0.02. We are not going to call it close. What the check establishes is narrower — that the estimator puts substantial weight on the expectations term rather than loading everything onto persistence — and that is why it runs on the pooled panel at all: on one country's year-on-year series $\pi^{*}$ is close to collinear with four lags of wage growth, the restriction is satisfied by loading almost everything onto persistence, and the United States alone splits 0.97 / 0.03.</p>
+<p>The tightness sum is positive, as it should be, at +0.0992; its magnitude is not comparable with Bernanke and Blanchard's +0.693, which is on a vacancy-to-unemployment ratio in levels rather than an unemployment gap in points.</p>
+<p>The two coefficients that carry the paper are the last two rows, and neither block is cleanly signed lag by lag. The <strong>level</strong> block sums to −0.0881, with a strongly significant negative first lag ($t = -6.47$) and a strongly significant <em>positive</em> fourth ($t = +5.53$). The sum is what the gain is computed from, and read literally it says that without indexation a real wage below its own trend is followed by <em>slower</em> nominal wage growth — the pattern expected if the shock that pushed it down also signalled weak labour demand and no institution forces recovery. But the lag pattern is a fast negative response partly undone a year later, and a reader who called it a delayed partial recovery rather than no recovery would not be contradicted by these four numbers.</p>
+<p>The <strong>interaction</strong> block sums to +0.3393, the sign the institutional hypothesis requires and roughly four times the level block in absolute size, with $t$-statistics of 1.38, −3.06, 1.03 and 4.14. The fourth lag is strongly significant and positive, and the fourth lag is where an annual indexation clause or a January uprating bites, so the timing is where the institutional story puts it. But the second lag is strongly significant and <strong>negative</strong>, and that must be said rather than absorbed into the sum: a positive sum built from a $+4.14$ and a $-3.06$ is not the same evidence as one built from four positive coefficients. Either the pattern is a genuine annual rhythm, with the intervening quarters carrying the offsetting arithmetic of a four-quarter growth rate, or the lag polynomial is poorly determined and only the sum is interpretable. We cannot separate the two with these data. Both readings support using the sum, which is what $\Lambda$ is built from; neither supports a claim that the individual lags are precisely estimated. And with classical errors on overlapping observations, even the $4.14$ overstates the evidence.</p>
+<h3 id="the-catch-up-schedule-lambdalambda">The catch-up schedule $\Lambda(\lambda)$</h3>
+<p>Evaluating Eq. (W6) across the range of $\lambda$:</p>
+<table>
+<thead>
+<tr>
+<th>$\lambda$</th>
+<th style="text-align: right;">0.00</th>
+<th style="text-align: right;">0.10</th>
+<th style="text-align: right;">0.25</th>
+<th style="text-align: right;">0.50</th>
+<th style="text-align: right;">0.75</th>
+<th style="text-align: right;">1.00</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$\Lambda(\lambda)$</td>
+<td style="text-align: right;">−0.221</td>
+<td style="text-align: right;">−0.136</td>
+<td style="text-align: right;">−0.009</td>
+<td style="text-align: right;">+0.202</td>
+<td style="text-align: right;">+0.414</td>
+<td style="text-align: right;">+0.625</td>
+</tr>
+</tbody>
+</table>
+<p>The schedule is exactly linear, $\Lambda(\lambda) = -0.2210 + 0.8464\lambda$, which is a property of the construction rather than a finding: the driver enters $\mathcal{C}$ linearly in $\lambda$ and the autoregressive part does not depend on it.</p>
+<p>The economics is in the two endpoints, and they are not equally well supported. $\Lambda(0) = -0.221$ says that in an economy with no indexation whatever, three years after a permanent one-point rise in inflation, wage growth is <em>lower</em> than it would otherwise have been by about a fifth of a point: a real-wage loss is absorbed, not recovered. That end is densely populated — the United States, Germany and Spain all sit inside $[0, 0.21]$ for their whole estimation samples.</p>
+<p>$\Lambda(1) = +0.625$ is a different kind of number and must be labelled as one. <strong>It is an extrapolation.</strong> Inside the estimation sample, $\lambda \ge 0.9$ is contributed by Belgium alone — 101 quarters, 2001Q1–2026Q1, at a constant 1.000 — and no other country supplies a single in-sample observation above $\lambda = 0.5$ (Italy's maximum is 0.492, the United Kingdom's 0.416, France's 0.274). The validation suite carries a check, <code>identification/lambda_upper_end</code>, that reports exactly this. Because Belgian $\lambda$ is constant it is absorbed by the Belgian fixed effect except through the interaction, so the top of the schedule is identified by one cross-sectional cell interacted with within-Belgium variation in the real-wage gap. Read $\Lambda(1)$ as "what the fitted line implies at a value of $\lambda$ observed in one country", not as "the share of a real-wage loss recovered under universal indexation". It is also below the 0.75–0.95 range of contractual escalator elasticities Card (1986) estimates on indexed contracts — the right side to err on for an extrapolation, but not the corroboration we would have claimed had it landed inside that range.</p>
+<p>The crossover is at $\lambda = 0.2611$. <strong>No</strong> modelled country is above it today: France is closest at 0.236, and is therefore on the absorbing side of the line, having been on the recovering side at the start of its estimation sample (in-sample maximum 0.274) and having crossed below in 1987Q4. Of the reference countries only Belgium, at 1.000, and Italy, at 0.320, clear it. The crossover is not a sharp threshold — it is where a fitted line crosses zero, with all the imprecision documented above — but its location says a country needs roughly a quarter of its wage bill moving one-for-one with past prices before a real-wage loss is recovered at all.</p>
+<h3 id="wage-to-price-pass-through-and-the-spiral-gain">Wage-to-price pass-through and the Spiral Gain</h3>
+<table>
+<thead>
+<tr>
+<th>country</th>
+<th style="text-align: right;">$M$ (3yr)</th>
+<th style="text-align: right;">$\lambda$ 1975</th>
+<th style="text-align: right;">$\lambda$ now</th>
+<th style="text-align: right;">$G$ 1975</th>
+<th style="text-align: right;">$G$ now</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US</td>
+<td style="text-align: right;">0.997</td>
+<td style="text-align: right;">0.117</td>
+<td style="text-align: right;">0.019</td>
+<td style="text-align: right;">−0.122</td>
+<td style="text-align: right;">−0.205</td>
+</tr>
+<tr>
+<td>UK</td>
+<td style="text-align: right;">1.285</td>
+<td style="text-align: right;">0.119</td>
+<td style="text-align: right;">0.102</td>
+<td style="text-align: right;">−0.155</td>
+<td style="text-align: right;">−0.173</td>
+</tr>
+<tr>
+<td>FR</td>
+<td style="text-align: right;">0.639</td>
+<td style="text-align: right;">0.371</td>
+<td style="text-align: right;">0.236</td>
+<td style="text-align: right;">+0.059</td>
+<td style="text-align: right;">−0.014</td>
+</tr>
+<tr>
+<td>DE</td>
+<td style="text-align: right;">0.828</td>
+<td style="text-align: right;">0.107</td>
+<td style="text-align: right;">0.069</td>
+<td style="text-align: right;">−0.108</td>
+<td style="text-align: right;">−0.135</td>
+</tr>
+<tr>
+<td>BE</td>
+<td style="text-align: right;">0.265</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">+0.166</td>
+<td style="text-align: right;">+0.166</td>
+</tr>
+<tr>
+<td>IT</td>
+<td style="text-align: right;">0.991</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.320</td>
+<td style="text-align: right;">+0.620</td>
+<td style="text-align: right;">+0.049</td>
+</tr>
+<tr>
+<td>ES</td>
+<td style="text-align: right;">0.612</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.150</td>
+<td style="text-align: right;">−0.135</td>
+<td style="text-align: right;">−0.058</td>
+</tr>
+</tbody>
+</table>
+<p>$M$ is close to unity in the United States (0.997) and Italy (0.991), above it in the United Kingdom (1.285), and well below in France (0.639), Spain (0.612) and above all Belgium (0.265). The UK value above one is not more than full pass-through — homogeneity pins the long run at exactly one — but front-loading: overshooting at three years and converging back. That is consistent in direction with Haskel, Martin and Brandt (2023) finding lower summed wage coefficients for the UK than the US alongside large cumulated shock contributions, though their specification, sample and wage measure all differ from ours.</p>
+<p>Both $\lambda$ and $G$ are calendar-year means for 1975 and the latest quarter for "now", so the table reproduces row by row as $G = \Lambda(\lambda) \times M$. We have verified this for all seven rows; four by way of illustration are the United Kingdom in 1975 ($\Lambda(0.119) = -0.1203$, $\times 1.285 = -0.155$), France in 1975 ($+0.0930 \times 0.639 = +0.059$), Germany today ($-0.1626 \times 0.828 = -0.135$) and Italy today ($+0.0498 \times 0.991 = +0.049$).</p>
+<p>The Spiral Gain was <strong>0.620 in Italy in 1975</strong> — the largest value anywhere in the sample, in the economy with the most complete indexation system in the advanced world at the moment of the first oil shock — and still below the self-reproduction threshold of one. The right reading is not that the Italian spiral was impossible but that it was <em>damped</em>, attenuating about two-fifths per round over three years. A damped loop with a gain of 0.62 and a three-year cycle still has a long memory: with a sequence of shocks and accommodative policy, the arithmetic of the 1970s follows without instability in the formal sense. Modigliani and Padoa-Schioppa's instability argument turns on indexation above unity for a majority of individual wages, which our aggregate $\lambda$, capped at one, cannot represent — and since Italy's 1975 $\Lambda$ is the extrapolated $\Lambda(1)$, that cell inherits every caveat attached to the top of the schedule.</p>
+<p>Today the picture differs in kind. $G$ is negative in five of seven countries, marginally negative in France (−0.014), and positive only in Belgium (+0.166) and Italy (+0.049). A negative gain means one turn of the loop <em>subtracts</em> from inflation at three years: a price shock not passed into wages shows up as a real wage cut, and the level term then implies marginally slower nominal wage growth, feeding back as slightly lower price inflation. That is the modern configuration, and the mechanism behind Alvarez et al.'s (2024) observation that inflation typically falls while nominal wages gradually catch up. Italy is where the institutional story is most visible: $G$ falls from +0.620 to +0.049 with no change whatever in $M$, all the movement being in $\lambda$, which falls from 1.000 under the <em>punto unico</em> to 0.320 once only the forward-looking Protocol benchmark and the indexation of public pay remain. That is the paper's claim in a single row — but a claim about the constructed $\lambda$ series, not an estimate, because Italy's 1975 observations lie outside the estimation sample.</p>
+<h3 id="belgium-high-lambda-low-m">Belgium: high $\lambda$, low $M$</h3>
+<p>Belgium is where the product structure earns its keep, and where the estimates are thinnest. It has the highest possible $\lambda$ — one, throughout, by construction and by fact — and the lowest $M$ in the sample, 0.265: nearly complete pass-through of prices into wages, almost none of wages back out into prices. The resulting $G$ of 0.166 is well below the Italian 1975 value even though Belgian indexation is at least as complete as Italian indexation ever was, and it is the largest positive $G$ in the panel today. $\Lambda(1)$, and therefore the Belgian $G$, is identified off Belgium itself: the country providing the cleanest institutional case is the same one the estimate leans on, and the row should be read as internally consistent rather than independently corroborated.</p>
+<p>It is, however, a finding we reproduce rather than invent. Bernanke and Blanchard (2024) report Belgian cumulative pandemic-era wage inflation of 17.8% against a euro-area 7.5%, with cumulative price inflation of 15.6% against 15.8%: indexation raised Belgian wages far more without raising prices more, implying firms absorbed it through margin compression. Jonckheere and Zimmer (2024) reach the same conclusion from the National Bank's own models — compensation per employee grew 7.3% in 2022 and 7.7% in 2023 against euro-area rates of 4.5% and 5.2%, prices-to-wages transmission is "much stronger" in Belgium, and yet "wages barely explain core inflation in Belgium, whereas they seem to matter in the euro area" — and judge the risk of a rampant spiral contained. Geis, Wong and Vernon (2023) document the margin through which this operates: the 1996 Wage Law caps real wage growth by reference to the three neighbours, so because indexation exhausted the margin no real wage growth was permitted for 2022–24, with the Central Economic Council estimating a 2.9pp wage gap at end-2022 projected to reach 5.7% by end-2024.</p>
+<p>The policy content cuts against the intuition the 1970s literature left behind. <strong>An indexation regime is not automatically an inflation regime.</strong> Whether it becomes one depends on the second factor in the product — on whether firms can and do pass labour costs into prices, which depends on competition, openness, margins and the credibility of the monetary anchor. Belgium is a small open economy with a statutory wage norm tied to its three largest trading partners; its firms cannot pass a national wage shock into prices without losing market share, so they compress margins instead. The same $\lambda$ in a large, closed, high-margin economy would produce a materially different $G$.</p>
+<h3 id="real-wage-paths">Real wage paths</h3>
+<p>Cumulative percentage change in the real wage relative to 2019Q4, with a 2021Q4 base alongside:</p>
+<table>
+<thead>
+<tr>
+<th>country</th>
+<th style="text-align: right;">2021Q4</th>
+<th style="text-align: right;">2022Q4</th>
+<th style="text-align: right;">2023Q4</th>
+<th style="text-align: right;">2024Q4</th>
+<th style="text-align: right;">trough vs 2019Q4</th>
+<th style="text-align: right;">2022Q4 vs 2021Q4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US</td>
+<td style="text-align: right;">−0.17</td>
+<td style="text-align: right;">−2.01</td>
+<td style="text-align: right;">−0.97</td>
+<td style="text-align: right;">−0.01</td>
+<td style="text-align: right;">−2.12</td>
+<td style="text-align: right;">−1.84</td>
+</tr>
+<tr>
+<td>UK</td>
+<td style="text-align: right;">+3.91</td>
+<td style="text-align: right;">−0.33</td>
+<td style="text-align: right;">+1.19</td>
+<td style="text-align: right;">+4.65</td>
+<td style="text-align: right;">−0.33</td>
+<td style="text-align: right;">−4.24</td>
+</tr>
+<tr>
+<td>FR</td>
+<td style="text-align: right;">−0.51</td>
+<td style="text-align: right;">−2.45</td>
+<td style="text-align: right;">−2.97</td>
+<td style="text-align: right;">−2.58</td>
+<td style="text-align: right;">−4.22</td>
+<td style="text-align: right;">−1.94</td>
+</tr>
+<tr>
+<td>DE</td>
+<td style="text-align: right;">+0.65</td>
+<td style="text-align: right;">−4.82</td>
+<td style="text-align: right;">−1.45</td>
+<td style="text-align: right;">+0.71</td>
+<td style="text-align: right;">−4.82</td>
+<td style="text-align: right;">−5.47</td>
+</tr>
+<tr>
+<td>BE</td>
+<td style="text-align: right;">−1.97</td>
+<td style="text-align: right;">−4.94</td>
+<td style="text-align: right;">+2.10</td>
+<td style="text-align: right;">−0.17</td>
+<td style="text-align: right;">−4.94</td>
+<td style="text-align: right;">−2.97</td>
+</tr>
+<tr>
+<td>IT</td>
+<td style="text-align: right;">+1.92</td>
+<td style="text-align: right;">−7.28</td>
+<td style="text-align: right;">−4.96</td>
+<td style="text-align: right;">−2.66</td>
+<td style="text-align: right;">−7.28</td>
+<td style="text-align: right;">−9.20</td>
+</tr>
+<tr>
+<td>ES</td>
+<td style="text-align: right;">+1.16</td>
+<td style="text-align: right;">−0.41</td>
+<td style="text-align: right;">+0.70</td>
+<td style="text-align: right;">+3.11</td>
+<td style="text-align: right;">−2.63</td>
+<td style="text-align: right;">−1.57</td>
+</tr>
+</tbody>
+</table>
+<p>Four things stand out. First, the losses were large and concentrated in 2022: troughs against 2019Q4 of −7.3% in Italy, −4.9% in Belgium and −4.8% in Germany. The ECB's aggregate estimate is about −5% for HICP-deflated compensation per employee from 2021Q4 to 2022Q4 (Bates, Bodnár, Botelho and Rousseau 2025), a different base period, so the comparison belongs in the last column: on a 2021Q4 base our euro-area countries record −9.20% (Italy), −5.47% (Germany), −2.97% (Belgium), −1.94% (France) and −1.57% (Spain). They bracket −5% widely, Germany closest and Italy more than twice as deep; we claim only that the aggregate lies inside the range our series span.</p>
+<p>Second, Belgium has the <em>fastest recovery</em>, though not the deepest trough — Italy's −7.28% is deeper, and on a 2021Q4 base Germany's −5.47% is too. What is distinctive is the round trip: from −4.94% at end-2022 to +2.10% a year later, a swing of seven points in four quarters that no other country approaches. That is the indexation mechanism working as designed — a lag of a few quarters between the price shock and the pay rise, then full restoration. The NBB dates the recovery of Belgian purchasing power to 2023Q1; our path has it completing during 2023, the difference attributable to our use of headline HICP rather than the health index and compensation per employee rather than the negotiated-wage measure.</p>
+<p>Third, two countries have still not recovered by 2024Q4: Italy at −2.66% and France at −2.58% below their 2019 levels, Italy the worse. They arrive there differently — Italy fell furthest (−7.28%) and has clawed back two-thirds, France had a shallower trough (−4.22%) and has clawed back very little. The French combination of a high $\lambda$ and a low $M$ with an absent recovery is not what a simple indexation story predicts; we read it as the joint product of a shielded price index — the <em>bouclier</em> held measured inflation down, propping up the measured real wage in 2022 and dragging it down afterwards as the shield unwound — and weak nominal wage growth.</p>
+<p>Fourth, the two Anglophone economies are not where the continental ones are: the UK real wage never falls more than a third of a point below its 2019 level and is 4.65% above by end-2024, and the US troughs at −2.1% and returns to flat. The UK series is AWE total-economy regular pay, which is not mix-adjusted, and UK composition shifts over 2020–22 were unusually large, so the UK level should be treated with more caution than the others.</p>
+<h2 id="the-effective-wage-index_1">The Effective Wage Index</h2>
+<h3 id="what-it-measures">What it measures</h3>
+<p>The Effective Wage Index answers a question no wage series answers: what happened to the <em>income</em> of a household, as opposed to the <em>price of labour</em>. For a household in the bottom quartile, market earnings are less than half of gross income everywhere in the sample — 0.42 in the US, 0.34 in the UK, 0.30 in France, 0.33 in Germany — and indexed benefits are between 0.39 and 0.52. A real-wage series is a statement about a minority of that household's income; the majority of it moves by statute.</p>
+<p>The index combines four level indices, each 100 in 2019Q4, under Eq. (W10): the market wage, the statutory floor, the statutory benefit entitlement built from the uprating rule, and the handout term, which is one plus the annualised scheme amount as a share of household disposable income and therefore sits at exactly 100 in every quarter with no scheme in payment. A one-off payment adds to income growth in the year it is made and subtracts from it the year after — exactly what a one-off does, and exactly what an aggregate wage index cannot show. Income-composition shares come from CBO for the US (quintile shares rebased to quartiles), ONS for the UK, INSEE and DREES for France, and Destatis EVS and DIW SOEP for Germany, all fixed at 2019 values.</p>
+<h3 id="results_1">Results</h3>
+<p>Real Effective Wage Index, 2019Q4 = 100, for the bottom quartile (<code>q1</code>) and all households, with the market real wage and the subsidy-neutral variant alongside:</p>
+<table>
+<thead>
+<tr>
+<th>country</th>
+<th>group</th>
+<th style="text-align: right;">2021Q4</th>
+<th style="text-align: right;">2022Q4</th>
+<th style="text-align: right;">2023Q4</th>
+<th style="text-align: right;">2024Q4</th>
+<th style="text-align: right;">subsidy-neutral 2022Q4</th>
+<th style="text-align: right;">market real wage 2022Q4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US</td>
+<td>q1</td>
+<td style="text-align: right;">96.7</td>
+<td style="text-align: right;">94.7</td>
+<td style="text-align: right;">99.2</td>
+<td style="text-align: right;">99.8</td>
+<td style="text-align: right;">94.6</td>
+<td style="text-align: right;">98.0</td>
+</tr>
+<tr>
+<td>US</td>
+<td>all</td>
+<td style="text-align: right;">97.8</td>
+<td style="text-align: right;">95.3</td>
+<td style="text-align: right;">99.1</td>
+<td style="text-align: right;">99.8</td>
+<td style="text-align: right;">95.2</td>
+<td style="text-align: right;">98.0</td>
+</tr>
+<tr>
+<td>UK</td>
+<td>q1</td>
+<td style="text-align: right;">101.2</td>
+<td style="text-align: right;">99.6</td>
+<td style="text-align: right;">107.0</td>
+<td style="text-align: right;">113.5</td>
+<td style="text-align: right;">99.3</td>
+<td style="text-align: right;">99.7</td>
+</tr>
+<tr>
+<td>UK</td>
+<td>all</td>
+<td style="text-align: right;">101.4</td>
+<td style="text-align: right;">100.2</td>
+<td style="text-align: right;">106.7</td>
+<td style="text-align: right;">112.8</td>
+<td style="text-align: right;">99.9</td>
+<td style="text-align: right;">99.7</td>
+</tr>
+<tr>
+<td>FR</td>
+<td>q1</td>
+<td style="text-align: right;">95.5</td>
+<td style="text-align: right;">94.0</td>
+<td style="text-align: right;">94.8</td>
+<td style="text-align: right;">96.2</td>
+<td style="text-align: right;">91.6</td>
+<td style="text-align: right;">97.6</td>
+</tr>
+<tr>
+<td>FR</td>
+<td>all</td>
+<td style="text-align: right;">95.7</td>
+<td style="text-align: right;">94.2</td>
+<td style="text-align: right;">94.9</td>
+<td style="text-align: right;">96.3</td>
+<td style="text-align: right;">91.7</td>
+<td style="text-align: right;">97.6</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>q1</td>
+<td style="text-align: right;">98.2</td>
+<td style="text-align: right;">94.0</td>
+<td style="text-align: right;">96.5</td>
+<td style="text-align: right;">99.5</td>
+<td style="text-align: right;">93.6</td>
+<td style="text-align: right;">95.3</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>all</td>
+<td style="text-align: right;">98.4</td>
+<td style="text-align: right;">94.4</td>
+<td style="text-align: right;">96.6</td>
+<td style="text-align: right;">99.5</td>
+<td style="text-align: right;">94.0</td>
+<td style="text-align: right;">95.3</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The distributional finding.</strong> In all four countries and at every date, the bottom quartile's measured real income is within one index point of the all-household figure. At end-2022 it is 0.6 points below in the United States (94.7 against 95.3), 0.6 below in the United Kingdom (99.6 against 100.2), 0.2 below in France (94.0 against 94.2) and 0.4 below in Germany (94.0 against 94.4). By end-2024 the bottom quartile is <em>ahead</em> of the average only in the United Kingdom (113.5 against 112.8); it is level in the United States and Germany and a tenth of a point behind in France. The finding is convergence, not reversal.</p>
+<p>This is not what the income shares would suggest. The bottom quartile has less than half the wage exposure of the average household and roughly twice the benefit exposure; that the two groups end up together means the sources moved together, because statutory floors and indexed benefits roughly tracked prices while market wages did not. The United Kingdom is clearest: working-age benefits rose 10.1% in April 2023 on the September 2022 CPI, the State Pension rose 10.1% and then 8.5% under the triple lock, and the National Living Wage reached two-thirds of median earnings by April 2024. The UK bottom quartile at 113.5 is a statutory result, not a labour-market one.</p>
+<p>Two qualifications cut the other way. The index measures gross income, not purchasing power net of the floor's own price effects: if 75–100% of a minimum-wage increase is passed to consumers (Harasztosi and Lindner 2019; Ashenfelter and Jurajda 2022), the floor is partly a value-added tax on the households it pays, and a regressive one (MaCurdy 2015). Our deflator is the aggregate CPI, which contains that pass-through only insofar as it is economy-wide; a group-specific deflator weighted toward food and limited-service categories would shrink the bottom quartile's measured gain, so the figures are an upper bound on its relative performance. And the 2022 squeeze was <em>not</em> smaller for the bottom quartile than for market earnings: in all four countries the q1 EWI at end-2022 sits <strong>below</strong> the market real wage — 94.7 against 98.0 in the US, 99.6 against 99.7 in the UK, 94.0 against 97.6 in France, 94.0 against 95.3 in Germany. The reason is timing, not generosity. Benefit upratings and floor revisions are annual, backward-looking and applied on a fixed date, so in the year of a shock they deliver last year's inflation while the shock delivers this year's; the components dominating the bottom quartile's income lag precisely when lagging hurts. The catch-up arrives afterwards and is large — US 94.7 to 99.8, Germany 94.0 to 99.5, the UK 99.6 to 113.5 by end-2024. Statutory indexation lags are distributionally regressive in the year of the shock and restorative over the following two, which is the same lag structure the wage equation finds in the bargained sector, arriving through a different institution.</p>
+<h3 id="the-subsidy-neutral-variant-and-the-size-of-the-wedge">The subsidy-neutral variant and the size of the wedge</h3>
+<p>The subsidy-neutral column deflates by the reconstructed index $\tilde{P}$ that removes the price-based support measures. The gaps at end-2022, for the bottom quartile, are: France 2.4 index points (94.0 against 91.6), Germany 0.4, the United Kingdom 0.3, the United States 0.1.</p>
+<p>France dominates because the <em>bouclier tarifaire</em> was the largest price intervention relative to the index it acted on: about −2.6pp of HICP inflation in 2022 on the Banque de France's estimate, against −0.8pp for Germany's price brakes in 2023 and, on the pipeline's own assumption rather than a published estimate, around −1.2pp for the UK's Energy Price Guarantee in 2022Q4. Read the French column in the right direction: <strong>the recorded 6.0-point real income loss for the French bottom quartile at end-2022 understates by 2.4 points what the same households would have recorded had the same money been delivered as income rather than as a lower price.</strong> The subsidy-neutral loss is 8.4 points, not 6.0. Had France transferred the €42.7bn it spent on the tariff shields and the fuel rebate — a sum over the scheme database, not a published total — instead of capping prices, the measured French real EWI at end-2022 would have been about 91.6 rather than 94.0, measured French inflation in 2022 about 2.6 points higher, and the reversal would have arrived in 2023–25 exactly as it did, except that the cash would have been in household budgets in 2022 and available to spend — precisely the difference the price equation's transfer term exists to price.</p>
+<p>The German and UK wedges are smaller because those countries used a more even mix. On the same scheme database Germany delivered €17.3bn of pure income support (the three <em>Energiepreispauschale</em> tranches) alongside €30.6bn in the two price brakes, with the <em>Inflationsausgleichsprämie</em> on top as a payroll measure invisible to both. The UK's £12bn Energy Bills Support Scheme and £20bn of Cost of Living Payments are income; its £23–24.8bn Energy Price Guarantee is price. The US, with no federal price intervention, has a wedge of a tenth of a point.</p>
+<h2 id="the-fiscal-loop">The fiscal loop</h2>
+<h3 id="the-reaction-function-and-the-transfer-term">The reaction function and the transfer term</h3>
+<p>The loop has two return paths from prices to incomes. The first runs through the wage bargain and is governed by $\lambda$. The second runs through the budget: a price shock produces political pressure, the pressure produces a transfer, the transfer produces demand, the demand produces prices. Eq. (W9) specifies the first stage and Eq. (W5)'s $h$ term the last.</p>
+<p>The transfer term is deliberately narrow. It carries only income-based measures, because a price-based measure adds no nominal household income; only the <em>discretionary</em> part of the impulse, because the cyclical part is negatively correlated with inflation and would enter with a spurious sign; and it is expressed as a change in the share of household disposable income, so its coefficient reads directly.</p>
+<p>We report no estimated coefficients for Eq. (W9). The results assembled for this paper do not contain them, and we will not report numbers we have not computed. What follows is therefore a characterisation of the design and an account of what is not identified.</p>
+<h3 id="what-the-simulator-does">What the simulator does</h3>
+<p>Eq. (W12) propagates a relative energy price shock through the estimated price equation, the estimated wage equation, the expectations filter, a one-sided handout rule and a reduced-form monetary rule, with $\lambda$, the anchoring gain $q$, the fiscal response $\varphi_e$, the marginal propensity to consume, the sacrifice dial $\tau$ and the shock's size and duration all exposed.</p>
+<p>The qualitative structure is where the policy content lies, and it survives the absence of estimated fiscal coefficients. A government facing a supply shock has three instruments and they are not equivalent. It can do nothing, in which case $\lambda$ determines how much of the real income loss comes back as wages and $M$ how much of that returns as prices. It can cap prices, in which case measured inflation falls now and rises later, the catch-up term is mechanically suppressed while the cap is in force because the measured real wage does not fall as far, and the adjustment is deferred — the Banque de France profile of −2.6, +0.4, +1.0, +0.8 is what deferral looks like. Or it can transfer income, leaving measured inflation mechanically unaffected but raising demand, with the $h$ term converting some fraction into inflation with a lag.</p>
+<p>How large that fraction is depends on where the money is spent and how steep the supply curve is where it lands, and this is where Orchard, Ramey and Wieland (2025) does real work. A transfer with a corrected micro MPC of about 0.3, concentrated in durables and meeting a steep short-run supply curve, produced a relative price spike of about 1.0% in motor vehicles and a consumption multiplier of about 0.06: the quantity response was small precisely because the price response was not. Applied to 2021–24, an untargeted energy handout paid into an economy whose binding constraint is the supply of energy and energy-intensive goods should show up disproportionately in prices — and the worst configuration is a handout paid alongside a cap on the same good, because the cap suppresses the signal that would ration demand while the transfer raises the demand to be rationed. That describes several packages in the database.</p>
+<p>The two interventions also interact with $\lambda$ in opposite directions. A cap <em>substitutes</em> for indexation: holding the measured CPI down shrinks the real-wage gap and hence the catch-up claim, which is why a capped economy with high $\lambda$ can look quiescent while the cap holds and then experience the catch-up when it unwinds. A transfer does not substitute at all: it leaves the gap intact, so the wage claim still arrives, and adds demand on top. In an economy with $\lambda$ near one a transfer is therefore additive to the indexation response while a cap is partly a substitute for it — an argument for caps in highly indexed economies and transfers in weakly indexed ones, the opposite of the standard advice. We flag it as a hypothesis the model generates rather than a result, because the fiscal coefficients that would test it are the ones we lack. Against it stands the evidence that caps are expensive, badly targeted and internationally harmful: Europe spent roughly 4.4% of GDP against an IMF estimate that compensating the bottom 40% fully would have cost about 0.9% (Ari et al. 2022); 73% of household-directed funding was untargeted (Sgaravatti et al. 2023); only about 12% was explicitly targeted (Bańkowski et al. 2023); and Komatsu (2025) finds caps raised headline inflation in the <em>uncapped</em> members. And the monetary reaction is not a spectator: Glover and Mustre-del-Río (2021) show for the statutory wage floor what $\tau$ encodes generally, a doubling of the US federal minimum raising inflation about 2.5pp annualised under a fixed nominal rate but only about 1pp under the Taylor principle. Whether any instrument is inflationary is jointly determined with the central bank's response, and Eq. (W12) makes that an explicit dial.</p>
+<h3 id="the-populism-channel-and-why-it-is-not-identified">The populism channel, and why it is not identified</h3>
+<p>Eq. (W9) contains a coefficient $\varphi_P$ on a populist-executive indicator, and the honest report is that <strong>it cannot be estimated in this sample</strong>. The political table codes populist status from Funke, Schularick and Trebesch (2023). None of the four modelled countries had a populist executive under that coding over the estimation period, and the table carries no political rows for the three reference countries. The indicator is therefore identically zero at every observation used: $\varphi_P$ is not weakly identified or imprecisely estimated, it is not identified at all.</p>
+<p>We regard this as a design finding. A fiscal reaction function with a populism term requires a sample containing populist executives, which means a longer historical panel or a wider cross-section — Latin America in the 1980s, central Europe after 2010, or the emerging-market fuel-subsidy universe. What the mechanism would look like is clear from the literature: Dornbusch and Edwards (1991) describe a regime that sets $\varphi_e$ high and $\varphi_P$ positive, suppresses the measured price signal through administered prices, and thereby prevents the relative price adjustment that would have ended the episode — so the loop runs for longer, not faster.</p>
+<p>The cross-country evidence gives the shape of the design. Fails (2025) shows that across more than ninety democracies over 1990–2015 electoral proximity depresses fuel prices specifically in low-state-capacity democracies facing uncertain re-election, which maps onto our price/income distinction: states that can transfer, transfer; states that cannot, cap prices. That implies estimating the reaction function with an <em>interaction</em> between the political indicator and fiscal capacity, and with the price-based and income-based instruments as separate dependent variables. Amaglobeli, Gu, Hanedar, Hong and Thévenot (2023), covering 174 countries and some 750 announced measures in the first half of 2022, supply the reason such subsidies persist: social unrest over price increases for energy and basic goods. Hungary's <em>rezsicsökkentés</em> is the obvious European case of a durable administered-price regime under a government FST codes as populist, and Hungary recorded the EU's highest inflation in 2023; the IMF Selected Issues Paper on Hungarian inflation drivers could not be retrieved for this work, so we cite it as a lead requiring verification rather than as evidence.</p>
+<p>The design for future work follows: extend the panel to economies with populist executives in the FST coding, code the price-based and income-based instruments separately, interact the political indicator with fiscal capacity, and estimate Eq. (W9) as a system. Until that is done the fiscal half of the Spiral Gain, $\Phi$ in Eq. (W8b), is a specified object with no estimate attached, and every result here is a $G = \Lambda \times M$ result with the fiscal route set to zero.</p>
+<h2 id="limitations">Limitations</h2>
+<p>This section is not a formality, and the items are not of the same kind.</p>
+<p><strong>$\Lambda(1)$ is an extrapolation from one country.</strong> This is the most serious limitation. Inside the estimation sample, $\lambda \ge 0.9$ is contributed by Belgium alone — 101 quarters at a constant 1.000 — and no other country supplies an observation above 0.5. Belgium's constancy means the level is absorbed by its fixed effect, so the top of the schedule rests on one cross-sectional cell interacted with within-Belgium variation in the real-wage gap. Anything specific to Belgium that correlates with its real-wage gap — the 1996 Wage Law, its trade openness, its margin structure — is a confounder the fixed effect cannot absorb, because it enters through the same interaction. A second country with near-universal indexation would settle it; Luxembourg, Cyprus and Malta are the obvious candidates and are not in the panel.</p>
+<p><strong>The narrative episodes are mostly outside the estimation sample.</strong> Italy's <em>scala mobile</em> at the clip, the US COLA peak and the French <em>échelle mobile</em> are described from the database and displayed in the $\lambda$ table, but only the US episode is inside a sample: Italy and France both contribute from 1985Q4, after their reforms. The historical narrative and the econometrics rest on partly disjoint evidence, and the 1970s discussion should not be read as estimated.</p>
+<p><strong>There is no published series to validate against.</strong> Nobody publishes an indexation intensity, a spiral gain or an effective wage index. Validation is four weaker, independent checks — statutory uprating rules reproduced against announced decisions, similarity to Bernanke and Blanchard's coefficient sums, internal coherence, and institutional facts the coverage database must encode — and none is a ground-truth comparison.</p>
+<p><strong>The Bernanke–Blanchard comparison is a similarity check, not a replication, and not a close one.</strong> Their equation needs the ECI back to 1990 (keyed BLS API) and the Barnichon help-wanted index (a manual download); we have neither. On their own window the split is 0.639 / 0.361 against their 0.460 / 0.540, clearing the module's 0.20 tolerance by 0.02 and failing any tighter one. A check that passes by 0.02 establishes very little, and we do not lean on it.</p>
+<p><strong>The standard errors are understated.</strong> The left-hand side is a four-quarter growth rate observed quarterly, so consecutive observations share three quarters of data and residuals are serially correlated by construction; and the errors are classical rather than HAC, because the estimator must be reproducible exactly in a browser twin. The interaction's $t = 4.14$ is therefore an upper bound on the evidence, not a lower one, and no inference here should be read as significant at a conventional level.</p>
+<p><strong>$\lambda$'s elasticities are calibrated, not estimated,</strong> each at or below its source's central estimate. Since $\Lambda(\lambda)$ is linear in $\lambda$ and $\lambda$ linear in the elasticities, a proportional error in one is a proportional error in that channel's contribution. The <code>automatic</code> value of 0.90 (Card 1986) matters most for the 1970s; the <code>minwage</code> value of 0.35 matters most for the modern French and British results and rests on a contested spillover share — Autor, Manning and Smith (2016) cannot reject that measured spillovers are reporting artefacts, and if they are right the channel is materially smaller, French and British $\lambda$ fall toward the US and German range, and France drops further below the crossover. That is the calibration on which the modern cross-section is most fragile.</p>
+<p><strong>Coverage shares are interpolated between documented dates,</strong> which is an assumption about how contract expiry spreads an institutional change across the workforce; where the true path is a step (the UK in 1974) it is encoded as one. The US automatic channel after 1995 is an assumed decay, because the BLS programme that measured it was discontinued, and Spanish coverage before 2000 is undocumented and therefore recorded as zero.</p>
+<p><strong>Several data substitutions are material.</strong> The French uprating statute names the national CPI excluding tobacco and we apply the rule to the harmonised index; the German <em>Rentenanpassungsformel</em> carries dampening factors requiring counts no keyless source publishes quarterly; the UK triple lock references May–July total pay including bonuses. Belgian indexation runs off the health index and Italian benefit indexation off a forecast index, neither in the pipeline, so both are approximated as wage-linked. The uprating checks run at a 0.35pp tolerance for exactly these reasons.</p>
+<p><strong>German measured wage growth includes the <em>Inflationsausgleichsprämie</em>.</strong> Destatis publishes the <em>Tarifverdienstindex</em> including and excluding one-offs — precisely the split needed — but Genesis-Online serves it only behind a session API. German wage growth here is compensation per employee, which includes the bonus; with 86.3% coverage at an average of €2,680 the effect is not small, biasing measured German catch-up upward in 2023–24 and downward in 2025. This is an instance of exactly the measurement problem the paper is about.</p>
+<p><strong>Unverified model inputs.</strong> The income-composition shares are fixed at 2019 values, so compositional change is not captured; they are assembled from CBO, ONS, INSEE/DREES and Destatis/DIW sources without a single harmonised release behind them, and the US quartiles are a re-basing of published quintile shares. The same applies to the US union-density series multiplying the COLA share: the US automatic channel is a product of two series, so an error in either propagates one-for-one.</p>
+<p><strong>Further specification caveats.</strong> The pooled equation imposes common slopes across seven heterogeneous economies; relaxing them abandons identification of the interaction. $M$ is estimated once per country and held fixed, so all time variation in $G$ is institutional by construction, and the rolling-window variant is the appropriate robustness check. The Belgian <em>saut d'index</em> of 2015–16 is not encoded as a coverage reduction, so Belgian $\lambda$ is slightly overstated in those years. And the CPI wedges come from national estimates produced on different methodologies, so the cross-country comparison of wedges is looser than the within-country time profile.</p>
+<p>Separately: we could not locate a peer-reviewed paper estimating the effect of the French 1983 <em>désindexation</em> on price–wage pass-through. The institutional facts are solid; the econometrics of what is arguably the cleanest indexation reform in a large advanced economy appear not to exist. That gap is itself an invitation.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>A wage–price spiral requires two things at once, and for most of the past forty years only one of them has been true. Prices must come back as wages, which requires an institution, and wages must go back out as prices, which requires pricing power. Writing the loop as a product rather than as a single reduced-form coefficient makes it possible to say which of the two moved.</p>
+<p>What moved was the first. On the institutional database assembled here, indexation intensity between 1975 and today fell 83% in the United States and 68% in Italy, 36% in France and 35% in Germany, 15% in the United Kingdom, and not at all in Belgium. France is mid-pack in the rate of decline but first among the modelled countries in the level, because a minimum-wage formula survived the reform that abolished general indexation; Belgium never reformed at all. The estimated catch-up schedule turns on that intensity: at $\lambda = 0$ a real-wage loss is not recovered within three years, the fitted line crosses zero at $\lambda = 0.261$, and at $\lambda = 1$ it implies about five-eighths recovered — a figure that is an extrapolation from Belgium and should be carried with that label attached. The second factor did not move in the same way. Wage-to-price pass-through at three years remains close to one in the United States, the United Kingdom and Italy, and it is a feature of market structure rather than of wage-setting institutions — which is why Belgium, with complete indexation and a pass-through of 0.27, has a Spiral Gain a quarter the size of Italy's in 1975.</p>
+<p>We would not push the statistical evidence further than it goes. The interaction block that carries this argument has the sign the theory requires in sum, a strongly significant fourth lag where an annual clause would bite, and a strongly significant <em>negative</em> second lag we cannot explain; its standard errors are classical and computed on overlapping observations, so they overstate precision, and the top of its range is identified by one country. What the paper offers with more confidence is the accounting: an auditable database of who was indexed to what, a decomposition separating the two legs of the loop, and a measure of household income that includes the statutory floor, the indexed benefit and the one-off cheque as well as the wage.</p>
+<p>That last measure carries the result we did not expect. Through 2022–24, measured real income for the bottom quartile tracked the all-household average to within a percentage point in every country we examined, and by end-2024 the British bottom quartile was ahead of its own average. This did not happen through the labour market. It happened because minimum wages and benefit upratings are indexation by another name — mechanical, statutory, applied to the households with the least wage exposure, and absent from every negotiated-wage indicator the modern literature uses to conclude that indexation has disappeared. Indexation did not disappear. It moved from the collective agreement to the statute book, and from the median worker to the bottom of the distribution.</p>
+<p>The open question is the one we could not answer. When markets do not return an inflation shock to households, governments increasingly do: €758 billion of it in Europe in seventeen months, roughly half through prices and half through incomes, with 73% of the household-directed part untargeted. We have specified the reaction function governing that response and the term through which it feeds back into prices, and shown why the coefficient on political incentive cannot be estimated from a panel of seven advanced economies none of which had a populist executive. Extending the panel to economies where it did, coding the price-based and income-based instruments separately, and interacting the political variable with fiscal capacity is the natural next step, and it is where the interesting variation now lives.</p>
+<h2 id="references">References</h2>
+<p>Aaronson, D. (2001). "Price Pass-Through and the Minimum Wage." <em>Review of Economics and Statistics</em> 83(1), 158–169. DOI: 10.1162/003465301750160126.</p>
+<p>Aaronson, D., E. French and J. MacDonald (2008). "The Minimum Wage, Restaurant Prices, and Labor Market Structure." <em>Journal of Human Resources</em> 43(3), 688–720. DOI: 10.3368/jhr.43.3.688.</p>
+<p>Afrouzi, H., A. Blanco, A. Drenik and E. Hurst (2024). "A Theory of How Workers Keep Up With Inflation." <em>NBER Working Paper</em> 33233. https://www.nber.org/system/files/working_papers/w33233/w33233.pdf</p>
+<p>Aldama, P., H. Le Bihan and C. Le Gall (2024). "What caused the post-pandemic inflation? Replicating Bernanke and Blanchard (2023) on French data." <em>Banque de France Working Paper</em> 967. https://www.banque-france.fr/system/files/2024-10/WP967.pdf</p>
+<p>Alvarez, J., J. C. Bluedorn, N.-J. H. Hansen, Y. Huang, E. Pugacheva and A. Sollaci (2024). "Wage–price spirals: what is the historical evidence?" <em>Economica</em> 91(364), 1291–1319. DOI: 10.1111/ecca.12543. Working paper: <em>IMF Working Paper</em> 2022/221, DOI: 10.5089/9798400224294.001.a001.</p>
+<p>Amaglobeli, D., E. Hanedar, G. H. Hong and C. Thévenot (2022). "Fiscal Policy for Mitigating the Social Impact of High Energy and Food Prices." <em>IMF Note</em> 2022/001. https://www.imf.org/-/media/files/publications/imf-notes/2022/english/insea2022001.pdf</p>
+<p>Amaglobeli, D., M. Gu, E. Hanedar, G. H. Hong and C. Thévenot (2023). "Policy Responses to High Energy and Food Prices." <em>IMF Working Paper</em> 23/74. https://www.imf.org/-/media/files/publications/wp/2023/english/wpiea2023074-print-pdf.pdf</p>
+<p>Amores, A. F., M. Christl, P. De Agostini, S. De Poli and S. Maier (2023). "Limiting Prices or Transferring Money? An ex-ante assessment of alternative measures to cope with the hike in energy prices." <em>JRC Working Papers on Taxation and Structural Reforms</em> 11/2023. https://euromod-web.jrc.ec.europa.eu/research/publications/limiting-prices-or-transferring-money-ex-ante-assessment-alternative-measures</p>
+<p>Ampudia, M., M. J. Lombardi and T. Renault (2024). "The wage-price pass-through across sectors: evidence from the euro area." <em>BIS Working Paper</em> 1192 (also ECB Working Paper 2948). https://www.bis.org/publ/work1192.pdf</p>
+<p>Angelini, E., N. Bokan, K. Christoffel, M. Ciccarelli and S. Zimic (2019). "Introducing ECB-BASE: The blueprint of the new ECB semi-structural model for the euro area." <em>ECB Working Paper</em> 2315. https://www.ecb.europa.eu/pub/pdf/scpwps/ecb.wp2315~73e5b1c3cd.en.pdf</p>
+<p>Ari, A., N. Arregui, S. Black, O. Celasun, D. Iakova, A. Mineshima, V. Mylonas, I. Parry, I. Teodoru and K. Zhunussova (2022). "Surging Energy Prices in Europe in the Aftermath of the War: How to Support the Vulnerable and Speed up the Transition away from Fossil Fuels." <em>IMF Working Paper</em> 22/152. https://www.imf.org/-/media/files/publications/wp/2022/english/wpiea2022152-print-pdf.pdf</p>
+<p>Ashenfelter, O. and Š. Jurajda (2022). "Minimum Wages, Wages, and Price Pass-Through: The Case of McDonald’s Restaurants." <em>Journal of Labor Economics</em> 40(S1), S179–S201. DOI: 10.1086/718190.</p>
+<p>Auclert, A., M. Rognlie and L. Straub (2024). "The Intertemporal Keynesian Cross." <em>Journal of Political Economy</em> 132(12), 4068–4121. DOI: 10.1086/732531. <em>(Cited for the mechanism only; magnitudes not extracted for this paper.)</em></p>
+<p>Autor, D. H., A. Manning and C. L. Smith (2016). "The Contribution of the Minimum Wage to US Wage Inequality over Three Decades: A Reassessment." <em>American Economic Journal: Applied Economics</em> 8(1), 58–99. DOI: 10.1257/app.20140073.</p>
+<p>Ball, L. (1988). "Is Equilibrium Indexation Efficient?" <em>Quarterly Journal of Economics</em> 103(2), 299–311. DOI: 10.2307/1885114.</p>
+<p>Bańkowski, K., O. Bouabdallah, C. Checherita-Westphal, M. Freier, P. Jacquinot and P. Muggenthaler-Gerathewohl (2023). "Fiscal policy and high inflation." <em>ECB Economic Bulletin</em> Issue 2/2023. https://www.ecb.europa.eu/press/economic-bulletin/articles/2023/html/ecb.ebart202302_01~2bd46eff8f.en.html</p>
+<p>Barro, R. J. and F. Bianchi (2023). "Fiscal Influences on Inflation in OECD Countries, 2020–2023." <em>NBER Working Paper</em> 31838. https://www.nber.org/papers/w31838</p>
+<p>Bates, C., K. Bodnár, P. Healy and M. Roca I Llevadot (2025). "Wage developments during and after the high inflation period." Article, <em>ECB Economic Bulletin</em> Issue 1/2025. https://www.ecb.europa.eu/press/economic-bulletin/articles/2025/html/ecb.ebart202501_02~05fb781826.en.html</p>
+<p>Bates, C., K. Bodnár, V. Botelho and F. Rousseau (2025). "Real wage catch-up in the euro area." Box, <em>ECB Economic Bulletin</em> Issue 5/2025. https://www.ecb.europa.eu/press/economic-bulletin/focus/2025/html/ecb.ebbox202505_04~a71cdfe394.en.html</p>
+<p>Battistini, N., H. Grapow, E. Hahn and M. Soudan (2022). "Wage share dynamics and second-round effects on inflation after energy price surges in the 1970s and today." Box, <em>ECB Economic Bulletin</em> Issue 5/2022. https://www.ecb.europa.eu/press/economic-bulletin/focus/2022/html/ecb.ebbox202205_02~e203142329.en.html</p>
+<p>Bernanke, B. S. and O. J. Blanchard (2024). "An Analysis of Pandemic-Era Inflation in 11 Economies." <em>NBER Working Paper</em> 32532. DOI: 10.3386/w32532. https://www.nber.org/system/files/working_papers/w32532/w32532.pdf</p>
+<p>Bernanke, B. S. and O. J. Blanchard (2025). "What Caused the US Pandemic-Era Inflation?" <em>American Economic Journal: Macroeconomics</em> 17(3), 1–35. DOI: 10.1257/mac.20230195. Working paper: <em>NBER Working Paper</em> 31417, DOI: 10.3386/w31417.</p>
+<p>Bianchi, F. and L. Melosi (2022). "Inflation as a Fiscal Limit." Jackson Hole Economic Policy Symposium, Federal Reserve Bank of Kansas City. https://www.kansascityfed.org/Jackson%20Hole/documents/9037/JH_Paper_Bianchi.pdf</p>
+<p>Bijnens, G., S. Karimov and J. Konings (2023). "Does Automatic Wage Indexation Destroy Jobs? A Machine Learning Approach." <em>De Economist</em> 171(1), 85–117. DOI: 10.1007/s10645-023-09418-y.</p>
+<p>Bing, M., S. Holton, G. Koester and M. Roca I Llevadot (2024). "Tracking euro area wages in exceptional times." ECB Blog, 23 May 2024. https://www.ecb.europa.eu/press/blog/date/2024/html/ecbblog20240523~1964e193b7.en.html</p>
+<p>Black, S., A. A. Liu, I. Parry and N. Vernon (2023). "IMF Fossil Fuel Subsidies Data: 2023 Update." <em>IMF Working Paper</em> 23/169. https://www.imf.org/-/media/Files/Publications/WP/2023/English/wpiea2023169-print-pdf.ashx</p>
+<p>Blanchard, O. (1986). "The Wage Price Spiral." <em>Quarterly Journal of Economics</em> 101(3), 543–565. DOI: 10.2307/1885696.</p>
+<p>Blanchard, O. and J. Galí (2007). "Real Wage Rigidities and the New Keynesian Model." <em>Journal of Money, Credit and Banking</em> 39(s1), 35–65. DOI: 10.1111/j.1538-4616.2007.00015.x.</p>
+<p>Blanchard, O. and J. Galí (2010). "The Macroeconomic Effects of Oil Price Shocks: Why Are the 2000s So Different from the 1970s?" In J. Galí and M. Gertler (eds.), <em>International Dimensions of Monetary Policy</em>, NBER/University of Chicago Press, 373–421. DOI: 10.7208/chicago/9780226278872.003.0008.</p>
+<p>BLS (1995). "Major Collective Bargaining Settlements in Private Industry, Fourth Quarter and Full Year 1994." News release, 31 January 1995. https://www.bls.gov/news.release/history/barg_013195.txt</p>
+<p>Boissay, F., F. De Fiore, D. Igan, A. Pierres Tejada and D. Rees (2022). "Are major advanced economies on the verge of a wage-price spiral?" <em>BIS Bulletin</em> 53. https://www.bis.org/publ/bisbull53.pdf</p>
+<p>Bordo, M., O. Bush and R. Thomas (2025). "'Muddling through or tunnelling through?' UK monetary and fiscal exceptionalism and the Great Inflation." <em>Bank of England Staff Working Paper</em> 1135. https://www.bankofengland.co.uk/-/media/boe/files/working-paper/2025/muddling-through-or-tunnelling-through-uk-monetary-and-fiscal-exceptionalism-and-the-great-inflation.pdf</p>
+<p>Bourgeois, A. and R. Lafrogne-Joussier (2022). "La flambée des prix de l'énergie : un effet sur l'inflation réduit de moitié par le « bouclier tarifaire »." <em>Insee Analyses</em> 75. https://www.insee.fr/fr/statistiques/6524161</p>
+<p>Brayton, F. (2013). "A New FRB/US Price-Wage Sector." Federal Reserve Board methodological note, 30 August 2013, distributed with the FRB/US package. https://www.federalreserve.gov/econres/us-models-package.htm</p>
+<p>Brummund, P. and M. R. Strain (2020). "Does Employment Respond Differently to Minimum Wage Increases in the Presence of Inflation Indexing?" <em>Journal of Human Resources</em> 55(3), 999–1024. DOI: 10.3368/jhr.55.2.1216.8404R2.</p>
+<p>Burgess, S., E. Fernandez-Corugedo, C. Groth, R. Harrison, F. Monti, K. Theodoridis and M. Waldron (2013). "The Bank of England's forecasting platform: COMPASS, MAPS, EASE and the suite of models." <em>Bank of England Working Paper</em> 471. https://www.bankofengland.co.uk/-/media/boe/files/working-paper/2013/the-boes-forecasting-platform-compass-maps-ease-and-the-suite-of-models.pdf</p>
+<p>Card, D. (1986). "An Empirical Model of Wage Indexation Provisions in Union Contracts." <em>Journal of Political Economy</em> 94(3, Part 2), S144–S175. DOI: 10.1086/261402.</p>
+<p>Cengiz, D., A. Dube, A. Lindner and B. Zipperer (2019). "The Effect of Minimum Wages on Low-Wage Jobs." <em>Quarterly Journal of Economics</em> 134(3), 1405–1454. DOI: 10.1093/qje/qjz014.</p>
+<p>Checherita-Westphal, C. (ed.) and the Eurosystem Working Group on Public Finance (2022). "Public wage and pension indexation in the euro area: an overview." <em>ECB Occasional Paper</em> 299, August 2022. https://www.ecb.europa.eu/pub/pdf/scpops/ecb.op299~61d0565cfb.en.pdf</p>
+<p>Coenen, G., P. Karadi, S. Schmidt and A. Warne (2018). "The New Area-Wide Model II." <em>ECB Working Paper</em> 2200. https://www.ecb.europa.eu/pub/pdf/scpwps/ecb.wp2200.en.pdf</p>
+<p>Coibion, O., Y. Gorodnichenko and M. Weber (2020). "How Did U.S. Consumers Use Their Stimulus Payments?" <em>NBER Working Paper</em> 27693. https://ideas.repec.org/p/nbr/nberwo/27693.html</p>
+<p>de Soyres, F., A. M. Santacreu and H. Young (2022). "Fiscal policy and excess inflation during Covid-19: a cross-country view." <em>FEDS Notes</em>, Board of Governors of the Federal Reserve System, 15 July 2022.</p>
+<p>De Spiegelaere, S. (2023). "All rise: Automatic wage increases in collective agreements in Europe." UNI Europa Snapshot Report 2023-01. https://www.uni-europa.org/wp-content/uploads/sites/3/2023/04/22_02_2023_indexation-1.pdf</p>
+<p>DeLuca, M. and W. Van Zandweghe (2023). "Postpandemic Nominal Wage Growth: Inflation Pass-Through or Labor Market Imbalance?" <em>Federal Reserve Bank of Cleveland Economic Commentary</em> 2023-13. DOI: 10.26509/frbc-ec-202313.</p>
+<p>Destatis (2022). "Inflation rate at +10.0% in September 2022." Press release 438/2022. https://www.destatis.de/EN/Press/2022/10/PE22_438_611.html</p>
+<p>Destatis (2025). "Mehr als acht von zehn Tarifbeschäftigten haben eine Inflationsausgleichsprämie erhalten." Pressemitteilung 023, 21 January 2025. https://www.destatis.de/DE/Presse/Pressemitteilungen/2025/01/PD25_023_622.html</p>
+<p>di Giovanni, J., Ş. Kalemli-Özcan, A. Silva and M. A. Yıldırım (2022). "Global Supply Chain Pressures, International Trade, and Inflation." <em>NBER Working Paper</em> 30240. https://www.nber.org/papers/w30240</p>
+<p>di Giovanni, J., Ş. Kalemli-Özcan, A. Silva and M. A. Yıldırım (2023). "Quantifying the Inflationary Impact of Fiscal Stimulus under Supply Constraints." <em>AEA Papers and Proceedings</em> 113, 76–80. DOI: 10.1257/pandp.20231028.</p>
+<p>Dornbusch, R. and S. Edwards (eds.) (1991). <em>The Macroeconomics of Populism in Latin America</em>. NBER Conference Report, University of Chicago Press. https://www.nber.org/books-and-chapters/macroeconomics-populism-latin-america</p>
+<p>Dube, A. (2019). <em>Impacts of Minimum Wages: Review of the International Evidence</em>. HM Treasury / BEIS, November 2019.</p>
+<p>Dupor, B., M. Karabarbounis, M. Kudlyak and M. S. Mehkari (2023). "Regional Consumption Responses and the Aggregate Fiscal Multiplier." <em>Review of Economic Studies</em> 90(6), 2982–3021. DOI: 10.1093/restud/rdad007.</p>
+<p>ECB (2022). "Minimum wages and their role for euro area wage growth." Box, <em>ECB Economic Bulletin</em> Issue 3/2022, 28 April 2022.</p>
+<p>Ehrenberg, R. G., L. Danziger and G. San (1983). "Cost-of-Living Adjustment Clauses in Union Contracts: A Summary of Results." <em>Journal of Labor Economics</em> 1(3), 215–245. DOI: 10.1086/298011.</p>
+<p>European Union (2022). Directive (EU) 2022/2041 of the European Parliament and of the Council of 19 October 2022 on adequate minimum wages in the European Union.</p>
+<p>Eurostat (2022). "Treatment of Energy Prices Compensation Measures in the Harmonised Index of Consumer Prices (HICP)." Methodological note, Directorate C, 16 December 2022. https://ec.europa.eu/eurostat/documents/272892/11336726/Treatment-energy-prices-compensation-measures-HICP.pdf/</p>
+<p>Fails, M. D. (2025). "Pain at the Pump, Pain at the Polls? Global Evidence on Election Timing, State Capacity, and Gasoline Prices." <em>Journal of Political Institutions and Political Economy</em> 6(1), 1–25. DOI: 10.1561/113.00000115.</p>
+<p>Ferdinandusse, M. and M. Delgado-Téllez (2024). "Fiscal policy measures in response to the energy and inflation shock and climate change." Box, <em>ECB Economic Bulletin</em> Issue 1/2024. https://www.ecb.europa.eu/press/economic-bulletin/focus/2024/html/ecb.ebbox202401_08~d136db2a83.en.html</p>
+<p>Fischer, S. (1977a). "Long-Term Contracts, Rational Expectations, and the Optimal Money Supply Rule." <em>Journal of Political Economy</em> 85(1), 191–205. DOI: 10.1086/260551.</p>
+<p>Fischer, S. (1977b). "Wage indexation and macroeconomic stability." <em>Carnegie-Rochester Conference Series on Public Policy</em> 5, 107–147. DOI: 10.1016/0167-2231(77)90005-7.</p>
+<p>Funke, M., M. Schularick and C. Trebesch (2023). "Populist Leaders and the Economy." <em>American Economic Review</em> 113(12), 3249–3288. DOI: 10.1257/aer.20202045.</p>
+<p>Gagliardone, L. and M. Gertler (2023). "Oil Prices, Monetary Policy and Inflation Surges." <em>NBER Working Paper</em> 31263. DOI: 10.3386/w31263. (Forthcoming, <em>American Economic Journal: Macroeconomics</em>; the AEA DOI is not yet registered, so the working paper is cited.)</p>
+<p>Galí, J. (2011). "The Return of the Wage Phillips Curve." <em>Journal of the European Economic Association</em> 9(3), 436–461. DOI: 10.1111/j.1542-4774.2011.01023.x.</p>
+<p>Galí, J. and L. Gambetti (2020). "Has the U.S. Wage Phillips Curve Flattened? A Semi-Structural Exploration." In G. Castex, J. Galí and D. Saravia (eds.), <em>Changing Inflation Dynamics, Evolving Monetary Policy</em>, Central Bank of Chile, 149–171. Also <em>NBER Working Paper</em> 25476.</p>
+<p>Geis, A., with Y. C. Wong and N. Vernon (2023). "Wage Indexation and International Competitiveness in Belgium: An Uneasy Coexistence." <em>IMF Selected Issues Paper</em> SIP/2023/015. https://www.imf.org/-/media/files/publications/selected-issues-papers/2023/english/sipea2023015.pdf</p>
+<p>Glover, A. and J. Mustre-del-Río (2021). "What Happens When the Minimum Wage Rises? It Depends on Monetary Policy." <em>Federal Reserve Bank of Kansas City Economic Review</em>, Q3 2021.</p>
+<p>Gopalan, R., B. H. Hamilton, A. Kalda and D. Sovich (2021). "State Minimum Wages, Employment, and Wage Spillovers: Evidence from Administrative Payroll Data." <em>Journal of Labor Economics</em> 39(3), 673–707. DOI: 10.1086/711355.</p>
+<p>Górnicka, L. and G. Koester (eds.) (2023). "A forward-looking tracker of negotiated wages in the euro area." <em>ECB Occasional Paper</em> 338. https://www.ecb.europa.eu/pub/pdf/scpops/ecb.op338~dd97c1f69e.en.pdf</p>
+<p>Gray, J. A. (1976). "Wage indexation: A macroeconomic approach." <em>Journal of Monetary Economics</em> 2(2), 221–235. DOI: 10.1016/0304-3932(76)90034-9.</p>
+<p>Hahn, E. (2020). "The wage-price pass-through in the euro area: does the growth regime matter?" <em>ECB Working Paper</em> 2485. https://www.ecb.europa.eu/pub/pdf/scpwps/ecb.wp2485~ade2cab91e.en.pdf</p>
+<p>Harasztosi, P. and A. Lindner (2019). "Who Pays for the Minimum Wage?" <em>American Economic Review</em> 109(8), 2693–2727. DOI: 10.1257/aer.20171445.</p>
+<p>Haskel, J., J. Martin and L. Brandt (2023). "Recent UK inflation: an application of the Bernanke-Blanchard model." Bank of England, 27 November 2023. https://www.bankofengland.co.uk/-/media/boe/files/speech/2023/november/recent-uk-inflation-an-application-of-the-bernanke-blanchard-model-paper.pdf</p>
+<p>Hendricks, W. E. and L. M. Kahn (1983). "Cost-of-Living Clauses in Union Contracts: Determinants and Effects." <em>Industrial and Labor Relations Review</em> 36(3), 447–460. DOI: 10.1177/001979398303600309.</p>
+<p>Hidalgo-Pérez, M., N. Collado Van-Baumberghen, J. Galindo and R. Mateo Escobar (2023). "The Effects of the Spanish Gas Cap on Prices, Inflation, and Consumption Six Months Later." EsadeEcPol Insight 43. https://www.esade.edu/ecpol/wp-content/uploads/2023/02/AAFF_ENG_EsadeEcPol_Insight42_The-Effects-of-the-Gas-Cap-on-Prices-1.pdf</p>
+<p>ILO (2024). "How has wage bargaining responded to the acceleration of inflation?" Factsheet, May 2024. https://www.ilo.org/sites/default/files/2024-05/Factsheet_Web%20format_How%20has%20wage%20bargaining%20responded%20to%20the%20acceleration%20of%20inflation.pdf</p>
+<p>IMF (2022). "Wage Dynamics Post–COVID-19 and Wage-Price Spiral Risks." Chapter 2 in <em>World Economic Outlook: Countering the Cost-of-Living Crisis</em>, October 2022. https://www.imf.org/-/media/files/publications/weo/2022/october/english/ch2.pdf</p>
+<p>Jadresic, E. (1996). "Wage Indexation and Macroeconomic Stability: The Gray–Fischer Theorem Revisited." <em>IMF Working Paper</em> 96/121. DOI: 10.5089/9781451854336.001.</p>
+<p>Jannsen, N. and N. Sonnenberg (2023). "Inflation: Neues Basisjahr und Preisbremsen." <em>Wirtschaftsdienst</em> 103(3), 223–224. DOI: 10.2478/wd-2023-0058.</p>
+<p>Jonckheere, J. and H. Zimmer (2024). "Wage-price dynamics and monetary policy." <em>NBB Economic Review</em> 2024/4. https://www.nbb.be/doc/ts/publications/economicreview/2024/ecorevi2024_h04.pdf</p>
+<p>Jordà, Ò., C. Liu, F. Nechio and F. Rivera-Reyes (2022). "Why Is U.S. Inflation Higher than in Other Countries?" <em>FRBSF Economic Letter</em> 2022-07. https://www.frbsf.org/wp-content/uploads/el2022-07.pdf</p>
+<p>Kindberg-Hanlon, G. (2024). "Transfers, Excess Savings, and Large Fiscal Multipliers." <em>IMF Working Paper</em> 24/208. https://www.imf.org/-/media/files/publications/wp/2024/english/wpiea2024208-print-pdf.pdf</p>
+<p>Koester, G. and H. Grapow (2021). "The prevalence of private sector wage indexation in the euro area and its potential role for the impact of inflation on wages." Box, <em>ECB Economic Bulletin</em> Issue 7/2021. https://www.ecb.europa.eu/press/economic-bulletin/focus/2021/html/ecb.ebbox202107_07~f555b70c47.en.html</p>
+<p>Komatsu, M. (2025). "To Cap or Not to Cap? Energy Crises in a Currency Union." <em>Federal Reserve Board International Finance Discussion Paper</em> 1428. DOI: 10.17016/IFDP.2025.1428.</p>
+<p>Lacombe, J. and J. Borum (1987). "Major labor contracts in 1986 provided record low wage adjustments." <em>Monthly Labor Review</em>, May 1987. https://www.bls.gov/opub/mlr/1987/05/art2full.pdf</p>
+<p>Lemoine, M., A. Petronevich and A. Zhutova (2024). "Bouclier tarifaire sur les prix de l'énergie en France : quel bilan ?" <em>Bulletin de la Banque de France</em> 253/4. https://www.banque-france.fr/system/files/2024-07/BDF253_4_Bouclier_tarifaire_web.pdf</p>
+<p>Lemos, S. (2008). "A Survey of the Effects of the Minimum Wage on Prices." <em>Journal of Economic Surveys</em> 22(1), 187–212. DOI: 10.1111/j.1467-6419.2007.00532.x.</p>
+<p>Leung, J. H. (2021). "Minimum Wage and Real Wage Inequality: Evidence from Pass-Through to Retail Prices." <em>Review of Economics and Statistics</em> 103(4), 754–769. DOI: 10.1162/rest_a_00915.</p>
+<p>Lorenzoni, G. and I. Werning (2023). "Wage-Price Spirals." <em>Brookings Papers on Economic Activity</em>, Fall 2023, 317–393. DOI: 10.1353/eca.2023.a935427.</p>
+<p>Low Pay Commission (2026). "Explainer: the minimum wage and inflation." 1 April 2026. https://minimumwage.blog.gov.uk/2026/04/01/low-pay-commission-explainer-the-minimum-wage-and-inflation</p>
+<p>MaCurdy, T. (2015). "How Effective Is the Minimum Wage at Supporting the Poor?" <em>Journal of Political Economy</em> 123(2), 497–545. DOI: 10.1086/679626.</p>
+<p>Manacorda, M. (2004). "Can the Scala Mobile Explain the Fall and Rise of Earnings Inequality in Italy? A Semiparametric Analysis, 1977–1993." <em>Journal of Labor Economics</em> 22(3), 585–614. DOI: 10.1086/383108.</p>
+<p>Modigliani, F. and T. Padoa-Schioppa (1978). "The Management of an Open Economy with '100% Plus' Wage Indexation." <em>Essays in International Finance</em> 130, Princeton University. https://ies.princeton.edu/pdf/E130.pdf</p>
+<p>ONS (2022a). "Treatment of the upcoming energy bill rebate in consumer price statistics." Statement, 28 February 2022. https://www.ons.gov.uk/news/statementsandletters/treatmentoftheupcomingenergybillrebateinconsumerpricestatistics</p>
+<p>ONS (2022b). "Energy Bills Support Scheme classification." Statement, 31 August 2022. https://www.ons.gov.uk/news/statementsandletters/energybillssupportschemeclassification</p>
+<p>ONS (2022c). "Classification review of the Energy Price Guarantee and Energy Bill Relief Scheme." Statement, 31 October 2022. https://www.ons.gov.uk/news/statementsandletters/classificationreviewoftheenergypriceguaranteeandenergybillreliefscheme</p>
+<p>Orchard, J., V. A. Ramey and J. F. Wieland (2025). "Micro MPCs and Macro Counterfactuals: The Case of the 2008 Rebates." <em>Quarterly Journal of Economics</em> 140(3), 2001–2052. DOI: 10.1093/qje/qjaf015.</p>
+<p>Parker, J. A., N. S. Souleles, D. S. Johnson and R. McClelland (2013). "Consumer Spending and the Economic Stimulus Payments of 2008." <em>American Economic Review</em> 103(6), 2530–2553. DOI: 10.1257/aer.103.6.2530.</p>
+<p>Pastore, F. (2010). "Assessing the impact of incomes policy: the Italian experience." <em>International Journal of Manpower</em> 31(7), 793–817. DOI: 10.1108/01437721011081608.</p>
+<p>Ragan, J. F. and B. Bratsberg (2000). "Un-COLA: Why Have Cost-of-Living Clauses Disappeared from Union Contracts and Will They Return?" <em>Southern Economic Journal</em> 67(2), 304–324. DOI: 10.1002/j.2325-8012.2000.tb00338.x.</p>
+<p>Renkin, T., C. Montialoux and M. Siegenthaler (2022). "The Pass-Through of Minimum Wages into U.S. Retail Prices: Evidence from Supermarket Scanner Data." <em>Review of Economics and Statistics</em> 104(5), 890–908. DOI: 10.1162/rest_a_00981.</p>
+<p>Rodriguez Contreras, R. and O. Molina (2023). <em>Tackling rising inflation in sectoral collective wage bargaining</em>. Eurofound, Publications Office of the EU. DOI: 10.2806/004554.</p>
+<p>Sachs, J. and C. Wyplosz (1986). "The Economic Consequences of President Mitterrand." <em>Economic Policy</em> 1(2), 261–322. DOI: 10.2307/1344559.</p>
+<p>Sgaravatti, G., S. Tagliapietra and C. Trasi (2024). "Europe's fiscal policy response to the energy crisis: lessons learned for a greener way out." <em>Energy Efficiency</em> 17, art. 90. DOI: 10.1007/s12053-024-10275-0.</p>
+<p>Sgaravatti, G., S. Tagliapietra, C. Trasi and G. Zachmann (2023). "National fiscal policy responses to the energy crisis." Bruegel Datasets, final update 26 June 2023. DOI: 10.64153/LQHK8283.</p>
+<p>Shapiro, A. H. (2023). "How Much Do Labor Costs Drive Inflation?" <em>FRBSF Economic Letter</em> 2023-13. https://www.frbsf.org/research-and-insights/publications/economic-letter/2023/05/how-much-do-labor-costs-drive-inflation/</p>
+<p>Shapiro, A. H. (2024). "On the Existence of Wage-Price Spirals." Presented at the Hutchins Center conference, 18 January 2024. https://www.brookings.edu/wp-content/uploads/2024/03/Session-3_Wage-price-spiral-wage-compression.pdf</p>
+<p>Stock, J. H. and M. W. Watson (2007). "Why Has U.S. Inflation Become Harder to Forecast?" <em>Journal of Money, Credit and Banking</em> 39(s1), 3–33. Working paper: <em>NBER Working Paper</em> 12324.</p>
+<p>Wilcox, D. W. (1989). "Social Security Benefits, Consumption Expenditure, and the Life Cycle Hypothesis." <em>Journal of Political Economy</em> 97(2), 288–304.</p>
+<h3 id="statutes-and-statutory-sources">Statutes and statutory sources</h3>
+<ul>
+<li><strong>United States.</strong> Social Security Act s.215(i), created by P.L. 92-336 (1972); first automatic COLA June 1975. Congressional Research Service, <em>Social Security: Cost-of-Living Adjustments</em>, CRS Report 94-803. SSA Office of the Chief Actuary, COLA series, https://www.ssa.gov/oact/cola/colaseries.html</li>
+<li><strong>United Kingdom.</strong> Social Security Administration Act 1992, s.150; triple lock from 2011/12, suspended for 2022/23. House of Commons Library briefings CBP-7812 and CBP-10403. National Minimum Wage Act 1998.</li>
+<li><strong>France.</strong> Code de la sécurité sociale art. L161-25 (pension revalorisation). Code du travail arts. L3231-4 and L3231-5 (the SMIC formula). Ordonnance 58-1374 (1958) and Code monétaire et financier art. L112-2 (prohibition of general price indexation). Groupe d'experts SMIC, <em>Rapports</em> 2024 and 2025. CNAV circulaire 2025-29, 22 December 2025.</li>
+<li><strong>Germany.</strong> Mindestlohngesetz s.9 (biennial decision of the <em>Mindestlohnkommission</em> under a backward-looking orientation to the collectively agreed wage index). <em>Rentenanpassungsformel</em> — wage component, contribution-rate factor and sustainability factor, with the <em>Rentengarantie</em> and the 48% <em>Niveauschutzklausel</em> binding from 2024; BMAS, Deutsche Rentenversicherung, Bundesrechnungshof (2025). §3 Nr. 11c EStG (<em>Inflationsausgleichsprämie</em>; parameters verified from practitioner sources rather than from the statute text).</li>
+<li><strong>European Union.</strong> Directive (EU) 2022/2041 of 19 October 2022 on adequate minimum wages in the European Union.</li>
+</ul>
+<hr>
+<p><strong>A note on what remains unverified.</strong> Two gaps are carried forward rather than closed. We could not locate a peer-reviewed paper estimating the effect of the French 1983 <em>désindexation</em> on price–wage pass-through: the institutional record is solid and the econometrics appear not to exist. And the IMF Selected Issues Paper on the drivers of Hungarian inflation — the natural primary source for the <em>rezsicsökkentés</em> case discussed in the fiscal-loop section — could not be retrieved for this work, so that case is cited as a lead requiring primary-source verification rather than as evidence.</p>
+<hr>
+<blockquote>
+<p>Derived from public sources — see method. Estimates, not official publications.
+Not investment advice. · bzhmacro.com</p>
+</blockquote>
+  <footer class="site-footer">Derived from public sources — see method. Estimates, not official publications. Not investment advice. · bzhmacro.com</footer>
+</main>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {delimiters:[
+          {left:'$$',right:'$$',display:true},
+          {left:'$',right:'$',display:false},
+          {left:'\\[',right:'\\]',display:true},
+          {left:'\\(',right:'\\)',display:false}], throwOnError:false});"></script>
+</body>
+</html>

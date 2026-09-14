@@ -1,0 +1,34 @@
+# wage_minwage.csv -- statutory minimum wage levels where no keyless API serves them.
+# France (INSEE 000822484), Germany and the euro area (Eurostat earn_mw_cur) and
+# the US federal rate (FRED FEDMINNFRWG) are fetched, not listed here. The UK is
+# listed because Eurostat dropped the UK after 2020.
+# `month` is the month the rate took effect. Rates are the main adult rate.
+country,effective,rate,currency,note,source
+UK,1999-04,3.60,GBP,"NMW introduced, 22+","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2000-10,3.70,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2001-10,4.10,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2002-10,4.20,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2003-10,4.50,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2004-10,4.85,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2005-10,5.05,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2006-10,5.35,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2007-10,5.52,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2008-10,5.73,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2009-10,5.80,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2010-10,5.93,GBP,"21+","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2011-10,6.08,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2012-10,6.19,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2013-10,6.31,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2014-10,6.50,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2015-10,6.70,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2016-04,7.20,GBP,"National Living Wage introduced, 25+","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2017-04,7.50,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2018-04,7.83,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2019-04,8.21,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2020-04,8.72,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2021-04,8.91,GBP,"age threshold cut to 23","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2022-04,9.50,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2023-04,10.42,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2024-04,11.44,GBP,"age threshold cut to 21; two-thirds of median reached","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2025-04,12.21,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"
+UK,2026-04,12.71,GBP,"","Low Pay Commission; gov.uk national-minimum-wage-rates"

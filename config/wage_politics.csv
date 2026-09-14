@@ -1,0 +1,40 @@
+# wage_politics.csv -- the political state variables in the fiscal reaction
+# function, Eq. (W9).
+#
+# populist: 1 where the national executive is classified as populist in the
+#   Funke-Schularick-Trebesch (2023, AER) "Populist Leaders and the Economy"
+#   database, else 0. None of the four modelled countries has a populist
+#   executive in the FST coding over the estimation sample, so this column is
+#   zero throughout and the coefficient phi_P is identified only by the
+#   reference countries -- which is itself the finding, and is stated as such
+#   in the paper rather than papered over with a looser coding.
+# election: 1 in a year with a scheduled national election for the executive
+#   or the lower house.
+country,year,populist,election,source
+US,2020,0,1,"US presidential election 3 Nov 2020"
+US,2021,0,0,""
+US,2022,0,1,"US midterm elections 8 Nov 2022"
+US,2023,0,0,""
+US,2024,0,1,"US presidential election 5 Nov 2024"
+US,2025,0,0,""
+US,2026,0,1,"US midterm elections 3 Nov 2026"
+UK,2019,0,1,"UK general election 12 Dec 2019"
+UK,2020,0,0,""
+UK,2021,0,0,""
+UK,2022,0,0,""
+UK,2023,0,0,""
+UK,2024,0,1,"UK general election 4 Jul 2024"
+UK,2025,0,0,""
+UK,2026,0,0,""
+FR,2021,0,0,""
+FR,2022,0,1,"French presidential election April 2022 and legislative June 2022"
+FR,2023,0,0,""
+FR,2024,0,1,"dissolution and snap legislative elections June-July 2024"
+FR,2025,0,0,""
+FR,2026,0,0,""
+DE,2021,0,1,"Bundestagswahl 26 Sep 2021"
+DE,2022,0,0,""
+DE,2023,0,0,""
+DE,2024,0,0,""
+DE,2025,0,1,"Bundestagswahl 23 Feb 2025"
+DE,2026,0,0,""

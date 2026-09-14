@@ -1,0 +1,116 @@
+# indexation_coverage.csv -- who is indexed to what, by country and year
+#
+# The observable state variable behind Eq. (W3): lambda_t = sum_j c_{j,t} e_j.
+# One row per (country, year, channel). `coverage` is the share of EMPLOYEES
+# whose pay moves through that channel, in [0,1]. Years between two rows are
+# linearly interpolated by ism.wage_pipeline.load_coverage; a step change (a
+# law taking effect) is encoded by two rows one year apart.
+#
+# Channels
+#   automatic  a contractual escalator: pay moves with a price index by formula
+#   public     statutory indexation of public-sector pay
+#   minwage    pay set by, or benchmarked to, a price-indexed statutory floor
+#   benchmark  inflation has a formal, named role in collective bargaining
+# The four are NOT mutually exclusive; lambda is clipped at 1 (see Eq. W3).
+#
+# `modelled` = 1 for the four countries the model estimates; 0 for the
+# reference rows (BE, IT, ES) that the site plots as context.
+#
+# Every row carries its source. Where a number is an arithmetic combination of
+# two sourced numbers (typically union density x COLA share among covered
+# contracts), the derivation is stated in `note`.
+country,year,channel,coverage,modelled,source,note
+US,1960,automatic,0.056,1,"BLS Major Collective Bargaining Settlements; Hirsch & Macpherson, unionstats.com, union density","union density 0.28 x COLA share of major contracts ~0.20 (early-1960s norm)"
+US,1966,automatic,0.056,1,"BLS; Hirsch-Macpherson","0.28 x 0.20"
+US,1970,automatic,0.081,1,"BLS; Hirsch-Macpherson","density 0.271 x COLA share 0.30"
+US,1973,automatic,0.098,1,"BLS; Card (1986) notes ~60% of workers under large US union contracts indexed","density 0.245 x 0.40"
+US,1976,automatic,0.138,1,"Lacombe & Borum (1987) MLR: ~three-fifths of workers under major CBAs 1976-84","density 0.230 x 0.60"
+US,1980,automatic,0.138,1,"Lacombe & Borum (1987) MLR","density 0.230 x 0.60"
+US,1984,automatic,0.113,1,"Lacombe & Borum (1987) MLR","density 0.188 x 0.60"
+US,1985,automatic,0.088,1,"Lacombe & Borum (1987) MLR: COLA coverage 49% at end-1985","density 0.180 x 0.49"
+US,1986,automatic,0.070,1,"Lacombe & Borum (1987) MLR: 40% at end-1986; clauses dropped or suspended for 434,000 workers in 1986","density 0.175 x 0.40"
+US,1990,automatic,0.064,1,"BLS Major Settlements: ~40% 1987-90","density 0.161 x 0.40"
+US,1991,automatic,0.047,1,"BLS Major Settlements: 30% at end-1991","density 0.158 x 0.30"
+US,1993,automatic,0.037,1,"BLS Major Settlements: 24% at end-1993","density 0.155 x 0.24"
+US,1995,automatic,0.035,1,"BLS Major Settlements discontinued 1995 at 24%","density 0.148 x 0.24"
+US,2000,automatic,0.015,1,"Ragan & Bratsberg (2000) SEJ: COLAs had largely disappeared","assumed decay; no published series after 1995"
+US,2010,automatic,0.008,1,"Ragan & Bratsberg (2000); no COLA series published","assumed"
+US,2026,automatic,0.005,1,"no published COLA-coverage series since 1995","assumed"
+US,1960,minwage,0.000,1,"US DOL; federal minimum wage has never been indexed",""
+US,1998,minwage,0.000,1,"EPI: Washington Initiative 688 (Nov 1998) is the first indexing state",""
+US,2000,minwage,0.004,1,"EPI Minimum Wage Tracker","WA employment share 0.021 x ~0.18 of jobs within the spillover band"
+US,2005,minwage,0.010,1,"EPI (2005) indexing snapshot: WA, OR, FL, VT","state employment share ~0.09 x 0.12"
+US,2010,minwage,0.026,1,"EPI Minimum Wage Tracker: the 2006 ballot wave (AZ, CO, MO, MT, NV, OH)","state employment share ~0.20 x 0.13"
+US,2015,minwage,0.030,1,"EPI Minimum Wage Tracker","~0.24 x 0.125"
+US,2022,minwage,0.038,1,"EPI (6 Sep 2022): 13 states + DC index; MN caps at 2.5% and uses PCE, VT caps at 5%","state employment share ~0.30 x 0.125"
+US,2026,minwage,0.041,1,"EPI Minimum Wage Tracker (CT and NV began indexing in 2024)","~0.33 x 0.125"
+US,1960,public,0.000,1,"US federal and state pay are not price-indexed",""
+US,2026,public,0.000,1,"FEPCA 1990 ties federal pay to the ECI but the formula is routinely overridden","treated as zero: it is a wage, not a price, link and it does not bind"
+US,1960,benchmark,0.000,1,"no formal inflation reference in US bargaining law",""
+US,2026,benchmark,0.000,1,"no formal inflation reference in US bargaining law",""
+UK,1960,automatic,0.000,1,"no general escalator system",""
+UK,1973,automatic,0.000,1,"Counter-Inflation (Price and Pay Code) Order 1973 announced 3 Oct 1973",""
+UK,1974,automatic,0.330,1,"Bordo, Bush & Thomas (2025) BoE SWP 1135: threshold clauses covered ~1/3 of the workforce and were triggered 11 times in 12 months","Stage 3 threshold payments, in force through 1974"
+UK,1975,automatic,0.000,1,"threshold agreements ended with the 1975 incomes policy",""
+UK,2026,automatic,0.000,1,"De Spiegelaere (2023) UNI Europa: no automatic system in the UK",""
+UK,1960,benchmark,0.330,1,"ONS/BEIS collective bargaining coverage ~0.66 x 0.5","inflation had a named role in national bargaining rounds"
+UK,1975,benchmark,0.400,1,"bargaining coverage ~0.80 at the 1970s peak x 0.5",""
+UK,1980,benchmark,0.350,1,"union density peaked at 0.52 in 1979; coverage ~0.70",""
+UK,1990,benchmark,0.240,1,"BEIS Trade Union Membership statistics","coverage ~0.48 x 0.5"
+UK,2000,benchmark,0.180,1,"BEIS Trade Union Membership statistics","coverage ~0.36 x 0.5"
+UK,2010,benchmark,0.155,1,"BEIS Trade Union Membership statistics","coverage ~0.31 x 0.5"
+UK,2026,benchmark,0.130,1,"BEIS Trade Union Membership statistics: coverage ~0.26","coverage 0.26 x 0.5"
+UK,1998,minwage,0.000,1,"National Minimum Wage Act 1998; first rate April 1999",""
+UK,1999,minwage,0.060,1,"Low Pay Commission: NMW coverage ~6% of jobs",""
+UK,2016,minwage,0.100,1,"LPC: National Living Wage introduced April 2016",""
+UK,2021,minwage,0.170,1,"LPC 2025/2026 reports: NLW covers 5.9% of jobs but with spillovers to the 35th percentile touches just under one-fifth of the wage bill","coverage incl. spillovers"
+UK,2026,minwage,0.180,1,"LPC, The National Minimum Wage in 2026: NLW reached two-thirds of median earnings in April 2024",""
+UK,1960,public,0.000,1,"UK public pay is set by review bodies, not by formula",""
+UK,2026,public,0.000,1,"UK public pay is set by review bodies, not by formula",""
+FR,1960,automatic,0.000,1,"Ordonnance 58-1374 (1958) prohibits indexation clauses on the general price level, except the SMIG",""
+FR,2026,automatic,0.000,1,"Ordonnance 58-1374; confirmed by Code monetaire et financier L112-2",""
+FR,1960,minwage,0.400,1,"SMIG indexed to prices by the law of 18 July 1952; SMIC formula from the law of 2 January 1970","SMIG/SMIC upratings are the reference in sectoral grids"
+FR,1970,minwage,0.450,1,"Law of 2 Jan 1970 creates the SMIC: automatic price indexation plus half the gain in the basic hourly wage",""
+FR,2000,minwage,0.500,1,"ECB Economic Bulletin 7/2021 box (Koester & Grapow): ~18% of euro-area private employees are covered by minimum-wage indexation only, with France the named case",""
+FR,2021,minwage,0.520,1,"Groupe d'experts SMIC (2024): 17.3% of employees at the SMIC on 1 Jan 2024; nine revalorisations end-2020 to end-2024, four of them automatic mid-year triggers",""
+FR,2026,minwage,0.520,1,"Groupe d'experts SMIC (2025)",""
+FR,1960,benchmark,0.700,1,"pre-1983 French wage norms referenced the general price index in practice","the echelle mobile norm"
+FR,1982,benchmark,0.700,1,"June 1982 blocage des prix et des salaires",""
+FR,1984,benchmark,0.400,1,"Sachs & Wyplosz (1986) Economic Policy: the 1983 tournant de la rigueur and the formal desindexation",""
+FR,1990,benchmark,0.250,1,"post-desindexation bargaining norm",""
+FR,2021,benchmark,0.180,1,"ECB Economic Bulletin 7/2021: ~18% of euro-area private employees have inflation in a formal role in negotiations",""
+FR,2026,benchmark,0.180,1,"ECB Economic Bulletin 7/2021",""
+FR,1960,public,0.000,1,"ECB OP 299 (2022): automatic price indexation of public wages exists only in BE, LU, CY, MT and IT","the point d'indice is discretionary and was frozen 2010-2016 and 2017-2021"
+FR,2026,public,0.000,1,"ECB OP 299 (2022)",""
+DE,1960,automatic,0.000,1,"De Spiegelaere (2023); ECB EB 7/2021: no automatic indexation system in Germany",""
+DE,2026,automatic,0.000,1,"ECB EB 7/2021",""
+DE,1960,benchmark,0.380,1,"Destatis/WSI bargaining coverage ~0.85 in the 1970s; Bundesbank-era norm-setting referenced prices explicitly","coverage 0.85 x 0.45. The weight is 0.45 before 1990 and 0.30 after: the share of covered employees for whom inflation had a NAMED role fell with the shift from the Bundesbank-era norm to the post-1995 framework, so the weight is not a constant and is not presented as one."
+DE,1980,benchmark,0.350,1,"WSI Tarifbindung",""
+DE,1995,benchmark,0.220,1,"IAB Betriebspanel: bargaining coverage ~0.72 (West)","coverage 0.72 x 0.30 -- the post-1990 weight; see the 1960 row"
+DE,2010,benchmark,0.150,1,"IAB Betriebspanel: coverage ~0.50",""
+DE,2022,benchmark,0.130,1,"IAB Betriebspanel: coverage ~0.43; ECB OP 338 finds indexation clauses rare in Germany","coverage 0.43 x 0.30"
+DE,2026,benchmark,0.130,1,"IAB Betriebspanel",""
+DE,2014,minwage,0.000,1,"no statutory minimum wage before 2015",""
+DE,2015,minwage,0.060,1,"MiLoG in force 1 Jan 2015 at EUR 8.50",""
+DE,2022,minwage,0.090,1,"statutory rise to EUR 12.00 on 1 Oct 2022, bypassing the Mindestlohnkommission","the bite rose sharply; the rule is a lagged peg to negotiated wages, not to prices"
+DE,2026,minwage,0.085,1,"5th Mindestlohnverordnung: EUR 13.90 (2026), EUR 14.60 (2027)",""
+DE,1960,public,0.000,1,"ECB OP 299 (2022): German public pay is not automatically indexed",""
+DE,2026,public,0.000,1,"ECB OP 299 (2022)",""
+BE,1960,automatic,0.960,0,"IMF SIP/2023/015 (Geis, Wong & Vernon): indexation runs off the health index; near-universal coverage","reference country, not modelled"
+BE,2026,automatic,0.960,0,"IMF SIP/2023/015; SPF Emploi on the saut d'index (last used 2015-16)","reference country, not modelled"
+BE,1960,public,0.180,0,"ECB OP 299 (2022): Belgium indexes public wages automatically; Eurostat gov_10a_exp / national accounts, public employment ~18% of total employment","coverage is the share of ALL employees, not of public-sector ones -- reference country"
+BE,2026,public,0.180,0,"ECB OP 299 (2022); Eurostat public employment share","reference country"
+IT,1960,automatic,0.400,0,"scala mobile, pre-1975 regime","reference country"
+IT,1975,automatic,0.960,0,"Modigliani & Padoa-Schioppa (1978): aggregate industry indexation ~96% under the 1975 punto unico","reference country"
+IT,1983,automatic,0.960,0,"Modigliani & Padoa-Schioppa (1978)","reference country"
+IT,1984,automatic,0.500,0,"Pastore (2010) IJM: the February 1984 decreto di San Valentino cut the automatism; survived the 1985 referendum","reference country"
+IT,1992,automatic,0.000,0,"Pastore (2010): the scala mobile was abolished in July 1992","reference country"
+IT,1960,public,0.140,0,"ECB OP 299 (2022) names Italy as one of the five euro-area countries with automatic price indexation of public wages (with BE, LU, CY, MT); ISTAT public employment ~14% of total employment","share of ALL employees -- reference country. An earlier version omitted this channel entirely while the narrative repeated the five-country list."
+IT,2026,public,0.140,0,"ECB OP 299 (2022)","reference country"
+IT,1993,benchmark,0.600,0,"Pastore (2010): the July 1993 Protocol replaced it with forward-looking concertation; ECB EB 7/2021 notes Italy's mechanism is forward-looking (ISTAT IPCA-NEI)","reference country"
+IT,2026,benchmark,0.600,0,"ECB EB 7/2021","reference country"
+ES,2000,benchmark,0.700,0,"De Spiegelaere (2023) UNI Europa: wage-guarantee clauses covered over 70% of workers in the early 2000s","reference country"
+ES,2014,benchmark,0.140,0,"De Spiegelaere (2023): trough of ~14% over 2014-2021","reference country"
+ES,2021,benchmark,0.140,0,"De Spiegelaere (2023)","reference country"
+ES,2023,benchmark,0.500,0,"ILO (2024) factsheet: ~50% of employees covered by agreements in force in 2023 had indexation mechanisms; UNI Europa reports ~1 in 4 agreements in 2022 (different unit)","reference country; the two sources differ in unit -- see docs"
+ES,2026,benchmark,0.500,0,"ILO (2024)","reference country"
