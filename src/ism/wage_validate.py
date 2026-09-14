@@ -53,7 +53,8 @@ import pandas as pd
 from . import wage_pipeline as wp
 from .wage_engine import (OLSFit, WageConfig, fit_panel_wage_equation,
                           fit_price_equation, fit_wage_equation,
-                          price_to_wage_gain, wage_to_price_gain)
+                          poolability_test, price_to_wage_gain,
+                          wage_to_price_gain)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -172,13 +173,17 @@ def check_bernanke_blanchard(panels: Dict[str, pd.DataFrame],
     """
     cfg = cfg or WageConfig()
     out: List[Check] = []
+    # Deliberately the FULLY POOLED fit. Bernanke & Blanchard estimate one
+    # equation with one coefficient vector, so the comparable object here is
+    # the pooled panel, not the paper's headline specification, whose dynamics
+    # are country-specific and therefore have no common own-lag sum to compare.
     try:
-        fit = fit_panel_wage_equation(panels, cfg, interact=False,
+        fit = fit_panel_wage_equation(panels, cfg, interact=False, free=(),
                                       sample=("1990-01-01", "2019-12-31"))
     except Exception as exc:  # noqa: BLE001
         return [Check("bernanke_blanchard/wage", False, f"estimation failed: {exc}")]
     try:
-        full = fit_panel_wage_equation(panels, cfg, interact=False)
+        full = fit_panel_wage_equation(panels, cfg, interact=False, free=())
         out.append(Check("bernanke_blanchard/full_sample_split", True,
                          f"full-sample pooled split {full.sum_of('gw_l'):.3f} / "
                          f"{full.sum_of('pistar_l'):.3f} -- reported, not tested",
@@ -226,20 +231,51 @@ def check_coherence(panels: Dict[str, pd.DataFrame],
         out.append(Check(f"panel_nonempty/{c}", n >= 80,
                          f"{n} quarters with both wage and price growth", float(n), 80.0))
 
-    # The homogeneity restriction must actually bind.
+    # The homogeneity restriction must bind ONCE PER COUNTRY now that the
+    # dynamics are free.
     try:
         f = fit_panel_wage_equation(panels, cfg)
-        tot = f.sum_of("gw_l") + f.sum_of("pistar_l")
-        out.append(Check("homogeneity", abs(tot - 1.0) < 1e-6,
-                         f"sum of own-lag and trend coefficients = {tot:.9f} (restriction: 1)",
-                         tot, 1.0))
-        lam_hi = price_to_wage_gain(f, 1.0)
-        lam_lo = price_to_wage_gain(f, 0.0)
-        out.append(Check("indexation_sign", lam_hi > lam_lo,
-                         f"three-year catch-up is {lam_hi:+.3f} under full indexation vs "
-                         f"{lam_lo:+.3f} with none", lam_hi - lam_lo, 0.0))
+        worst, worst_c = 0.0, None
+        for c in panels:
+            tot = f.sum_of("gw_l", c) + f.sum_of("pistar_l", c)
+            if abs(tot - 1.0) > worst:
+                worst, worst_c = abs(tot - 1.0), c
+        out.append(Check("homogeneity", worst < 1e-6,
+                         f"binds in every country; worst deviation {worst:.2e} ({worst_c})",
+                         worst, 1e-6))
+
+        # The sign of the indexation effect must hold in EVERY country, not
+        # just on average. This is the claim the paper rests on, and freeing
+        # the dynamics is what puts it at risk.
+        signs = {c: (price_to_wage_gain(f, 1.0, country=c)
+                     - price_to_wage_gain(f, 0.0, country=c)) for c in panels}
+        bad = {c: v for c, v in signs.items() if v <= 0}
+        lo, hi = min(signs.values()), max(signs.values())
+        out.append(Check("indexation_sign", not bad,
+                         f"d(Lambda)/d(lambda) positive in all {len(signs)} countries, "
+                         f"range {lo:+.3f} to {hi:+.3f}"
+                         + (f"; NEGATIVE in {list(bad)}" if bad else ""),
+                         lo, 0.0))
+
+        pooled = fit_panel_wage_equation(panels, cfg, free=())
+        out.append(Check("pooling_shrinks_interaction", True,
+                         f"catch-up x lambda is {pooled.sum_of('cux_l'):+.3f} fully pooled "
+                         f"vs {f.sum_of('cux_l'):+.3f} with free dynamics -- reported, not "
+                         "tested: pooled dynamics inflate the interaction",
+                         f.sum_of("cux_l"), None))
     except Exception as exc:  # noqa: BLE001
         out.append(Check("panel_estimation", False, f"failed: {exc}"))
+
+    # Is one coefficient vector for seven countries defensible?
+    try:
+        t = poolability_test(panels, cfg)
+        out.append(Check("poolability", True,
+                         f"Chow F = {t['F']:.2f} on ({t['df1']:.0f}, {t['df2']:.0f}), "
+                         f"p = {t['p']:.2e} -- pooling is REJECTED, which is why the "
+                         "headline specification frees the dynamics",
+                         t["F"], None))
+    except Exception as exc:  # noqa: BLE001
+        out.append(Check("poolability", False, f"failed: {exc}"))
 
     for c, d in panels.items():
         try:

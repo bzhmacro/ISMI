@@ -76,6 +76,11 @@ CLEVELAND_RI_CSV = REPO_ROOT / "config" / "cleveland_ri_by_year.csv"
 #: with ``scripts/build_cpi_ri.py --cut cleveland``.
 OER_SPLIT_ANCHOR = "2026-08"
 
+#: A live BEA build must return at least this many of the pinned categories or
+#: it is treated as a failed fetch rather than a thin month.  130 are pinned;
+#: BEA has never dropped more than a couple at once.
+MIN_PCE_CATEGORIES = 100
+
 
 @dataclass
 class TrimPanel:
@@ -338,15 +343,43 @@ def build_pce_panel(
     ``sa="none"``: BEA's 2.4.4U price indexes arrive seasonally adjusted.  This
     was verified against the Dallas Fed series rather than assumed -- adding an
     adjustment lowers the 12-month correlation from 0.997 to 0.995.
+
+    **Price and nominal series are joined on the root key, not on BEA's
+    SeriesCode.**  BEA gives the same spending line a different code in each
+    table -- ``DNEARG`` in 2.4.4U (prices), ``DNEARC`` in 2.4.5U (nominal) --
+    so intersecting the raw codes matches *nothing* and yields a panel with an
+    index and no columns.  ``config/pce_categories.csv`` carries both: ``key``
+    is the root (``DNEAR``) and is what both tables are keyed on here, the same
+    convention ``scripts/export_web_data.py`` and :mod:`ism.decomp_pipeline`
+    use.  :data:`MIN_PCE_CATEGORIES` is the tripwire, because the failure is
+    silent otherwise: an empty panel exports as a scope with zero categories
+    and quietly breaks the CPI-to-PCE identity downstream.
     """
     if inflation_panel is None or weights is None:
-        from .pipeline import build_category_panel
-        cats = pd.read_csv(REPO_ROOT / "config" / "pce_categories.csv")
-        explicit = cats["SeriesCode"].tolist() if "SeriesCode" in cats else None
-        inflation_panel, weights = build_category_panel(
-            bea=bea, explicit_series=explicit, force=force)
-        labels = labels or dict(zip(cats.get("key", cats.iloc[:, 0]),
-                                    cats.get("label", cats.iloc[:, 0])))
+        from .datasources import BeaClient
+        from .decomp_pipeline import bea_wide
+        cats = pd.read_csv(REPO_ROOT / "config" / "pce_categories.csv",
+                           dtype={"key": str})
+        bea = bea or BeaClient()
+        price = bea_wide(bea, "U20404", force=force)
+        nominal = bea_wide(bea, "U20405", force=force)
+        keys = [k for k in cats["key"].astype(str)
+                if k in price.columns and k in nominal.columns]
+        if len(keys) < MIN_PCE_CATEGORIES:
+            raise ValueError(
+                f"BEA returned only {len(keys)} of the {len(cats)} pinned PCE "
+                f"categories (price table has {price.shape[1]} keys, nominal "
+                f"{nominal.shape[1]}). Refusing to build a panel this thin -- "
+                "re-run with --force to bypass the BEA cache, and check "
+                "config/pce_categories.csv against the current 2.4.4U/2.4.5U.")
+        inflation_panel = monthly_inflation(price[keys])
+        nom = nominal[keys]
+        weights = nom.div(nom.sum(axis=1).replace(0, np.nan), axis=0)
+        labels = labels or dict(zip(cats["key"].astype(str),
+                                    cats["label"].astype(str)))
+
+    if inflation_panel.shape[1] == 0:
+        raise ValueError("the PCE panel has no categories")
 
     common = inflation_panel.index.intersection(weights.index)
     return TrimPanel(

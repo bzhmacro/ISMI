@@ -53,7 +53,7 @@ how the engine is validated against B&B's published coefficients.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -291,15 +291,41 @@ class OLSFit:
             return pd.Series(np.where(self.se > 0, self.beta / self.se, np.nan),
                              index=self.names, name="t")
 
-    def sum_of(self, prefix: str) -> float:
+    def for_country(self, country: Optional[str]) -> "pd.Series":
+        """Effective coefficients for one country.
+
+        In a partially pooled panel a block is either country-specific, and its
+        columns are named ``gw_l1__DE``, or common, and named ``gw_l1``. This
+        collapses the two into one canonical series so that everything
+        downstream -- the gains, the simulator -- can be written once and does
+        not need to know which blocks were pooled.
+        """
+        out: Dict[str, float] = {}
+        for n, b in zip(self.names, self.beta):
+            if "__" in n:
+                base, c = n.rsplit("__", 1)
+                if country is not None and c == country:
+                    out[base] = float(b)
+            else:
+                out.setdefault(n, float(b))
+        return pd.Series(out, name=country or "pooled")
+
+    def countries(self) -> List[str]:
+        return sorted({n.rsplit("__", 1)[1] for n in self.names if "__" in n})
+
+    def sum_of(self, prefix: str, country: Optional[str] = None) -> float:
         """Sum of the coefficients whose name starts with ``prefix``.
 
         The published results this engine is validated against (B&B Tables 1-2)
         report sums of lag blocks, not individual lags, so this is the natural
-        reporting unit.
+        reporting unit. Pass ``country`` to sum that country's own block in a
+        partially pooled fit.
         """
+        if country is not None:
+            c = self.for_country(country)
+            return float(sum(v for n, v in c.items() if n.startswith(prefix)))
         return float(sum(b for n, b in zip(self.names, self.beta)
-                         if n.startswith(prefix)))
+                         if n.startswith(prefix) and "__" not in n))
 
 
 def _inv(A: np.ndarray, ridge: float = 1e-10) -> np.ndarray:
@@ -331,22 +357,30 @@ def _inv(A: np.ndarray, ridge: float = 1e-10) -> np.ndarray:
 
 
 def restricted_ols(y: np.ndarray, X: np.ndarray, names: Sequence[str],
-                   R: Optional[np.ndarray] = None, r: float = 0.0,
+                   R: Optional[np.ndarray] = None, r: Any = 0.0,
                    index: Optional[pd.Index] = None) -> OLSFit:
-    """Least squares, optionally subject to one linear restriction R'b = r.
+    """Least squares subject to linear restrictions ``R'b = r``.
 
-    The restriction is imposed analytically rather than by reparameterisation,
-    because the closed form is three lines, it is exact, and it is trivially
-    portable to JavaScript:
+    ``R`` is either a single restriction (a 1-D array of length k) or several
+    (a 2-D array, k x m). The restricted estimator is the same closed form
+    either way,
 
-        b_r = b + V R (R' V R)^{-1} (r - R' b),   V = (X'X)^{-1}
+        b_r = b + V R (R'VR)^{-1} (r - R'b),     V = (X'X)^{-1}
+        V_r = s^2 [ V - V R (R'VR)^{-1} R' V ]
 
-    Standard errors use the restricted residuals and the restricted covariance
-    V_r = s^2 [V - V R (R'VR)^{-1} R' V]; degrees of freedom gain one from the
-    restriction. These are classical, not HAC: the browser has to reproduce
-    them, and the coefficients -- not their standard errors -- are what the
-    site's charts and the spiral gain depend on. Reported t-statistics should
-    be read as indicative.
+    with (R'VR) a scalar in the one-restriction case and an m x m matrix
+    otherwise. Degrees of freedom gain m.
+
+    Several restrictions are needed as soon as the panel gives each country its
+    own dynamics: the long-run homogeneity condition sum(a_c) + sum(b_c) = 1
+    then has to hold once per country, not once overall, and imposing it as a
+    single pooled restriction would let one country's persistence exceed unity
+    while another's compensated.
+
+    Standard errors are classical. They understate uncertainty here, because
+    the panel is estimated on overlapping four-quarter growth rates and the
+    residuals are serially correlated by construction; read the t-statistics as
+    indicative.
     """
     y = np.asarray(y, dtype=float)
     X = np.asarray(X, dtype=float)
@@ -356,13 +390,22 @@ def restricted_ols(y: np.ndarray, X: np.ndarray, names: Sequence[str],
     beta = V @ (X.T @ y)
     dof = n - k
     if R is not None:
-        R = np.asarray(R, dtype=float).reshape(-1, 1)
-        VR = V @ R
-        denom = float((R.T @ VR).item())
-        if abs(denom) > 1e-14:
-            beta = beta + (VR.flatten() * (r - float((R.T @ beta).item())) / denom)
-            V = V - (VR @ VR.T) / denom
-        dof = n - k + 1
+        R = np.asarray(R, dtype=float)
+        if R.ndim == 1:
+            R = R.reshape(-1, 1)
+        m = R.shape[1]
+        rvec = np.full(m, float(r)) if np.isscalar(r) else np.asarray(r, dtype=float)
+        VR = V @ R                                  # k x m
+        RVR = R.T @ VR                              # m x m
+        if np.all(np.isfinite(RVR)) and abs(np.linalg.det(RVR)) > 1e-300:
+            # A single restriction is a scalar divide. Routing it through the
+            # ridged Gauss-Jordan inverse instead costs about 1e-11 of accuracy
+            # for nothing, and the single-restriction path is the one the
+            # single-country equations and the older fits all use.
+            RVRinv = (np.array([[1.0 / RVR[0, 0]]]) if m == 1 else _inv(RVR))
+            beta = beta + VR @ (RVRinv @ (rvec - R.T @ beta))
+            V = V - VR @ RVRinv @ VR.T
+            dof = n - k + m
     resid = y - X @ beta
     ssr = float(resid @ resid)
     tss = float(((y - y.mean()) ** 2).sum())
@@ -478,7 +521,15 @@ def fit_price_equation(panel: pd.DataFrame, cfg: Optional[WageConfig] = None,
 
     blocks = [_lags(df["gp"], range(1, p + 1), "gp_l"),
               _lags(df["gw"], range(0, p + 1), "gw_l")]
-    for col, pref in (("grpe", "grpe_l"), ("grpf", "grpf_l"), ("h", "h_l")):
+    # The transfer term is the CYCLICALLY ADJUSTED impulse where the pipeline
+    # has computed one. Total transfers are dominated by automatic stabilisers
+    # -- unemployment insurance rises in recessions, when inflation is falling
+    # -- so the raw series enters a price equation with a spurious negative
+    # sign. The browser twin has always used h_disc; this side was reading h,
+    # and the two produced different M for every country until the parity test
+    # was widened to cover it.
+    h_col = "h_disc" if "h_disc" in df else "h"
+    for col, pref in (("grpe", "grpe_l"), ("grpf", "grpf_l"), (h_col, "h_l")):
         if col in df:
             blocks.append(_lags(df[col], range(0, p + 1), pref))
     if "gpty" in df:
@@ -543,7 +594,8 @@ def _cumulative_response(own: np.ndarray, driver: np.ndarray,
 
 
 def price_to_wage_gain(wage_fit: OLSFit, lam: float, p: int = 4,
-                       horizon: int = 3 * PPY) -> float:
+                       horizon: int = 3 * PPY,
+                       country: Optional[str] = None) -> float:
     """Eq. (W6). Lambda(lambda_t): the three-year cumulative response of wage
     growth to a permanent 1pp rise in *realised* inflation, at indexation
     intensity ``lam``.
@@ -552,6 +604,12 @@ def price_to_wage_gain(wage_fit: OLSFit, lam: float, p: int = 4,
     interaction block, so Lambda(0) is the pass-through with no indexation and
     Lambda(1) the pass-through under universal indexation. The difference
     between them is the paper's estimate of what an indexation clause is worth.
+
+    ``country`` selects that country's own dynamics in a partially pooled fit.
+    The catch-up coefficients are common, but the persistence they propagate
+    through is not, so Lambda differs across countries even at the same lambda
+    -- and it should: the same impulse in a labour market with an own-lag sum of
+    0.97 and one with 0.22 does not produce the same three-year response.
 
     A 1pp permanent rise in realised inflation moves two regressors: the
     catch-up term (by 1, scaled by lambda_t if the equation was estimated with
@@ -562,7 +620,7 @@ def price_to_wage_gain(wage_fit: OLSFit, lam: float, p: int = 4,
     1975 from 2023 is the catch-up route, and that is what the gain is meant to
     isolate. The two routes are added back together in ``simulate_loop``.
     """
-    c = wage_fit.coef()
+    c = wage_fit.for_country(country) if country else wage_fit.coef()
     own = np.array([c.get(f"gw_l{k}", 0.0) for k in range(1, p + 1)])
     drv = np.array([c.get(f"cu_l{k}", 0.0) + float(lam) * c.get(f"cux_l{k}", 0.0)
                     for k in range(1, p + 1)])
@@ -597,7 +655,8 @@ def fiscal_gain(price_fit: OLSFit, phi_e: float, mpc: float,
 
 def spiral_gain(wage_fit: OLSFit, price_fit: OLSFit, lam: pd.Series,
                 p: int = 4, horizon: int = 3 * PPY,
-                phi_e: float = 0.0, mpc: float = 0.0) -> pd.DataFrame:
+                phi_e: float = 0.0, mpc: float = 0.0,
+                country: Optional[str] = None) -> pd.DataFrame:
     """Eq. (W8). G_t = Lambda(lambda_t) * M, with the fiscal route optional.
 
     Returns a frame with ``lambda``, ``Lambda`` (price->wage), ``M``
@@ -605,16 +664,18 @@ def spiral_gain(wage_fit: OLSFit, price_fit: OLSFit, lam: pd.Series,
     turn of the loop more than reproduces itself within the three-year horizon,
     so the shock is self-sustaining without any further impulse.
 
-    Note that M and the fiscal term do not vary with t here -- they come from
-    one estimated price equation. Time variation in G is therefore entirely
-    institutional, which is the point: the claim being tested is that what
-    changed between the 1970s and the 2020s is who is indexed, not how firms
-    price.
+    Both halves are now country-specific: M comes from that country's own price
+    equation, and Lambda from its own wage dynamics with the common catch-up
+    coefficients. Neither varies with t, so time variation in G is entirely
+    institutional -- which is the claim being tested: what changed between the
+    1970s and the 2020s is who is indexed, not how firms price or how wages
+    propagate.
     """
     M = wage_to_price_gain(price_fit, p=p, horizon=horizon)
     Phi = fiscal_gain(price_fit, phi_e, mpc, p=p, horizon=horizon)
     lam = lam.astype(float)
-    Lam = lam.map(lambda x: price_to_wage_gain(wage_fit, x, p=p, horizon=horizon))
+    Lam = lam.map(lambda x: price_to_wage_gain(wage_fit, x, p=p, horizon=horizon,
+                                               country=country))
     out = pd.DataFrame({"lambda": lam, "Lambda": Lam})
     out["M"] = M
     out["G"] = out["Lambda"] * M
@@ -655,64 +716,195 @@ def rolling_gain(panel: pd.DataFrame, cfg: Optional[WageConfig] = None,
 def fit_panel_wage_equation(panels: Dict[str, pd.DataFrame],
                             cfg: Optional[WageConfig] = None,
                             sample: Optional[Tuple[str, str]] = None,
-                            interact: bool = True) -> OLSFit:
-    """Eq. (W4) pooled across countries with country fixed effects.
+                            interact: bool = True,
+                            free: Sequence[str] = ("gw", "pistar", "slack"),
+                            ) -> OLSFit:
+    """Eq. (W4') -- the panel wage equation, PARTIALLY POOLED.
 
-    This is the paper's headline estimate, and the reason the reference
-    countries exist. Within any one country lambda_t moves slowly and over a
-    narrow range -- 0.02 to 0.13 across sixty-five years of US data -- so the
-    interaction is barely identified from the time series alone. Across the
-    panel it runs from 0.02 (the United States today) to 1.00 (Belgium
-    throughout), and Belgium and Germany share a currency, a central bank and,
-    in 2022, an energy shock, while differing in exactly the institution under
-    study.
+    Blocks named in ``free`` get their own coefficients in every country; the
+    rest are common. The default frees the dynamics -- own-lag persistence, the
+    weight on trend inflation, and the slack response -- and pools only the
+    catch-up level and its interaction with lambda.
 
-    A caveat this function cannot fix, and which the paper must carry: inside
-    the estimation sample, lambda above 0.5 is contributed by BELGIUM ALONE,
-    where it is constant at 1.000 from 2001. Italy's scala mobile years are
-    outside the sample, which starts in 1985Q4. Lambda(1) is therefore an
-    extrapolation off one cross-sectional cell, not an interpolation.
-    `ism.wage_validate.check_identification` reports this on every build.
+    Why not free everything, and why not pool everything
+    ----------------------------------------------------
+    Pooling all seven countries onto one coefficient vector is not credible.
+    Wage-setting in Belgium, where half the private sector is on a pivot-index
+    trigger, and in the United States, where almost nobody is, are not the same
+    process, and an estimator that says they are will attribute to the catch-up
+    term whatever the common persistence gets wrong. ``poolability_test``
+    measures how badly, and on this panel it rejects.
 
-    Fixed effects absorb the level of each country's average wage growth.
-    Slopes are common: a specification with country-specific catch-up slopes
-    would be the same as estimating each country separately, which is reported
-    alongside but cannot identify the lambda interaction.
+    Freeing everything is the opposite failure. lambda barely moves inside a
+    country: it is constant in Belgium, spans 0.014 to 0.124 across sixty-five
+    years in the United States, and 0.236 to 0.274 in France. A country-by-
+    country catch-up interaction is identified off almost no variation and
+    returns noise. The whole reason the reference countries are in the panel is
+    that lambda varies ACROSS them.
+
+    So the split follows the economics rather than convenience: the parts that
+    differ by country because labour markets differ are free, and the one
+    parameter the paper is about -- how much of a real-wage loss comes back,
+    and how that depends on indexation -- is common, because that is the only
+    place cross-country variation exists to identify it. It is a restriction,
+    it is stated as one, and ``mean_group_wage_equation`` gives the fully
+    heterogeneous alternative for comparison.
+
+    A practical consequence worth noting: because each country keeps its own
+    persistence, the three-year catch-up Lambda is now country-specific even
+    though the catch-up coefficients are common -- the same impulse propagates
+    differently through different dynamics. ``price_to_wage_gain`` therefore
+    takes a country.
+
+    Fixed effects always absorb the level of each country's wage growth. The
+    long-run homogeneity restriction is imposed ONCE PER COUNTRY when the
+    dynamics are free, which is what the restriction matrix in
+    ``restricted_ols`` is for.
     """
     cfg = cfg or WageConfig()
     p = cfg.lags
-    frames, ys = [], []
-    for name, panel in panels.items():
-        df = panel.loc[sample[0]:sample[1]] if sample else panel
-        blocks = [_lags(df["gw"], range(1, p + 1), "gw_l"),
-                  _lags(df["pistar"], range(1, p + 1), "pistar_l"),
-                  _lags(df["catchup"], range(1, p + 1), "cu_l")]
+    free = tuple(free or ())
+    codes = sorted(panels)
+
+    def blocks_for(df: pd.DataFrame) -> List[Tuple[str, pd.Series, range]]:
+        out = [("gw_l", df["gw"], range(1, p + 1)),
+               ("pistar_l", df["pistar"], range(1, p + 1)),
+               ("cu_l", df["catchup"], range(1, p + 1))]
         if "slack" in df:
-            blocks.append(_lags(df["slack"], range(1, p + 1), "slack_l"))
+            out.append(("slack_l", df["slack"], range(1, p + 1)))
         if interact and "lambda" in df:
-            blocks.append(_lags((df["lambda"] * df["catchup"]).rename("cux"),
-                                range(1, p + 1), "cux_l"))
-        X = pd.concat(blocks, axis=1)
-        X["country"] = name
+            out.append(("cux_l", (df["lambda"] * df["catchup"]).rename("cux"),
+                        range(1, p + 1)))
+        return out
+
+    # Column layout: common columns first, then one set per country for each
+    # free block, then the fixed effects. Built once from the first country so
+    # every panel writes into the same positions.
+    frames, ys = [], []
+    for code in codes:
+        df = panels[code].loc[sample[0]:sample[1]] if sample else panels[code]
+        parts = []
+        for prefix, series, lags in blocks_for(df):
+            block = _lags(series, lags, prefix)
+            stem = prefix.split("_l")[0]
+            if stem in free:
+                block = block.rename(columns=lambda n, c=code: f"{n}__{c}")
+            parts.append(block)
+        X = pd.concat(parts, axis=1)
+        X["_country"] = code
         frames.append(X)
         ys.append(df["gw"].rename("y"))
+
     X = pd.concat(frames)
     y = pd.concat(ys)
-    countries = sorted(X["country"].unique())
-    for c in countries:
-        X[f"fe_{c}"] = (X["country"] == c).astype(float)
-    X = X.drop(columns=["country"])
+    for c in codes:
+        X[f"fe_{c}"] = (X["_country"] == c).astype(float)
+    X = X.drop(columns=["_country"])
+    # A country's own columns are NaN on every other country's rows; that is
+    # structural, not missing data, so fill before dropping incomplete rows.
+    for col in X.columns:
+        if "__" in col:
+            owner = col.rsplit("__", 1)[1]
+            X[col] = X[col].where(X[f"fe_{owner}"] == 1.0, 0.0)
     ok = X.notna().all(axis=1) & y.notna()
     X, y = X[ok], y[ok]
-    # Fixed effects replace the constant, so the homogeneity restriction is
-    # imposed on the dynamic coefficients only, exactly as in the single-country
-    # case.
+    if len(y) <= X.shape[1] + 2:
+        raise ValueError(f"panel wage equation: {len(y)} rows for {X.shape[1]} regressors")
+
     R = None
+    rvals = 0.0
     if cfg.homogeneity:
-        R = np.array([1.0 if (n.startswith("gw_l") or n.startswith("pistar_l")) else 0.0
-                      for n in X.columns])
+        cols = list(X.columns)
+        is_dyn = lambda n: n.startswith("gw_l") or n.startswith("pistar_l")  # noqa: E731
+        if "gw" in free or "pistar" in free:
+            # one restriction per country
+            R = np.zeros((len(cols), len(codes)))
+            for j, c in enumerate(codes):
+                for i, n in enumerate(cols):
+                    base = n.rsplit("__", 1)[0] if "__" in n else n
+                    owner = n.rsplit("__", 1)[1] if "__" in n else None
+                    if is_dyn(base) and (owner is None or owner == c):
+                        R[i, j] = 1.0
+            rvals = np.ones(len(codes))
+        else:
+            R = np.array([1.0 if is_dyn(n) else 0.0 for n in cols])
+            rvals = 1.0
     return restricted_ols(y.to_numpy(), X.to_numpy(), list(X.columns),
-                          R=R, r=1.0, index=y.index)
+                          R=R, r=rvals, index=y.index)
+
+
+def poolability_test(panels: Dict[str, pd.DataFrame],
+                     cfg: Optional[WageConfig] = None,
+                     sample: Optional[Tuple[str, str]] = None) -> Dict[str, float]:
+    """Is one coefficient vector for seven countries defensible? (It is not.)
+
+    A Chow-style F-test of the fully pooled wage equation against the fully
+    heterogeneous one, both with country fixed effects:
+
+        F = [(SSR_pooled - SSR_free) / q] / [SSR_free / (n - k_free)]
+
+    Reported rather than acted on mechanically: a rejection says the pooled
+    slopes are wrong, not that every slope must be freed. The paper's
+    specification frees the dynamics, which is what this test rejects pooling
+    on, and keeps the catch-up block common, which is what identification
+    requires.
+    """
+    pooled = fit_panel_wage_equation(panels, cfg, sample, free=())
+    freed = fit_panel_wage_equation(panels, cfg, sample,
+                                    free=("gw", "pistar", "slack", "cu", "cux"))
+    ssr_r = float(pooled.resid @ pooled.resid)
+    ssr_u = float(freed.resid @ freed.resid)
+    k_u = len(freed.names)
+    q = k_u - len(pooled.names)
+    n = freed.nobs
+    if q <= 0 or n - k_u <= 0:
+        return {"F": float("nan"), "df1": q, "df2": n - k_u, "p": float("nan")}
+    F = ((ssr_r - ssr_u) / q) / (ssr_u / (n - k_u))
+    p = float("nan")
+    try:
+        from scipy import stats
+        p = float(stats.f.sf(F, q, n - k_u))
+    except Exception:  # noqa: BLE001 - scipy is optional
+        pass
+    return {"F": float(F), "df1": float(q), "df2": float(n - k_u), "p": p,
+            "ssr_pooled": ssr_r, "ssr_free": ssr_u,
+            "r2_pooled": float(pooled.r2), "r2_free": float(freed.r2)}
+
+
+def mean_group_wage_equation(panels: Dict[str, pd.DataFrame],
+                             cfg: Optional[WageConfig] = None,
+                             interact: bool = False) -> pd.DataFrame:
+    """Pesaran-Smith mean-group estimates: fit each country, then average.
+
+    Consistent under full slope heterogeneity, which is exactly what the
+    poolability test says we have, and the natural robustness check on a
+    partially pooled specification. The standard error is the cross-country
+    standard deviation of the coefficient divided by sqrt(N) -- it measures
+    disagreement between countries, not sampling error within them, and with
+    N = 7 it is indicative at best.
+
+    The interaction is off by default: within a country lambda is close to
+    constant, so a country-level interaction is not identified and averaging
+    seven noisy numbers does not fix that.
+    """
+    cfg = cfg or WageConfig()
+    rows = {}
+    for c, d in panels.items():
+        try:
+            rows[c] = fit_wage_equation(d, cfg, interact=interact).coef()
+        except (ValueError, np.linalg.LinAlgError):
+            continue
+    if not rows:
+        return pd.DataFrame()
+    M = pd.DataFrame(rows).T
+    N = len(M)
+    return pd.DataFrame({
+        "mean_group": M.mean(),
+        "se": M.std(ddof=1) / np.sqrt(N),
+        "n_countries": N,
+        "min": M.min(),
+        "max": M.max(),
+    })
 
 
 # ============================================================================
@@ -867,7 +1059,7 @@ class SimParams:
 
 def simulate_loop(wage_fit: OLSFit, price_fit: OLSFit,
                   params: Optional[SimParams] = None,
-                  p: int = 4) -> pd.DataFrame:
+                  p: int = 4, country: Optional[str] = None) -> pd.DataFrame:
     """Eq. (W12). Propagate an energy shock through prices, wages, the fiscal
     response and expectations.
 
@@ -894,7 +1086,8 @@ def simulate_loop(wage_fit: OLSFit, price_fit: OLSFit,
     relative to the no-shock baseline.
     """
     pr = params or SimParams()
-    wc, pc = wage_fit.coef(), price_fit.coef()
+    wc = wage_fit.for_country(country) if country else wage_fit.coef()
+    pc = price_fit.coef()
     a = [wc.get(f"gw_l{k}", 0.0) for k in range(1, p + 1)]
     b = [wc.get(f"pistar_l{k}", 0.0) for k in range(1, p + 1)]
     c = [wc.get(f"slack_l{k}", 0.0) for k in range(1, p + 1)]

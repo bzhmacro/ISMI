@@ -2,28 +2,31 @@
 title: "The Spiral Gain"
 subtitle: "Wage indexation, statutory floors and fiscal handouts: how much of an inflation shock returns as income, and how much of that income returns as inflation"
 tagline: "How much of an inflation shock returns as income, and how much of that income returns as inflation"
-author: bzhmacro
+author: bzhmacro — bretagnemacro@gmail.com
 date: 2026-09-14
 abstract: >
   We ask whether consumer price inflation feeds back into household incomes, and
   whether governments close that loop when labour markets do not. We build a
   hand-collected database of wage indexation for seven advanced economies from
   1960 — contractual escalators, statutory indexation of public pay,
-  price-indexed wage floors, and a formal role for inflation in bargaining — and
-  map it into one state variable, the indexation intensity lambda. Interacting
-  it with a one-sided real-wage gap in a pooled Bernanke–Blanchard wage
-  equation, we estimate a
-  price-to-wage catch-up schedule Lambda(lambda) = -0.221 + 0.846 lambda:
-  without indexation a real-wage loss is not recovered within three years, and
-  the fitted line crosses zero only at lambda = 0.26. Its upper end is an
-  extrapolation from Belgium, the one country supplying in-sample observations
-  near full indexation, and is labelled as such throughout.
-  Combining Lambda with country-specific wage-to-price pass-through M gives the
-  Spiral Gain G = Lambda x M, which was 0.62 in Italy in 1975 and is negative in
-  five of seven countries today. Belgium pairs the highest lambda with the
-  lowest M, which is why its indexation has not produced excess inflation. An
-  Effective Wage Index adding statutory floors, indexed benefits and handouts to
-  market pay shows the bottom quartile tracking the average within a point.
+  price-indexed wage floors, a formal role for inflation in bargaining — and map
+  it into one state variable, the indexation intensity lambda. Interacting it
+  with a one-sided real-wage gap in a partially pooled Bernanke-Blanchard wage
+  equation — country-specific dynamics, a common catch-up block — we estimate
+  Lambda, the three-year recovery of a real-wage loss. A Chow test decisively
+  rejects full pooling, and freeing the dynamics cuts the catch-up interaction
+  by two-thirds, from +0.339 to +0.110: most of the apparent indexation effect
+  under full pooling is misspecification, which we report rather than bury. What
+  survives is the sign. dLambda/dlambda is positive in all seven countries,
+  +0.102 to +0.364, so more indexation means more real-wage recovery everywhere;
+  the level of Lambda is persistence-dominated and not comparable across
+  countries. Combining Lambda with country-specific wage-to-price pass-through M
+  gives the Spiral Gain G = Lambda x M, negative in all seven countries today:
+  no economy in the panel has a self-reinforcing loop. Belgium pairs the highest
+  lambda with an M of -0.083, which is why its indexation has never produced
+  excess inflation. An Effective Wage Index adding statutory floors, indexed
+  benefits and handouts to market pay shows the bottom quartile tracking the
+  average within a point.
 keywords:
   - wage indexation
   - wage-price spiral
@@ -51,15 +54,17 @@ The paper proceeds along three angles, corresponding to three ways an inflation 
 
 **Contribution.** Three. First, an institutional database: 94 sourced coverage observations across seven countries, 1960–2026, four channels, each row carrying its source and, where it is a derived number, its derivation. Second, a decomposition of the spiral into a product of two separately estimated gains — the price-to-wage catch-up $\Lambda(\lambda)$ and the wage-to-price pass-through $M$ — whose product we call the **Spiral Gain**, $G = \Lambda \times M$. Third, an **Effective Wage Index**: a share-weighted index of everything that pays a household — market earnings, the statutory floor, indexed benefits, one-off handouts — deflated both by the published CPI and by a subsidy-neutral CPI reconstructed without the price-based support measures.
 
-**Headline findings.** The estimated catch-up schedule is exactly linear in the indexation intensity, $\Lambda(\lambda) = -0.221 + 0.846\lambda$. In an economy with no indexation, a real-wage loss is not recovered within three years; the point estimate is that wage growth is marginally *slower* after such a loss. At the top of the range the fitted line implies about five-eighths recovered — but that end is an extrapolation off a single country, and we label it as one throughout. The crossover is at $\lambda = 0.261$, and none of the four modelled countries is above it today; France, at 0.236, is the closest.
+**A specification change, reported first because it removes two-thirds of the headline effect.** An earlier version of this paper pooled all seven countries onto one wage-equation coefficient vector with only fixed effects. That is not defensible and a Chow test rejects it decisively — $F = 2.87$ on $(120,\,1030)$, $p = 3.15\times10^{-19}$ — with own-lag persistence running from 0.967 in the United States to 0.222 in Italy. The specification here is **partially pooled**: every country keeps its own persistence, trend weight and slack response, and only the catch-up block and its interaction with $\lambda$ stay common, because $\lambda$ barely moves inside a country and the cross-section is the only place that effect can be identified. **Freeing the dynamics cuts the interaction by two-thirds, from +0.339 to +0.110.** Two-thirds of the apparent indexation effect was pooled-dynamics misspecification: a common persistence that fitted no country well, with the residual difference loading onto the one block that varied systematically across countries. A finding that does not survive its own specification check is not a finding, so we put this in the abstract, here, and in the results.
 
-Wage-to-price pass-through $M$ at three years is high in the United States (0.997), the United Kingdom (1.285) and Italy (0.991), and low in Belgium (0.265), Spain (0.612) and France (0.639). The Spiral Gain was 0.620 in Italy in 1975 — the largest value anywhere in the sample, still below the self-reproduction threshold of one — and is negative in five of seven countries today, marginally negative in France, +0.049 in Italy and +0.166 in Belgium.
+**What survives is the sign, and it survives everywhere.** The derivative $\partial\Lambda/\partial\lambda$ — the increase in the three-year recovery of a real-wage loss per unit of indexation intensity — is **positive in all seven countries, from +0.102 to +0.364**. An effect that vanished when the dynamics were freed would have been an artefact; one that shrinks but keeps its sign in every country is evidence about direction if not about size. The *level* of $\Lambda$ is a different matter and we do not treat it as comparable across countries: it is dominated by persistence, so the United States' $\Lambda(0) = -0.72$ reflects an own-lag sum of 0.967 rather than anything institutional.
 
-Belgium is the case that disciplines the whole exercise and the case it leans on. It has the highest $\lambda$, at unity throughout, and the lowest $M$: nearly complete pass-through of prices into wages, almost none back out into prices. That is what Bernanke and Blanchard (2024) find directly — Belgian cumulative wage inflation of 17.8% against a euro-area 7.5%, with cumulative price inflation of 15.6% against 15.8% — and what the National Bank of Belgium reports from its own models, that "wages barely explain core inflation in Belgium" (Jonckheere and Zimmer 2024). An indexation regime is not automatically an inflation regime; whether it becomes one depends on the other factor in the product. Belgium is also the only country supplying in-sample observations anywhere near the top of the $\lambda$ range, so the same country that makes the result interpretable makes it fragile.
+Wage-to-price pass-through $M$ at three years is close to unity in the United States (0.968) and Italy (0.971), above it in the United Kingdom (1.386), lower in France (0.737), Germany (0.760) and Spain (0.689), and effectively zero in Belgium (−0.083). **The Spiral Gain is negative in all seven countries today**: no economy in the panel has a self-reinforcing loop, and none is near the threshold of one. The only positive cell anywhere in the table is Italy in 1975, at +0.028, under the *punto unico*.
+
+Belgium is the case that disciplines the whole exercise and the case it leans on. It has the highest $\lambda$, at unity throughout, and an $M$ of −0.083: complete pass-through of prices into wages, none at all back out into prices. It is the only country whose $\Lambda$ is positive today (+0.084) and the only one whose $\partial G/\partial\lambda$ is negative (−0.015) — more indexation there buys more wage recovery and no more inflation. That is what Bernanke and Blanchard (2024) find directly — Belgian cumulative wage inflation of 17.8% against a euro-area 7.5%, with cumulative price inflation of 15.6% against 15.8% — and what the National Bank of Belgium reports from its own models, that "wages barely explain core inflation in Belgium" (Jonckheere and Zimmer 2024). An indexation regime is not automatically an inflation regime; whether it becomes one depends on the other factor in the product. Belgium is also the only country supplying in-sample observations anywhere near the top of the $\lambda$ range, so the same country that makes the result interpretable makes it fragile.
 
 Finally, the Effective Wage Index shows measured real income for the bottom quartile tracking the all-household average to within a percentage point through 2022–24 in all four modelled countries, despite radically different income composition, because statutory floors and indexed benefits roughly kept pace with prices while market wages did not. The subsidy-neutral variant shows how much of the measured outcome was a statistical consequence of the delivery mechanism: for France, 2.4 index points at end-2022, reflecting a *bouclier tarifaire* worth about −2.6pp of HICP inflation in 2022 (Lemoine, Petronevich and Zhutova 2024).
 
-We are explicit about what this exercise cannot deliver. There is no published series of any of these objects to validate against. The interaction block that carries the central claim has the right sign in sum and a strongly significant fourth lag, but also a strongly significant negative second lag. The standard errors are classical and computed on overlapping year-on-year observations, so they understate uncertainty. The elasticities converting coverage into $\lambda$ are calibrated from the literature, not estimated. These are not incidental caveats and they have their own section.
+We are explicit about what this exercise cannot deliver. There is no published series of any of these objects to validate against. The interaction block carrying the central claim has the right sign in sum and a significant fourth lag, but also a significant negative second lag. The standard errors are classical and computed on overlapping year-on-year observations, so they understate uncertainty. The elasticities converting coverage into $\lambda$ are calibrated, not estimated. The top of the $\lambda$ range is supplied by Belgium alone. These are not incidental caveats and they have their own section.
 
 ## Related literature
 
@@ -228,48 +233,73 @@ with $c_{j,t}$ the coverage share of channel $j$ from the institutional database
 The estimated wage equation, for a single country, is
 
 $$
-gw_{t} \;=\; a_{0} \;+\; \sum_{k=1}^{p} a_{k}\, gw_{t-k}
-\;+\; \sum_{k=1}^{p} b_{k}\, \pi^{*}_{t-k}
-\;+\; \sum_{k=1}^{p} c_{k}\, x_{t-k}
-\;+\; \sum_{k=1}^{p} d_{k}\, \text{catchup}_{t-k}
-\;+\; \sum_{k=1}^{p} \tilde{d}_{k}\, \bigl[\lambda_{t-k}\,\text{catchup}_{t-k}\bigr]
-\;+\; e_{1}\, gpty_{t-1} \;+\; f_{1}\, dmw_{t} \;+\; u_{t}
+\begin{aligned}
+gw_{t} \;=\;& a_{0}
+  \;+\; \sum_{k=1}^{p} a_{k}\, gw_{t-k}
+  \;+\; \sum_{k=1}^{p} b_{k}\, \pi^{*}_{t-k}
+  \;+\; \sum_{k=1}^{p} c_{k}\, x_{t-k} \\[2pt]
+ &+\; \sum_{k=1}^{p} d_{k}\, \text{catchup}_{t-k}
+  \;+\; \sum_{k=1}^{p} \tilde{d}_{k}\, \bigl[\lambda_{t-k}\,\text{catchup}_{t-k}\bigr] \\[2pt]
+ &+\; e_{1}\, gpty_{t-1} \;+\; f_{1}\, dmw_{t} \;+\; u_{t}
+\end{aligned}
 \tag{W4}
 $$
 
 subject to $\sum_k a_{k} + \sum_k b_{k} = 1$, with $p = 4$, $x_t$ labour-market tightness, $gpty$ trend productivity growth and $dmw$ minimum-wage growth. The restriction makes the long-run Phillips curve vertical, as in Bernanke and Blanchard.
 
-The catch-up block enters **twice**: at its own level, and multiplied by $\lambda_t$. The level coefficients $d_k$ are then the pass-through of a real-wage loss in a country with no indexation at all; the interaction coefficients $\tilde{d}_k$ are the additional pass-through per unit of intensity. The test that matters is $\sum_k \tilde{d}_k > 0$. Setting $\tilde{d}_k \equiv 0$ recovers a constant-coefficient specification of exactly the Bernanke–Blanchard form, which is what the validation suite compares against their Table 1.
+The catch-up block enters **twice**: at its own level, and multiplied by $\lambda_t$. The level coefficients $d_k$ are the pass-through of a real-wage loss in a country with no indexation at all; the interaction coefficients $\tilde{d}_k$ are the additional pass-through per unit of intensity. The test that matters is $\sum_k \tilde{d}_k > 0$. Setting $\tilde{d}_k \equiv 0$ recovers a constant-coefficient specification of exactly the Bernanke–Blanchard form.
 
-The headline estimate is the pooled version, with country fixed effects replacing the constant and common slopes:
+The headline estimate is the panel version, and it is **partially pooled**. Every country $c$ keeps its own persistence, trend weight and slack response; the catch-up level and its interaction with $\lambda$ are common:
 
 $$
-gw_{i,t} \;=\; \alpha_{i} \;+\; \sum_{k=1}^{p} a_{k}\, gw_{i,t-k}
-\;+\; \sum_{k=1}^{p} b_{k}\, \pi^{*}_{i,t-k}
-\;+\; \sum_{k=1}^{p} c_{k}\, x_{i,t-k}
-\;+\; \sum_{k=1}^{p} d_{k}\, \text{catchup}_{i,t-k}
-\;+\; \sum_{k=1}^{p} \tilde{d}_{k}\, \bigl[\lambda_{i,t-k}\,\text{catchup}_{i,t-k}\bigr]
-\;+\; u_{i,t}
+\begin{aligned}
+gw_{c,t} \;=\;& \alpha_{c}
+  \;+\; \sum_{k=1}^{p} a_{c,k}\, gw_{c,t-k}
+  \;+\; \sum_{k=1}^{p} b_{c,k}\, \pi^{*}_{c,t-k}
+  \;+\; \sum_{k=1}^{p} c_{c,k}\, x_{c,t-k} \\[2pt]
+ &+\; \sum_{k=1}^{p} d_{k}\, \text{catchup}_{c,t-k}
+  \;+\; \sum_{k=1}^{p} \tilde{d}_{k}\, \bigl[\lambda_{c,t-k}\,\text{catchup}_{c,t-k}\bigr]
+  \;+\; u_{c,t}
+\end{aligned}
 \tag{W4$'$}
 $$
 
-The pooled specification drops the productivity and minimum-wage-growth terms, unavailable on a consistent basis across all seven countries; homogeneity is imposed on the dynamic coefficients only.
+subject to one homogeneity restriction **per country**, $\sum_{k} a_{c,k} + \sum_{k} b_{c,k} = 1$ for each $c$, which is why the estimator takes a restriction *matrix* rather than a single vector. Country fixed effects absorb the level of each country's average wage growth. The productivity and minimum-wage-growth terms are dropped, being unavailable on a consistent basis across all seven countries.
 
-**Identification.** Within any one country $\lambda_t$ moves slowly and over a narrow range: across sixty-five years of US data from 0.014 to 0.124, a factor of nine but never more than eleven points in absolute terms, and moving monotonically with union density, which is correlated with everything. France's in-sample range is narrower still, 0.236 to 0.274, because the French panel begins after the 1983 *désindexation*. The interaction is identified across the panel or not at all.
+**Why the middle of three choices.** Pooling everything — one coefficient vector with only fixed effects, which an earlier version of this paper estimated — is not credible: wage-setting in Belgium, where half the private sector sits on a pivot-index trigger, and in the United States, where almost nobody does, are not the same process, and an estimator that says they are will attribute to the catch-up term whatever the common persistence gets wrong. The next subsection shows it does, and by how much. Freeing everything is the opposite failure: $\lambda$ barely moves inside a country — constant in Belgium, 0.014 to 0.124 across sixty-five years in the United States, 0.236 to 0.274 in France — so a country-by-country catch-up interaction is identified off almost no variation and returns noise. The whole reason the reference countries are in the panel is that $\lambda$ varies *across* them. The split therefore follows the economics: the parts that differ by country because labour markets differ are free, and the one parameter the paper is about is common, because the cross-section is the only place variation exists to identify it. It is a restriction, we state it as one, and the mean-group estimates below are the fully heterogeneous alternative.
 
-Where in the panel matters, because it disciplines what can be claimed. Across the estimation sample $\lambda$ runs from 0.000 (Spain before 2000, where no coverage is documented) to 1.000 (Belgium). The dense region is $[0, 0.3]$: the United States, Germany, Spain and France all live there. Above 0.3 there are exactly three sources — the United Kingdom's 1974 threshold episode at 0.416, inside the sample, which begins 1973Q4; Italy at 0.492 in the mid-1980s; and Belgium at exactly 1.000 for all 101 of its quarters. Inside the estimation sample there is nothing at all between 0.5 and 1.0. The sharpest cross-country contrast remains Belgium against Germany — two economies sharing a currency, a central bank, a broadly common trade structure and, in 2022, the same energy shock, differing in exactly the institution under study, $\lambda = 1.000$ against $\lambda = 0.069$ — but because Belgian $\lambda$ never moves, that contrast enters only through the interaction, the level being absorbed by the Belgian fixed effect.
+One consequence matters for everything that follows: because each country keeps its own persistence, **the three-year catch-up $\Lambda$ is country-specific even though the catch-up coefficients are common**. The same impulse propagates differently through different dynamics, so $\Lambda$ is a family of seven lines rather than one.
 
-Italy does **not** supply the within-country traverse one would want. Its *scala mobile* years, when $\lambda$ was at the clip, lie outside the estimation sample: the Italian panel begins 1985Q4, after the 1984 *decreto di San Valentino*, and its in-sample $\lambda$ runs 0.140 to 0.492. The dismantling of the *scala mobile* is a fact the database records and the figures display; it is not variation the regression sees. Common slopes are a binding restriction: country-specific catch-up slopes are arithmetically identical to estimating each country separately, which cannot identify the interaction at all.
+**Identification.** The interaction is identified across the panel or not at all, and where in the panel matters. Across the estimation sample $\lambda$ runs from 0.000 (Spain before 2000, where no coverage is documented) to 1.000 (Belgium). The dense region is $[0, 0.3]$: the United States, Germany, Spain and France all live there. Above 0.3 there are exactly three sources — the United Kingdom's 1974 threshold episode at 0.416, inside the sample, which begins 1973Q4; Italy at 0.492 in the mid-1980s; and Belgium at exactly 1.000 for all 101 of its quarters. Inside the estimation sample there is nothing at all between 0.5 and 1.0. The sharpest cross-country contrast remains Belgium against Germany — two economies sharing a currency, a central bank, a broadly common trade structure and, in 2022, the same energy shock, differing in exactly the institution under study, $\lambda = 1.000$ against $\lambda = 0.069$ — but because Belgian $\lambda$ never moves, that contrast enters only through the interaction.
+
+Italy does **not** supply the within-country traverse one would want. Its *scala mobile* years, when $\lambda$ was at the clip, lie outside the estimation sample: the Italian panel begins 1985Q4, after the 1984 *decreto di San Valentino*, and its in-sample $\lambda$ runs 0.140 to 0.492. The dismantling of the *scala mobile* is a fact the database records and the figures display; it is not variation the regression sees.
+
+### Poolability: is one coefficient vector defensible?
+
+It is not, and the test is part of the method rather than an appendix note, because the answer changes the paper's central number.
+
+`poolability_test` runs a Chow-style $F$-test of the fully pooled wage equation against the fully heterogeneous one, both with country fixed effects:
+
+$$F \;=\; \frac{(\text{SSR}_{\text{pooled}} - \text{SSR}_{\text{free}})/q}{\text{SSR}_{\text{free}}/(n - k_{\text{free}})}$$
+
+On this panel it returns **$F = 2.87$ on $(120,\,1030)$, $p = 3.15 \times 10^{-19}$**, with $R^{2}$ rising from 0.840 fully pooled to 0.880 fully free. Pooling is rejected about as decisively as a specification test can reject anything.
+
+The economics behind the rejection is visible in one column of the results below. Own-lag persistence, the sum $\sum_k a_{c,k}$, runs from **0.967 in the United States to 0.222 in Italy**. These are not small differences around a common value; they are different processes. A US wage equation is close to a random walk in the four-quarter growth rate, an Italian one is not, and imposing one persistence on both forces the residual difference into whichever regressor can absorb it. In the fully pooled specification that regressor was the catch-up block — which is exactly the block the paper is about.
+
+A rejection says the pooled slopes are wrong; it does not say every slope must be freed. We free the three the test rejects pooling on and keep common the one that identification requires, for the reasons set out above.
 
 ### The price equation
 
 $$
-gp_{t} \;=\; \beta_{0} \;+\; \sum_{k=1}^{p} B_{k}\, gp_{t-k}
-\;+\; \sum_{k=0}^{p} M_{k}\, gw_{t-k}
-\;+\; \sum_{k=0}^{p} E_{k}\, grpe_{t-k}
-\;+\; \sum_{k=0}^{p} F_{k}\, grpf_{t-k}
-\;+\; \sum_{k=0}^{p} P_{k}\, h_{t-k}
-\;+\; B_{m}\, gpty_{t-1} \;+\; v_{t}
+\begin{aligned}
+gp_{t} \;=\;& \beta_{0}
+  \;+\; \sum_{k=1}^{p} B_{k}\, gp_{t-k}
+  \;+\; \sum_{k=0}^{p} M_{k}\, gw_{t-k}
+  \;+\; \sum_{k=0}^{p} E_{k}\, grpe_{t-k} \\[2pt]
+ &+\; \sum_{k=0}^{p} F_{k}\, grpf_{t-k}
+  \;+\; \sum_{k=0}^{p} P_{k}\, h_{t-k}
+  \;+\; B_{m}\, gpty_{t-1} \;+\; v_{t}
+\end{aligned}
 \tag{W5}
 $$
 
@@ -286,15 +316,15 @@ $$y_{t} \;=\; \sum_{k=1}^{p} \rho_{k}\, y_{t-k} \;+\; \sum_{k=0}^{q} \theta_{k}\
 
 and write $\mathcal{C}(\rho, \theta; H) = y_{H-1}$. The **price-to-wage gain** is
 
-$$\Lambda(\lambda) \;=\; \mathcal{C}\Bigl(\{a_k\},\; \bigl\{0,\; d_1 + \lambda \tilde{d}_1,\; \dots,\; d_p + \lambda \tilde{d}_p\bigr\};\; 12\Bigr) \tag{W6}$$
+$$\Lambda_{c}(\lambda) \;=\; \mathcal{C}\Bigl(\{a_{c,k}\},\; \bigl\{0,\; d_1 + \lambda \tilde{d}_1,\; \dots,\; d_p + \lambda \tilde{d}_p\bigr\};\; 12\Bigr) \tag{W6}$$
 
-the three-year cumulative response of wage growth to a permanent 1pp rise in realised inflation at intensity $\lambda$; the **wage-to-price gain** is
+the three-year cumulative response of wage growth to a permanent 1pp rise in realised inflation at intensity $\lambda$. It carries a country subscript because the catch-up coefficients $d$, $\tilde{d}$ are common but the dynamics $a_{c}$ they propagate through are not, so the same impulse produces a different three-year response in a labour market with an own-lag sum of 0.97 and one with 0.22. The **wage-to-price gain** is
 
 $$M \;=\; \mathcal{C}\Bigl(\{B_k\},\; \{M_0, \dots, M_p\};\; 12\Bigr) \tag{W7}$$
 
 and the **Spiral Gain** is the product:
 
-$$G_{t} \;=\; \Lambda(\lambda_{t}) \times M \tag{W8}$$
+$$G_{c,t} \;=\; \Lambda_{c}(\lambda_{c,t}) \times M_{c} \tag{W8}$$
 
 $G > 1$ is the spiral condition: one turn of the loop more than reproduces itself within three years, so the shock is self-sustaining without further impulse.
 
@@ -407,7 +437,7 @@ over the fifty states and DC, with state minima from FRED's `STTMINWG<ST>` and s
 
 **The transfer-share impulse.** $h_{t} = 100(T_{t}/Y_{t} - T_{t-4}/Y_{t-4})$, with $T$ household social benefits in cash (Eurostat `nasq_10_nf_tr` D.62, ONS RVFJ, BEA A063RC1) and $Y$ gross household disposable income. A difference of ratios rather than a deflated flow, because the seven national accounts are published in six currencies, three base years and — for the UK, which left the Eurostat sector-account collection after 2019 — a different vintage discipline. A share is unit-free, so a units error in one source cannot silently rescale its coefficient, and $\varphi_e$ reads directly as points of household income handed out per point of excess inflation.
 
-**Cyclical adjustment of transfers.** Total transfers are dominated by automatic stabilisers: unemployment insurance rises in recessions, when inflation is falling, so entered raw $h$ carries a spurious negative sign into the price equation. We project $h$ on the contemporaneous and four lagged changes in the unemployment rate and keep the residual — the part of the impulse policy chose rather than the cycle delivered.
+**Cyclical adjustment of transfers.** Total transfers are dominated by automatic stabilisers: unemployment insurance rises in recessions, when inflation is falling, so entered raw $h$ carries a spurious negative sign into the price equation. We project $h$ on the contemporaneous and four lagged changes in the unemployment rate and keep the residual — the part of the impulse policy chose rather than the cycle delivered. It is that residual, not the raw impulse, that enters Eq. (W5); an earlier vintage of the Python implementation used the raw series while the browser twin used the residual, so the two disagreed on $M$ for every country until the discrepancy was found. They now agree.
 
 ### The price/income distinction and the CPI wedge
 
@@ -416,7 +446,7 @@ Every scheme in the 2021–26 database is classified as `income`, `price` or `wa
 The price measures are then summarised as a wedge, in percentage points of year-on-year inflation:
 
 | Country | Period | Wedge (pp) | Source |
-|---|---|---:|---|
+|:----------|:---------|------------:|:--------------------------------------------|
 | FR | 2022 | −2.6 | Banque de France: *bouclier tarifaire* and *remise carburant* |
 | FR | 2023 | +0.4 | Banque de France |
 | FR | 2024 | +1.0 | Banque de France |
@@ -444,78 +474,107 @@ These are a genuine out-of-sample test of the data plumbing, since the US COLA i
 
 ## Results
 
-### The pooled wage equation
+### The partially pooled wage equation
 
-Eq. (W4$'$), seven countries, country fixed effects, full sample, homogeneity imposed:
+Eq. (W4$'$), seven countries, country fixed effects, country-specific dynamics, common catch-up block, homogeneity imposed once per country. $n = 1177$, $k = 99$, $R^{2} = 0.868$.
 
-| Block | Sum of coefficients | $t$ by lag (1, 2, 3, 4) |
+| Block | Sum | $t$ by lag (1, 2, 3, 4) |
 |---|---:|---|
-| own lags of wage growth | +0.5992 | 17.64, 0.07, 3.48, −3.13 |
-| trend inflation $\pi^{*}$ | +0.4008 | 8.23, −3.90, 0.12, 1.69 |
-| tightness | +0.0992 | 1.00, 0.15, −2.11, 3.06 |
-| real-wage gap (level) | −0.0881 | −6.47, −0.45, −1.82, 5.53 |
-| real-wage gap $\times\ \lambda$ | +0.3393 | 1.38, −3.06, 1.03, 4.14 |
+| catch-up level (common) | −0.0599 | −5.14, 0.08, −2.08, 5.02 |
+| catch-up $\times\ \lambda$ (common) | **+0.1096** | −0.70, −2.38, 1.28, 2.87 |
 
-$n = 1177$, $R^{2} = 0.840$.
+**The interaction shrinks by two-thirds when the dynamics are freed.** The fully pooled specification returned $\sum_k \tilde{d}_k = +0.3393$; with country-specific persistence, trend weight and slack response it is **+0.1096**. The catch-up level moves less, from −0.0881 to −0.0599. Two-thirds of what the earlier specification attributed to indexation was pooled-dynamics misspecification: a common persistence that fitted no country well, with the residual difference loading onto the one block that varied systematically across countries. We state this plainly because it is the most important thing in this revision, and because a reader who discovers it unaided has no reason to trust anything else in the paper.
 
-The homogeneity restriction splits the dynamics 0.60 / 0.40 between persistence and the anchor — more persistent than Bernanke and Blanchard's US pre-COVID 0.46 / 0.54, unsurprisingly, given a year-on-year left-hand side with mechanically higher autocorrelation. The comparison with their numbers moves with the window and is worth making without flattery. On the restricted specification — no interaction, pooled — the full-sample split is **0.598 / 0.402**, reported by the validation suite as its own check (`bernanke_blanchard/full_sample_split`) so that it cannot go stale. On **their** window, 1990Q1–2019Q4, it is **0.639 / 0.361** against their 0.460 / 0.540: a 0.179 gap, clearing the module's 0.20 tolerance by 0.02. We are not going to call it close. What the check establishes is narrower — that the estimator puts substantial weight on the expectations term rather than loading everything onto persistence — and that is why it runs on the pooled panel at all: on one country's year-on-year series $\pi^{*}$ is close to collinear with four lags of wage growth, the restriction is satisfied by loading almost everything onto persistence, and the United States alone splits 0.97 / 0.03.
+The lag pattern also changes, and not for the better. The interaction's $t$-statistics are −0.70, −2.38, +1.28 and +2.87: the fourth lag is still significant and positive, which is where an annual clause or a January uprating bites, but the second is significant and negative, as in the pooled version. The block is not cleanly signed, and a positive sum built from a $+2.87$ and a $-2.38$ is weaker evidence than a positive sum built from four positive coefficients. Either the pattern is a genuine annual rhythm, with the intervening quarters carrying the offsetting arithmetic of a four-quarter growth rate, or the lag polynomial is poorly determined and only the sum is interpretable; we cannot separate the two. Both readings support using the sum, which is what $\Lambda$ is built from; neither supports precision claims about individual lags. And with classical errors on overlapping observations, even the $2.87$ overstates the evidence.
 
-The tightness sum is positive, as it should be, at +0.0992; its magnitude is not comparable with Bernanke and Blanchard's +0.693, which is on a vacancy-to-unemployment ratio in levels rather than an unemployment gap in points.
+The comparison with Bernanke and Blanchard's published coefficient sums is run on the restricted, *fully pooled*, non-interacted specification, because that is the object of their Table 1, and it is worth reporting without flattery. On the full sample that split is **0.598 / 0.402**, carried by the validation suite as its own check (`bernanke_blanchard/full_sample_split`) so it cannot go stale. On **their** window, 1990Q1–2019Q4, it is **0.639 / 0.361** against their 0.460 / 0.540 — a 0.179 gap, clearing the module's 0.20 tolerance by 0.02. We are not going to call that close. What it establishes is narrower: that the estimator puts substantial weight on the expectations term rather than loading everything onto persistence. That is why the check runs on a panel at all — on one country's year-on-year series $\pi^{*}$ is close to collinear with four lags of wage growth, and the United States alone splits 0.97 / 0.03.
 
-The two coefficients that carry the paper are the last two rows, and neither block is cleanly signed lag by lag. The **level** block sums to −0.0881, with a strongly significant negative first lag ($t = -6.47$) and a strongly significant *positive* fourth ($t = +5.53$). The sum is what the gain is computed from, and read literally it says that without indexation a real wage below its own trend is followed by *slower* nominal wage growth — the pattern expected if the shock that pushed it down also signalled weak labour demand and no institution forces recovery. But the lag pattern is a fast negative response partly undone a year later, and a reader who called it a delayed partial recovery rather than no recovery would not be contradicted by these four numbers.
-
-The **interaction** block sums to +0.3393, the sign the institutional hypothesis requires and roughly four times the level block in absolute size, with $t$-statistics of 1.38, −3.06, 1.03 and 4.14. The fourth lag is strongly significant and positive, and the fourth lag is where an annual indexation clause or a January uprating bites, so the timing is where the institutional story puts it. But the second lag is strongly significant and **negative**, and that must be said rather than absorbed into the sum: a positive sum built from a $+4.14$ and a $-3.06$ is not the same evidence as one built from four positive coefficients. Either the pattern is a genuine annual rhythm, with the intervening quarters carrying the offsetting arithmetic of a four-quarter growth rate, or the lag polynomial is poorly determined and only the sum is interpretable. We cannot separate the two with these data. Both readings support using the sum, which is what $\Lambda$ is built from; neither supports a claim that the individual lags are precisely estimated. And with classical errors on overlapping observations, even the $4.14$ overstates the evidence.
+The country-specific dynamics are in the table below. What the freed specification buys, apart from credibility, is the persistence column: the United States at 0.967 is close to a unit root in the four-quarter growth rate, Italy at 0.222 is not, and France and Belgium put most of their weight on the anchor (0.507 and 0.642 respectively) rather than on their own past. The tightness sums are positive in five of seven, negative and near zero in the United States (−0.006) and Belgium (−0.039); we do not read anything into the two negatives beyond the fact that an unemployment gap is a weak slack proxy in a country with a compressed unemployment cycle.
 
 ### The catch-up schedule $\Lambda(\lambda)$
 
-Evaluating Eq. (W6) across the range of $\lambda$:
+There is no longer a single $\Lambda(\lambda)$ line. Because persistence is country-specific and the catch-up coefficients are common, the same impulse propagates differently in each country and Eq. (W6) delivers seven lines, each still exactly linear in $\lambda$ and so summarised by its intercept and slope:
 
-| $\lambda$ | 0.00 | 0.10 | 0.25 | 0.50 | 0.75 | 1.00 |
+| country | own-lag sum | $\pi^{*}$ sum | slack sum | $\Lambda(0)$ | $\Lambda(1)$ | $\partial\Lambda/\partial\lambda$ |
 |---|---:|---:|---:|---:|---:|---:|
-| $\Lambda(\lambda)$ | −0.221 | −0.136 | −0.009 | +0.202 | +0.414 | +0.625 |
+| US | 0.967 | 0.033 | −0.006 | −0.722 | −0.545 | **+0.177** |
+| UK | 0.675 | 0.325 | +0.169 | −0.183 | +0.181 | **+0.364** |
+| FR | 0.493 | 0.507 | +0.053 | −0.110 | +0.139 | **+0.249** |
+| DE | 0.673 | 0.327 | +0.069 | −0.189 | +0.115 | **+0.304** |
+| BE | 0.358 | 0.642 | −0.039 | −0.091 | +0.084 | **+0.175** |
+| IT | 0.222 | 0.778 | +0.262 | −0.073 | +0.029 | **+0.102** |
+| ES | 0.335 | 0.665 | +0.151 | −0.092 | +0.067 | **+0.159** |
 
-The schedule is exactly linear, $\Lambda(\lambda) = -0.2210 + 0.8464\lambda$, which is a property of the construction rather than a finding: the driver enters $\mathcal{C}$ linearly in $\lambda$ and the autoregressive part does not depend on it.
+**The slope is the paper's result, and it is positive in all seven countries, from +0.102 to +0.364.** Moving a country from no indexation to full indexation raises the three-year recovery of a real-wage loss by that much per point of gap. That sign survived the specification change which destroyed two-thirds of the magnitude, and surviving is the stronger claim: an effect that vanishes when the dynamics are freed was never an effect, and one that shrinks but keeps its sign in every country is evidence about direction if not about size.
 
-The economics is in the two endpoints, and they are not equally well supported. $\Lambda(0) = -0.221$ says that in an economy with no indexation whatever, three years after a permanent one-point rise in inflation, wage growth is *lower* than it would otherwise have been by about a fifth of a point: a real-wage loss is absorbed, not recovered. That end is densely populated — the United States, Germany and Spain all sit inside $[0, 0.21]$ for their whole estimation samples.
+**The *level* of $\Lambda$ is not comparable across countries.** It is dominated by persistence — the United States has $\Lambda(0) = -0.722$ because its own-lag sum is 0.967, so any impulse is amplified over three years, while Italy has −0.073 on a sum of 0.222. That difference is about wage dynamics, not indexation, and it is an expected consequence of estimating on overlapping four-quarter growth rates. Report the derivative; caveat the level.
 
-$\Lambda(1) = +0.625$ is a different kind of number and must be labelled as one. **It is an extrapolation.** Inside the estimation sample, $\lambda \ge 0.9$ is contributed by Belgium alone — 101 quarters, 2001Q1–2026Q1, at a constant 1.000 — and no other country supplies a single in-sample observation above $\lambda = 0.5$ (Italy's maximum is 0.492, the United Kingdom's 0.416, France's 0.274). The validation suite carries a check, `identification/lambda_upper_end`, that reports exactly this. Because Belgian $\lambda$ is constant it is absorbed by the Belgian fixed effect except through the interaction, so the top of the schedule is identified by one cross-sectional cell interacted with within-Belgium variation in the real-wage gap. Read $\Lambda(1)$ as "what the fitted line implies at a value of $\lambda$ observed in one country", not as "the share of a real-wage loss recovered under universal indexation". It is also below the 0.75–0.95 range of contractual escalator elasticities Card (1986) estimates on indexed contracts — the right side to err on for an extrapolation, but not the corroboration we would have claimed had it landed inside that range.
+Two readings of the intercepts are nevertheless defensible within a country. Every $\Lambda(0)$ is negative: without indexation a real-wage loss is not recovered within three years, and the point estimate everywhere is that wage growth is marginally slower after one. And at $\lambda = 1$ six of the seven turn positive, the United States excepted at −0.545, because its persistence is high enough that even full indexation would not deliver recovery within three years on these estimates. The implied zero crossings, $-\Lambda(0)/(\partial\Lambda/\partial\lambda)$, lie between 0.44 (France) and 0.72 (Italy) for the six, with the United States outside $[0,1]$ entirely. At their *actual* $\lambda$ today, $\Lambda$ is negative in six of seven countries and positive only in Belgium, at +0.084.
 
-The crossover is at $\lambda = 0.2611$. **No** modelled country is above it today: France is closest at 0.236, and is therefore on the absorbing side of the line, having been on the recovering side at the start of its estimation sample (in-sample maximum 0.274) and having crossed below in 1987Q4. Of the reference countries only Belgium, at 1.000, and Italy, at 0.320, clear it. The crossover is not a sharp threshold — it is where a fitted line crosses zero, with all the imprecision documented above — but its location says a country needs roughly a quarter of its wage bill moving one-for-one with past prices before a real-wage loss is recovered at all.
+$\Lambda(1)$ carries the same warning as before, unchanged by the new specification: **it is an extrapolation.** Inside the estimation sample $\lambda \ge 0.9$ comes from Belgium alone — 101 quarters at a constant 1.000 — and no other country supplies an observation above 0.5. Because Belgian $\lambda$ never moves, it is absorbed by the Belgian fixed effect except through the interaction, so the top of every one of the seven lines is anchored by one cross-sectional cell. It remains the weakest link in the paper.
+
+### Mean-group robustness
+
+The fully heterogeneous alternative is the Pesaran–Smith mean-group estimator: fit each country separately, then average. It is consistent under exactly the slope heterogeneity the Chow test says we have, so it is the right robustness check even though it cannot be the headline. Its standard error is the cross-country standard deviation over $\sqrt{7}$, which measures disagreement between countries rather than sampling error, and with $N = 7$ it is indicative at best.
+
+Block sums of the country-by-country averages:
+
+| block | sum of mean-group coefficients |
+|:-----------------------|------------------------------:|
+| own lags | +0.494 |
+| trend inflation | +0.506 |
+| tightness | +0.076 |
+| catch-up level | −0.043 |
+
+And the catch-up block lag by lag, with the spread across the seven countries:
+
+| coefficient | mean group | se | min | max |
+|:--------------|-------------:|--------:|---------:|---------:|
+| cu_l1 | −0.161 | 0.045 | −0.371 | −0.003 |
+| cu_l2 | −0.111 | 0.053 | −0.373 | +0.053 |
+| cu_l3 | −0.011 | 0.012 | −0.050 | +0.035 |
+| cu_l4 | +0.239 | 0.062 | +0.031 | +0.456 |
+
+The averages are reassuring where they can be: the persistence/anchor split is 0.49 / 0.51, tightness is positive, and the catch-up level is negative and close to the partially pooled −0.0599. The spread behind that average is the informative part. The fourth-lag-positive, first-lag-negative pattern is not an artefact of pooling — every one of the seven first lags is negative and every one of the seven fourth lags positive — and the spreads are wide relative to the means, which is the Chow test's message again.
+
+The interaction is absent by construction, and that absence is the argument for the headline specification. Within a country $\lambda$ is near-constant, so a country-level interaction is identified off almost nothing: estimated freely, the per-country catch-up coefficients range from −0.371 to −0.003 on the first lag alone, and averaging seven noisy numbers does not manufacture identification the within-country variation does not contain. That is what "not identified within a country" looks like, and it is why the interaction stays common while everything the test rejects pooling on is freed.
 
 ### Wage-to-price pass-through and the Spiral Gain
 
-| country | $M$ (3yr) | $\lambda$ 1975 | $\lambda$ now | $G$ 1975 | $G$ now |
-|---|---:|---:|---:|---:|---:|
-| US | 0.997 | 0.117 | 0.019 | −0.122 | −0.205 |
-| UK | 1.285 | 0.119 | 0.102 | −0.155 | −0.173 |
-| FR | 0.639 | 0.371 | 0.236 | +0.059 | −0.014 |
-| DE | 0.828 | 0.107 | 0.069 | −0.108 | −0.135 |
-| BE | 0.265 | 1.000 | 1.000 | +0.166 | +0.166 |
-| IT | 0.991 | 1.000 | 0.320 | +0.620 | +0.049 |
-| ES | 0.612 | 0.000 | 0.150 | −0.135 | −0.058 |
+| country | $M$ (3yr) | $\lambda$ 1975 | $\lambda$ now | $G$ 1975 | $G$ now | $\partial G/\partial\lambda$ |
+|---|---:|---:|---:|---:|---:|---:|
+| US | 0.968 | 0.117 | 0.019 | −0.678 | −0.695 | +0.171 |
+| UK | 1.386 | 0.119 | 0.102 | −0.193 | −0.202 | +0.505 |
+| FR | 0.737 | 0.371 | 0.236 | −0.013 | −0.038 | +0.184 |
+| DE | 0.760 | 0.107 | 0.069 | −0.119 | −0.128 | +0.231 |
+| BE | −0.083 | 1.000 | 1.000 | −0.007 | −0.007 | −0.015 |
+| IT | 0.971 | 1.000 | 0.320 | +0.028 | −0.039 | +0.099 |
+| ES | 0.689 | 0.000 | 0.150 | −0.063 | −0.047 | +0.110 |
 
-$M$ is close to unity in the United States (0.997) and Italy (0.991), above it in the United Kingdom (1.285), and well below in France (0.639), Spain (0.612) and above all Belgium (0.265). The UK value above one is not more than full pass-through — homogeneity pins the long run at exactly one — but front-loading: overshooting at three years and converging back. That is consistent in direction with Haskel, Martin and Brandt (2023) finding lower summed wage coefficients for the UK than the US alongside large cumulated shock contributions, though their specification, sample and wage measure all differ from ours.
+The last column is $M \times \partial\Lambda/\partial\lambda$, computed from the two preceding tables rather than estimated separately; everything else comes from the model.
 
-Both $\lambda$ and $G$ are calendar-year means for 1975 and the latest quarter for "now", so the table reproduces row by row as $G = \Lambda(\lambda) \times M$. We have verified this for all seven rows; four by way of illustration are the United Kingdom in 1975 ($\Lambda(0.119) = -0.1203$, $\times 1.285 = -0.155$), France in 1975 ($+0.0930 \times 0.639 = +0.059$), Germany today ($-0.1626 \times 0.828 = -0.135$) and Italy today ($+0.0498 \times 0.991 = +0.049$).
+$M$ is close to unity in the United States (0.968), Italy (0.971) and above it in the United Kingdom (1.386), lower in France (0.737), Germany (0.760) and Spain (0.689), and **effectively zero in Belgium at −0.083**. The UK value above one is not more than full pass-through — homogeneity pins the long run at exactly one — but front-loading: overshooting at three years and converging back. These figures changed from an earlier vintage because the price equation was reading the raw transfer impulse where the documentation and the browser twin both specified the cyclically adjusted one; the Python and JavaScript implementations now agree.
 
-The Spiral Gain was **0.620 in Italy in 1975** — the largest value anywhere in the sample, in the economy with the most complete indexation system in the advanced world at the moment of the first oil shock — and still below the self-reproduction threshold of one. The right reading is not that the Italian spiral was impossible but that it was *damped*, attenuating about two-fifths per round over three years. A damped loop with a gain of 0.62 and a three-year cycle still has a long memory: with a sequence of shocks and accommodative policy, the arithmetic of the 1970s follows without instability in the formal sense. Modigliani and Padoa-Schioppa's instability argument turns on indexation above unity for a majority of individual wages, which our aggregate $\lambda$, capped at one, cannot represent — and since Italy's 1975 $\Lambda$ is the extrapolated $\Lambda(1)$, that cell inherits every caveat attached to the top of the schedule.
+**$G$ is negative in all seven countries today.** No economy in this panel has a self-reinforcing loop, and none is remotely near the threshold of one. Only a single cell in the whole table is positive: Italy in 1975, at **+0.028**, under the *punto unico* with $\lambda$ at the clip. That is a far smaller number than the earlier, fully pooled specification produced, and the reason is the same two-thirds shrinkage — the 1975 Italian cell was the single largest beneficiary of the pooled-dynamics misspecification, because it combined the maximum $\lambda$ with a persistence borrowed from countries that do not resemble Italy.
 
-Today the picture differs in kind. $G$ is negative in five of seven countries, marginally negative in France (−0.014), and positive only in Belgium (+0.166) and Italy (+0.049). A negative gain means one turn of the loop *subtracts* from inflation at three years: a price shock not passed into wages shows up as a real wage cut, and the level term then implies marginally slower nominal wage growth, feeding back as slightly lower price inflation. That is the modern configuration, and the mechanism behind Alvarez et al.'s (2024) observation that inflation typically falls while nominal wages gradually catch up. Italy is where the institutional story is most visible: $G$ falls from +0.620 to +0.049 with no change whatever in $M$, all the movement being in $\lambda$, which falls from 1.000 under the *punto unico* to 0.320 once only the forward-looking Protocol benchmark and the indexation of public pay remain. That is the paper's claim in a single row — but a claim about the constructed $\lambda$ series, not an estimate, because Italy's 1975 observations lie outside the estimation sample.
+Since $G = \Lambda \times M$ and the *level* of $\Lambda$ is persistence-dominated, the level of $G$ inherits the same warning: the cross-country ordering of $G$ is not interpretable, and the United States' −0.695 says more about an own-lag sum of 0.967 than about American wage-setting institutions. What is robust is the *sign* — negative everywhere today — and the *derivative*, $\partial G/\partial\lambda = M \times \partial\Lambda/\partial\lambda$, which is positive in six of seven countries, ranging from +0.099 in Italy to +0.505 in the United Kingdom.
+
+Belgium is the seventh, and its sign is the paper's sharpest single result. Its $\partial G/\partial\lambda$ is **−0.015**: because Belgian wage-to-price pass-through is effectively zero, more indexation in Belgium does not raise its spiral gain at all. The first leg of the loop is complete and the second is missing, so the product is nothing. That is not a quirk of our estimates; it is what the National Bank of Belgium finds by other means.
 
 ### Belgium: high $\lambda$, low $M$
 
-Belgium is where the product structure earns its keep, and where the estimates are thinnest. It has the highest possible $\lambda$ — one, throughout, by construction and by fact — and the lowest $M$ in the sample, 0.265: nearly complete pass-through of prices into wages, almost none of wages back out into prices. The resulting $G$ of 0.166 is well below the Italian 1975 value even though Belgian indexation is at least as complete as Italian indexation ever was, and it is the largest positive $G$ in the panel today. $\Lambda(1)$, and therefore the Belgian $G$, is identified off Belgium itself: the country providing the cleanest institutional case is the same one the estimate leans on, and the row should be read as internally consistent rather than independently corroborated.
+Belgium is where the product structure earns its keep, and where the estimates are thinnest. It has the highest possible $\lambda$ — one, throughout, by construction and by fact — and a wage-to-price pass-through of **−0.083**, indistinguishable from zero and the lowest in the panel by a wide margin. It is also the only country whose $\Lambda$ is positive today, at +0.084: a real-wage loss there *is* recovered within three years, and it is the only economy in the sample of which that is true. The two facts together are the whole argument. The first leg of the loop is complete and the second is missing, so $G$ is −0.007 and $\partial G/\partial\lambda$ is −0.015: more indexation in Belgium buys more wage recovery and no more inflation.
 
-It is, however, a finding we reproduce rather than invent. Bernanke and Blanchard (2024) report Belgian cumulative pandemic-era wage inflation of 17.8% against a euro-area 7.5%, with cumulative price inflation of 15.6% against 15.8%: indexation raised Belgian wages far more without raising prices more, implying firms absorbed it through margin compression. Jonckheere and Zimmer (2024) reach the same conclusion from the National Bank's own models — compensation per employee grew 7.3% in 2022 and 7.7% in 2023 against euro-area rates of 4.5% and 5.2%, prices-to-wages transmission is "much stronger" in Belgium, and yet "wages barely explain core inflation in Belgium, whereas they seem to matter in the euro area" — and judge the risk of a rampant spiral contained. Geis, Wong and Vernon (2023) document the margin through which this operates: the 1996 Wage Law caps real wage growth by reference to the three neighbours, so because indexation exhausted the margin no real wage growth was permitted for 2022–24, with the Central Economic Council estimating a 2.9pp wage gap at end-2022 projected to reach 5.7% by end-2024.
+That is a finding we reproduce rather than invent. Bernanke and Blanchard (2024) report Belgian cumulative pandemic-era wage inflation of 17.8% against a euro-area 7.5%, with cumulative price inflation of 15.6% against 15.8%: indexation raised Belgian wages far more without raising prices more, implying firms absorbed it through margin compression. Jonckheere and Zimmer (2024) reach the same conclusion from the National Bank's own models — compensation per employee grew 7.3% in 2022 and 7.7% in 2023 against euro-area rates of 4.5% and 5.2%, prices-to-wages transmission is "much stronger" in Belgium, and yet "wages barely explain core inflation in Belgium, whereas they seem to matter in the euro area" — and judge the risk of a rampant spiral contained. Our $M = -0.083$ is a quantitative version of their sentence, arrived at independently. Geis, Wong and Vernon (2023) document the margin through which it operates: the 1996 Wage Law caps real wage growth by reference to the three neighbours, so because indexation exhausted the margin no real wage growth was permitted for 2022–24, with the Central Economic Council estimating a 2.9pp wage gap at end-2022 projected to reach 5.7% by end-2024.
 
-The policy content cuts against the intuition the 1970s literature left behind. **An indexation regime is not automatically an inflation regime.** Whether it becomes one depends on the second factor in the product — on whether firms can and do pass labour costs into prices, which depends on competition, openness, margins and the credibility of the monetary anchor. Belgium is a small open economy with a statutory wage norm tied to its three largest trading partners; its firms cannot pass a national wage shock into prices without losing market share, so they compress margins instead. The same $\lambda$ in a large, closed, high-margin economy would produce a materially different $G$.
+The policy content cuts against the intuition the 1970s literature left behind. **An indexation regime is not automatically an inflation regime.** Whether it becomes one depends on the second factor in the product — on whether firms can and do pass labour costs into prices, which depends on competition, openness, margins and the credibility of the monetary anchor. Belgium is a small open economy with a statutory wage norm tied to its three largest trading partners; its firms cannot pass a national wage shock into prices without losing market share, so they compress margins instead. The same $\lambda$ in a large, closed, high-margin economy would produce a materially different $G$. The caveat is the one that will not go away: everything here that depends on $\lambda = 1$ is anchored by Belgium itself, so the row is internally consistent rather than independently corroborated.
 
 ### Real wage paths
 
-Cumulative percentage change in the real wage relative to 2019Q4, with a 2021Q4 base alongside:
+Cumulative percentage change in the real wage. The first five columns are measured against 2019Q4; the last, headed *2022 vs 2021*, is measured against 2021Q4 instead, which is the base the ECB uses:
 
-| country | 2021Q4 | 2022Q4 | 2023Q4 | 2024Q4 | trough vs 2019Q4 | 2022Q4 vs 2021Q4 |
-|---|---:|---:|---:|---:|---:|---:|
+| country | 2021Q4 | 2022Q4 | 2023Q4 | 2024Q4 | trough | 2022 vs 2021 |
+|:----------|---------:|---------:|---------:|---------:|---------:|-------------:|
 | US | −0.17 | −2.01 | −0.97 | −0.01 | −2.12 | −1.84 |
 | UK | +3.91 | −0.33 | +1.19 | +4.65 | −0.33 | −4.24 |
 | FR | −0.51 | −2.45 | −2.97 | −2.58 | −4.22 | −1.94 |
@@ -545,7 +604,7 @@ The index combines four level indices, each 100 in 2019Q4, under Eq. (W10): the 
 Real Effective Wage Index, 2019Q4 = 100, for the bottom quartile (`q1`) and all households, with the market real wage and the subsidy-neutral variant alongside:
 
 | country | group | 2021Q4 | 2022Q4 | 2023Q4 | 2024Q4 | subsidy-neutral 2022Q4 | market real wage 2022Q4 |
-|---|---|---:|---:|---:|---:|---:|---:|
+|:--------|:------|------:|------:|------:|------:|----------------------:|----------------------:|
 | US | q1 | 96.7 | 94.7 | 99.2 | 99.8 | 94.6 | 98.0 |
 | US | all | 97.8 | 95.3 | 99.1 | 99.8 | 95.2 | 98.0 |
 | UK | q1 | 101.2 | 99.6 | 107.0 | 113.5 | 99.3 | 99.7 |
@@ -603,6 +662,12 @@ The design for future work follows: extend the panel to economies with populist 
 
 This section is not a formality, and the items are not of the same kind.
 
+**The level of $\Lambda$ is persistence-dominated and not comparable across countries.** Because the partially pooled specification gives each country its own dynamics, the same common catch-up coefficients propagate through very different autoregressions, and the three-year gain inherits the difference: $\Lambda(0) = -0.722$ in the United States on an own-lag sum of 0.967, against −0.073 in Italy on a sum of 0.222. Those intercepts say almost nothing about indexation and almost everything about wage-growth persistence. Only the derivative $\partial\Lambda/\partial\lambda$ is comparable, and only it is reported as a cross-country statistic. The same warning passes to $G = \Lambda \times M$, whose cross-country ordering is not interpretable either.
+
+**Near-unit-root persistence is a consequence of the year-on-year specification.** Four-quarter growth rates observed quarterly are highly autocorrelated by construction, so own-lag sums close to one are expected rather than surprising, and the US figure of 0.967 should be read that way. It is the price of the data constraint set out in the data section — outside the United States there is no mix-controlled quarterly wage index — and it is the mechanism by which the level of $\Lambda$ becomes uninformative. A specification in annualised quarterly growth would not have this problem and would have a different, worse one: a negative sum of own-lag coefficients, which is what differencing noise looks like.
+
+**The two-thirds shrinkage is itself a caveat about everything upstream.** The interaction fell from +0.339 to +0.110 on a specification change. We have no way of knowing that the partially pooled specification is the last such change, and a reader should treat +0.110 as a number that has already proved sensitive to how the dynamics are handled rather than as a settled magnitude. The sign, which held in all seven countries across that change, is the claim we are willing to defend.
+
 **$\Lambda(1)$ is an extrapolation from one country.** This is the most serious limitation. Inside the estimation sample, $\lambda \ge 0.9$ is contributed by Belgium alone — 101 quarters at a constant 1.000 — and no other country supplies an observation above 0.5. Belgium's constancy means the level is absorbed by its fixed effect, so the top of the schedule rests on one cross-sectional cell interacted with within-Belgium variation in the real-wage gap. Anything specific to Belgium that correlates with its real-wage gap — the 1996 Wage Law, its trade openness, its margin structure — is a confounder the fixed effect cannot absorb, because it enters through the same interaction. A second country with near-universal indexation would settle it; Luxembourg, Cyprus and Malta are the obvious candidates and are not in the panel.
 
 **The narrative episodes are mostly outside the estimation sample.** Italy's *scala mobile* at the clip, the US COLA peak and the French *échelle mobile* are described from the database and displayed in the $\lambda$ table, but only the US episode is inside a sample: Italy and France both contribute from 1985Q4, after their reforms. The historical narrative and the econometrics rest on partly disjoint evidence, and the 1970s discussion should not be read as estimated.
@@ -631,9 +696,9 @@ Separately: we could not locate a peer-reviewed paper estimating the effect of t
 
 A wage–price spiral requires two things at once, and for most of the past forty years only one of them has been true. Prices must come back as wages, which requires an institution, and wages must go back out as prices, which requires pricing power. Writing the loop as a product rather than as a single reduced-form coefficient makes it possible to say which of the two moved.
 
-What moved was the first. On the institutional database assembled here, indexation intensity between 1975 and today fell 83% in the United States and 68% in Italy, 36% in France and 35% in Germany, 15% in the United Kingdom, and not at all in Belgium. France is mid-pack in the rate of decline but first among the modelled countries in the level, because a minimum-wage formula survived the reform that abolished general indexation; Belgium never reformed at all. The estimated catch-up schedule turns on that intensity: at $\lambda = 0$ a real-wage loss is not recovered within three years, the fitted line crosses zero at $\lambda = 0.261$, and at $\lambda = 1$ it implies about five-eighths recovered — a figure that is an extrapolation from Belgium and should be carried with that label attached. The second factor did not move in the same way. Wage-to-price pass-through at three years remains close to one in the United States, the United Kingdom and Italy, and it is a feature of market structure rather than of wage-setting institutions — which is why Belgium, with complete indexation and a pass-through of 0.27, has a Spiral Gain a quarter the size of Italy's in 1975.
+What moved was the first. On the institutional database assembled here, indexation intensity between 1975 and today fell 83% in the United States and 68% in Italy, 36% in France and 35% in Germany, 15% in the United Kingdom, and not at all in Belgium. France is mid-pack in the rate of decline but first among the modelled countries in the level, because a minimum-wage formula survived the reform that abolished general indexation; Belgium never reformed at all. Catch-up turns on that intensity in the direction the institutions predict: $\partial\Lambda/\partial\lambda$ is positive in every one of the seven countries, from +0.102 to +0.364. The second factor did not move in the same way. Wage-to-price pass-through at three years remains close to one in the United States and Italy and above it in the United Kingdom, and it is a feature of market structure rather than of wage-setting institutions — which is why Belgium, with complete indexation and a pass-through of −0.083, has a Spiral Gain of −0.007 and a $\partial G/\partial\lambda$ that is *negative*. Today no country in the panel has a positive Spiral Gain at all.
 
-We would not push the statistical evidence further than it goes. The interaction block that carries this argument has the sign the theory requires in sum, a strongly significant fourth lag where an annual clause would bite, and a strongly significant *negative* second lag we cannot explain; its standard errors are classical and computed on overlapping observations, so they overstate precision, and the top of its range is identified by one country. What the paper offers with more confidence is the accounting: an auditable database of who was indexed to what, a decomposition separating the two legs of the loop, and a measure of household income that includes the statutory floor, the indexed benefit and the one-off cheque as well as the wage.
+We would not push the statistical evidence further than it goes, and one episode in the writing of this paper is the reason. Estimated with all seven countries pooled onto one coefficient vector, the indexation interaction was +0.339; freeing the country dynamics, which a Chow test says is required, cut it to +0.110. Two-thirds of the effect was misspecification. What that leaves is a sign rather than a magnitude: positive in all seven countries, on a block whose second lag is significantly negative and whose standard errors are classical and computed on overlapping observations, with the top of the $\lambda$ range supplied by one country. What the paper offers with more confidence is the accounting: an auditable database of who was indexed to what, a decomposition separating the two legs of the loop, and a measure of household income that includes the statutory floor, the indexed benefit and the one-off cheque as well as the wage.
 
 That last measure carries the result we did not expect. Through 2022–24, measured real income for the bottom quartile tracked the all-household average to within a percentage point in every country we examined, and by end-2024 the British bottom quartile was ahead of its own average. This did not happen through the labour market. It happened because minimum wages and benefit upratings are indexation by another name — mechanical, statutory, applied to the households with the least wage exposure, and absent from every negotiated-wage indicator the modern literature uses to conclude that indexation has disappeared. Indexation did not disappear. It moved from the collective agreement to the statute book, and from the median worker to the bottom of the distribution.
 

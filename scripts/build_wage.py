@@ -28,6 +28,7 @@ import pandas as pd  # noqa: E402
 
 from ism.wage_engine import (WageConfig, fit_panel_wage_equation,  # noqa: E402
                              fit_price_equation, fit_wage_equation,
+                             mean_group_wage_equation, poolability_test,
                              price_to_wage_gain, spiral_gain, wage_to_price_gain)
 from ism.wage_pipeline import ALL_COUNTRIES, build_panel  # noqa: E402
 from ism.wage_validate import estimation_samples, report, validate_all  # noqa: E402
@@ -64,11 +65,20 @@ def main() -> int:
         panels[c].to_csv(OUT / f"panel_{c}.csv")
 
     print("estimating ...", flush=True)
+    # Headline: partially pooled -- country-specific dynamics, common catch-up.
     panel_fit = fit_panel_wage_equation(panels, cfg)
+    pooled_fit = fit_panel_wage_equation(panels, cfg, free=())
     fits = {"panel_wage": fit_to_dict(panel_fit),
+            "panel_wage_fully_pooled": fit_to_dict(pooled_fit),
             "panel_wage_nolambda": fit_to_dict(
                 fit_panel_wage_equation(panels, cfg, interact=False)),
+            "poolability": poolability_test(panels, cfg),
             "countries": {}}
+    mg = mean_group_wage_equation(panels, cfg)
+    if not mg.empty:
+        fits["mean_group"] = {k: {c: (None if pd.isna(v) else float(v))
+                                  for c, v in row.items()}
+                              for k, row in mg.to_dict(orient="index").items()}
     for c, d in panels.items():
         entry = {}
         try:
@@ -79,7 +89,15 @@ def main() -> int:
             pf = fit_price_equation(d, cfg)
             entry["price"] = fit_to_dict(pf)
             entry["M"] = float(wage_to_price_gain(pf))
-            g = spiral_gain(panel_fit, pf, d["lambda"].dropna())
+            # Both halves country-specific: M from this country's price
+            # equation, Lambda from its own wage dynamics.
+            entry["own_lag_sum"] = float(panel_fit.sum_of("gw_l", c))
+            entry["pistar_sum"] = float(panel_fit.sum_of("pistar_l", c))
+            entry["slack_sum"] = float(panel_fit.sum_of("slack_l", c))
+            entry["Lambda_0"] = float(price_to_wage_gain(panel_fit, 0.0, country=c))
+            entry["Lambda_1"] = float(price_to_wage_gain(panel_fit, 1.0, country=c))
+            entry["dLambda_dlambda"] = entry["Lambda_1"] - entry["Lambda_0"]
+            g = spiral_gain(panel_fit, pf, d["lambda"].dropna(), country=c)
             entry["G_latest"] = float(g["G"].iloc[-1])
             entry["lambda_latest"] = float(g["lambda"].iloc[-1])
             # lambda and G must be read at the SAME date, or the published
@@ -92,8 +110,10 @@ def main() -> int:
             entry["price_error"] = str(exc)
         fits["countries"][c] = entry
 
-    fits["Lambda_curve"] = {str(round(x, 2)): float(price_to_wage_gain(panel_fit, x))
-                            for x in [i / 20 for i in range(21)]}
+    fits["Lambda_curve"] = {
+        c: {str(round(x, 2)): float(price_to_wage_gain(panel_fit, x, country=c))
+            for x in [i / 20 for i in range(21)]}
+        for c in panels}
     (OUT / "fits.json").write_text(json.dumps(fits, indent=2))
 
     samples = estimation_samples(panels, cfg)

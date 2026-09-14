@@ -97,7 +97,8 @@ def main() -> int:
         return 1
 
     cfg = WageConfig()
-    panel_fit = fit_panel_wage_equation(panels, cfg)
+    panel_fit = fit_panel_wage_equation(panels, cfg)          # partially pooled
+    pooled_fit = fit_panel_wage_equation(panels, cfg, free=())  # for comparison
 
     countries = {}
     for code, d in panels.items():
@@ -150,7 +151,12 @@ def main() -> int:
         },
         "panel_fit": {"names": panel_fit.names, "beta": clean(panel_fit.beta),
                       "se": clean(panel_fit.se), "r2": round(float(panel_fit.r2), 6),
-                      "nobs": int(panel_fit.nobs)},
+                      "nobs": int(panel_fit.nobs),
+                      "free": ["gw", "pistar", "slack"]},
+        "panel_fit_pooled": {"names": pooled_fit.names, "beta": clean(pooled_fit.beta),
+                             "se": clean(pooled_fit.se),
+                             "r2": round(float(pooled_fit.r2), 6),
+                             "nobs": int(pooled_fit.nobs), "free": []},
         "countries": countries,
         "shares": records(shares),
         "schemes": records(schemes),

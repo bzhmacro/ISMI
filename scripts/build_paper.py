@@ -68,6 +68,53 @@ def front_matter(text: str) -> tuple[dict, str]:
     return meta, body.lstrip("\n")
 
 
+
+# ---------------------------------------------------------------------------
+# Maths has to survive the markdown pass
+# ---------------------------------------------------------------------------
+# python-markdown does not know about TeX. Left to itself it reads the
+# underscores and asterisks inside a formula as emphasis, so
+#
+#     $\pi^{*}_{t} = \pi^{*}_{t-1} + k(q)(\pi_{t} - \pi^{*}_{t-1})$
+#
+# comes out as `\pi^{<em>}_{t} = \pi^{</em>}<em t>{t-1} ...` -- the braces are
+# reordered, the expression is destroyed, and KaTeX is handed something it
+# cannot parse. The equations rendered correctly in the PDF (pandoc knows TeX)
+# and silently turned to soup in the HTML, which is why this went unnoticed.
+#
+# The fix is the standard one: lift every maths span out before markdown runs
+# and put it back afterwards. Code spans and fenced blocks are lifted FIRST, so
+# a dollar sign inside `$7.25` or inside a shell snippet is never mistaken for a
+# delimiter, and an escaped \$ is left alone.
+
+_PLACEHOLDER = "zZmAtHzZ{}zZ"          # alphanumeric: markdown will not touch it
+
+
+def _protect(text: str) -> tuple[str, list[str]]:
+    """Replace code spans and maths with opaque placeholders."""
+    store: list[str] = []
+
+    def stash(m: re.Match) -> str:
+        store.append(m.group(0))
+        return _PLACEHOLDER.format(len(store) - 1)
+
+    # Order matters: fenced code, then indented-safe inline code, then display
+    # maths, then inline maths.
+    text = re.sub(r"```.*?```", stash, text, flags=re.S)
+    text = re.sub(r"(?<!`)`[^`\n]+`(?!`)", stash, text)
+    text = re.sub(r"(?<!\\)\$\$.+?(?<!\\)\$\$", stash, text, flags=re.S)
+    # Inline maths: single line, not preceded by a backslash, non-empty, and not
+    # spanning a blank line. The negative lookbehind keeps `\$7.25` literal.
+    text = re.sub(r"(?<!\\)\$(?!\s)(?:[^$\n]|\\\$)+?(?<!\\)\$", stash, text)
+    return text, store
+
+
+def _restore(html: str, store: list[str]) -> str:
+    for i, original in enumerate(store):
+        html = html.replace(_PLACEHOLDER.format(i), original)
+    return html
+
+
 # ---------------------------------------------------------------------------
 # HTML
 # ---------------------------------------------------------------------------
@@ -104,6 +151,9 @@ HTML_SHELL = """<!doctype html>
                   font-family:var(--font-mono); font-size:8.5pt; color:var(--muted); }}
   .katex-display {{ overflow-x:auto; overflow-y:hidden; padding:2px 0; }}
   table {{ font-variant-numeric: tabular-nums; }}
+  /* The reference list carries long DOIs and publisher URLs; without this they
+     push the page into a horizontal scroll on narrow screens. */
+  a {{ overflow-wrap: anywhere; word-break: break-word; }}
 </style>
 </head>
 <body>
@@ -136,12 +186,14 @@ def build_html(meta: dict, body_md: str) -> Path:
 
     # `md_in_html` lets the callout blocks survive; `attr_list` and `tables` are
     # what the house markdown conventions rely on.
+    protected, store = _protect(body_md)
     html = markdown.markdown(
-        body_md,
+        protected,
         extensions=["extra", "tables", "attr_list", "footnotes", "md_in_html",
                     "sane_lists", "toc"],
         output_format="html5",
     )
+    html = _restore(html, store)
     # GitHub-style alert blocks -> house callouts.
     html = re.sub(r"<blockquote>\s*<p>\[!NOTE\]\s*", '<div class="callout info"><p>', html)
     html = re.sub(r"<blockquote>\s*<p>\[!WARNING\]\s*", '<div class="callout warn"><p>', html)
@@ -199,6 +251,17 @@ TEX_PREAMBLE = r"""
 \usepackage{fancyhdr}
 \usepackage{microtype}
 
+%% Long DOIs and publisher URLs in the reference list run past the margin with
+%% the default \url, which only breaks at a small set of characters. xurl lets
+%% a URL break anywhere, so the links stay complete and readable rather than
+%% being shortened or dropped. The emergency stretch is the second half of the
+%% fix: it lets TeX loosen a line rather than overfull-box it when a reference
+%% still will not break tidily.
+\usepackage{xurl}
+\setlength{\emergencystretch}{3em}
+\hyphenpenalty=1000
+\tolerance=2000
+
 %% House paper accents (bzh-doc.css token block, print variant).
 \definecolor{seal}{HTML}{C75130}
 \definecolor{gold}{HTML}{956D27}
@@ -223,7 +286,17 @@ TEX_PREAMBLE = r"""
 \titleformat{\section}{\sffamily\bfseries\large\color{ink}}{\thesection}{0.7em}{}
 \titleformat{\subsection}{\sffamily\bfseries\normalsize\color{dim}}{\thesubsection}{0.6em}{}
 \renewcommand{\arraystretch}{1.15}
-\setlength{\tabcolsep}{5pt}
+%% Pandoc sizes pipe-table columns from cell content and then divides
+%% (\columnwidth - 2n\tabcolsep) among them, so at seven or eight columns the
+%% inter-column padding eats enough width that a six-character header no longer
+%% fits its own column. Tightening the padding and setting tables one step down
+%% in size fixes every wide table at once, which is better than hand-tuning
+%% each one -- and a slightly smaller table face is the usual convention in a
+%% paper anyway.
+\setlength{\tabcolsep}{3.5pt}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{\small}
+\AtBeginEnvironment{tabular}{\small}
 
 \pagestyle{fancy}
 \fancyhf{}
@@ -264,7 +337,14 @@ def build_pdf(engine: str = "xelatex") -> Path | None:
         "--variable", "fontsize=10pt",
         "--variable", "linestretch=1.15",
         "--variable", "colorlinks=true",
-        "--from", "markdown+yaml_metadata_block+tex_math_dollars+pipe_tables+footnotes",
+        # autolink_bare_uris turns the reference list's bare URLs into real
+        # \url{} links. Without it pandoc typesets them as ordinary text,
+        # which breaks only at existing hyphens -- so a DOI or an ECB blog URL
+        # with no hyphen in its tail cannot break at all and runs past the
+        # margin. With it, xurl can break anywhere, and the links become
+        # clickable in the PDF as a bonus.
+        "--from", ("markdown+yaml_metadata_block+tex_math_dollars"
+                   "+pipe_tables+footnotes+autolink_bare_uris"),
     ]
     # pandoc's default LaTeX template loads lmodern unconditionally, and this
     # TeX Live installation does not ship it. Rather than patch the template or

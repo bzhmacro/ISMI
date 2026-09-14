@@ -168,13 +168,17 @@ Key files: `src/ism/wage_engine.py` (the maths, Eqs. W1–W12),
 `web/wage_engine.js` (parity-tested browser twin). Full maths-to-code map:
 `docs/wage_methodology.md`. The paper is `paper/wage_inflation.md`.
 
-## Third model: trimmed-mean & median inflation (Cleveland / Dallas)
+## Third model: trimmed-mean & median inflation (Cleveland / Dallas / BoC / BoJ)
 
 The repo now also rebuilds the **limited-influence** inflation measures — the
 weighted median and the asymmetric trimmed means behind the Cleveland Fed's
 **median CPI** and **16% trimmed-mean CPI** and the Dallas Fed's **trimmed mean
-PCE** — from the same category cross-sections the other two models use, and
-validates them against the published series.
+PCE**, the Bank of Canada's **CPI-trim** and **CPI-median** and the Bank of
+Japan's **10% trimmed mean** — from the same category cross-sections the other
+two models use, and validates them against the published series.
+
+Eight gauges: US CPI on two cuts, US PCE, and the UK, Canada, Germany, France
+and Japan.
 
 Sort the categories by their seasonally adjusted annualised price change, line
 them up along their expenditure weight, throw away the lowest `α` and highest
@@ -198,6 +202,28 @@ Validated against the published series, 1998 onward:
 | `cpi45` | 16% trimmed mean | **0.998** | 0.114 | +0.084 |
 | `cpi70` (this repo's 70 strata) | median CPI | 0.965 | 0.419 | +0.224 |
 | `pce` (BEA underlying detail) | trimmed mean PCE | 0.990 | 0.127 | +0.063 |
+| `ca` (StatCan, 119 classes) | BoC CPI-trim (20/20) | 0.963 | 0.315 | +0.181 |
+| `ca` | BoC CPI-median | 0.929 | 0.369 | +0.087 |
+| `jp` (47 medium groups) | BoJ 10% trimmed mean | 0.942 | 0.408 | +0.178 |
+
+The two foreign pairs are looser on purpose. The Bank of Canada's inputs are
+adjusted for changes in indirect taxes and seasonally adjusted with StatCan's
+own specifications; the Bank of Japan trims the cross-section of *twelve-month*
+changes while this engine trims the monthly one, so its line is an overlay and
+not a replication. The UK, France and Germany have no published
+limited-influence measure at all — the ECB's trimmed means are euro-area only,
+and stop at 2025-12 (`config/sources.yaml`).
+
+**Can a cross-section carry an 8% trim?** If one component outweighs the tail,
+the tail is that component's price. The page measures it and says so under the
+chart: effective breadth (`1/Σw²`), how many components each tail cuts through,
+and how much of a tail its largest contributor supplies. Germany (48.7), France
+(41.0) and Canada (38.3) are the best-conditioned gauges here and have nothing
+heavier than an 8% tail; the UK (29.8) beats every US cut; Japan (16.7, rent at
+18%) is the weakest. `cpi70` is the counter-example worth knowing: worst breadth
+of all (10.9, owners' equivalent rent at 26%) yet ~11 components per tail,
+because OER sits in the middle of the distribution — concentration hurts the
+**median** far more than the trimmed mean.
 
 Three things had to be *measured* rather than assumed, and each one moved the
 answer:
@@ -361,7 +387,7 @@ ISMI/
 │   ├── trim_engine.py         # trimmed-mean / median maths: Eqs (T1)-(T4)
 │   ├── trim_pipeline.py       # the trim scopes (cpi45 / cpi70 / pce / country ports)
 │   ├── cpi_ri.py              # versioned CPI weights: December anchors + price-updating
-│   ├── official_trim.py       # Cleveland Fed + Dallas Fed published files
+│   ├── official_trim.py       # Cleveland/Dallas/StatCan/BoJ published files
 │   ├── trim_validate.py       # our measures vs theirs (series + cross-section)
 │   ├── cpi_pce.py             # CPI-PCE gap identity + the nowcast bridge
 │   ├── ppi.py                 # the producer-price inputs to the PCE deflator
@@ -387,7 +413,7 @@ ISMI/
 │   ├── cpipce_app.js          # the CPI -> PCE page
 │   └── data/ism.json          # raw panels + baselines, all gauges: pce cpi uk fr de jp ca (regen via scripts/export_web_data.py)
 │       data/trim.json         # SA panels + versioned weights + the published
-│                              # Cleveland/Dallas overlays + the CPI->PCE payload
+│                              # published overlays + the CPI->PCE payload
 ├── tests/                     # 25 synthetic unit tests incl. Python<->JS parity (no network)
 ├── docs/                      # decomp_methodology.md, trim_methodology.md,
 │                              # cpi_pce_methodology.md, DECISIONS.md

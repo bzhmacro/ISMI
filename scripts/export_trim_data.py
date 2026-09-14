@@ -164,11 +164,24 @@ def build_panel(scope: str, ism_payload: dict, force: bool = False):
     if scope == "cpi70":
         return build_cpi70_panel(force=force)
     if scope == "pce":
-        if os.environ.get("BEA_API_KEY"):
+        def _from_web():
+            base = panel_from_web_data(ism_payload, "pce", sa="none")
+            return build_pce_panel(inflation_panel=base.inflation,
+                                   weights=base.weights, labels=base.labels)
+        if not os.environ.get("BEA_API_KEY"):
+            return _from_web()
+        # With a key we refresh from BEA directly, but never at the cost of the
+        # page: a failed or thin fetch falls back to the panel already committed
+        # in web/data/ism.json.  An empty PCE scope does not just blank one tab
+        # -- it silently breaks the CPI-to-PCE identity, which is much harder to
+        # notice than a warning here.
+        try:
             return build_pce_panel(force=force)
-        base = panel_from_web_data(ism_payload, "pce", sa="none")
-        return build_pce_panel(inflation_panel=base.inflation,
-                               weights=base.weights, labels=base.labels)
+        except Exception as exc:                        # noqa: BLE001
+            print(f"[export_trim] pce: live BEA build failed ({exc})")
+            print("[export_trim] pce: falling back to the panel in "
+                  "web/data/ism.json")
+            return _from_web()
     return panel_from_web_data(ism_payload, scope)
 
 
@@ -324,6 +337,15 @@ def export_cpipce(panels: dict, ism_payload: dict, force: bool = False) -> dict 
     if cpi is None or pce is None:
         print("[export_trim] cpipce: needs a CPI scope and PCE; skipped")
         return None
+    # A panel that built but came back empty is worse than one that did not
+    # build: the identity below still "closes" to some large number and the
+    # page ships nulls.  Refuse it explicitly.
+    if pce.inflation.shape[1] == 0 or cpi.inflation.shape[1] == 0:
+        print(f"[export_trim] cpipce: the CPI scope has "
+              f"{cpi.inflation.shape[1]} categories and PCE has "
+              f"{pce.inflation.shape[1]}; skipped rather than exporting an "
+              "empty bridge")
+        return None
 
     block = ism_payload["backbones"]["pce"]
     pce_pub = pd.Series(block["headline"]["series"],
@@ -368,8 +390,19 @@ def export_cpipce(panels: dict, ism_payload: dict, force: bool = False) -> dict 
                   f"y/y {f['yoy']:.2f}%  +/-{f['se']:.3f}pp  "
                   f"(recent RMSE {b.se:.4f}, full sample {b.rmse:.4f})")
         else:
-            print(f"[export_trim] cpipce: {scope_name} has no pending month "
-                  "(PCE is as current as CPI)")
+            act = b.monthly["actual"].dropna()
+            if len(act):
+                m = act.index[-1]
+                est = b.monthly["implied"].get(m)
+                miss = ("" if est is None or pd.isna(est)
+                        else f"  estimate was {est:+.3f}%, miss "
+                             f"{est - act.iloc[-1]:+.3f}pp")
+                print(f"[export_trim] cpipce: {scope_name} has no pending month "
+                      f"(PCE is as current as CPI); showing {m:%Y-%m} "
+                      f"actual {act.iloc[-1]:+.3f}%{miss}")
+            else:
+                print(f"[export_trim] cpipce: {scope_name} has no pending month "
+                      "and no published month either")
 
     # The index spans the CPI, so it now reaches past the last published PCE.
     index = bridges["headline"].monthly.index
@@ -436,12 +469,26 @@ def export_cpipce(panels: dict, ism_payload: dict, force: bool = False) -> dict 
             "contributions_month": b.contributions.attrs.get("month"),
             "contributions_is_forecast": bool(b.contributions.attrs.get("is_forecast")),
         }
+        # The last published month, with what the bridge itself said about it
+        # BEFORE it was published.  Every month of ``implied`` is fitted on a
+        # window that excludes the month it predicts, so this pair is a real
+        # out-of-sample estimate against the print that followed -- and it is
+        # what the page shows in the fortnight after a PCE release, when there
+        # is no pending month left to nowcast.
         act = b.monthly["actual"].dropna()
+        last = act.index[-1] if len(act) else None
         out["last_published"] = {
-            "month": act.index[-1].strftime("%Y-%m") if len(act) else None,
+            "month": last.strftime("%Y-%m") if last is not None else None,
             "mom": _round(act.iloc[-1], 4) if len(act) else None,
             "yoy": _round(b.yoy["actual"].dropna().iloc[-1], 4)
                    if b.yoy["actual"].notna().any() else None,
+            "implied_mom": (_round(b.monthly["implied"].get(last), 4)
+                            if last is not None else None),
+            # `yoy["own"]`, not `yoy["implied"]`: for a published month the
+            # latter IS the published rate (the splice only fills gaps), which
+            # would score the model against itself and always show a zero miss.
+            "implied_yoy": (_round(b.yoy["own"].get(last), 4)
+                            if last is not None else None),
         }
         if len(b.forecast):
             f = b.forecast.iloc[-1]

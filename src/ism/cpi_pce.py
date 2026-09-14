@@ -362,9 +362,10 @@ class BridgeResult:
         month.  ``implied`` extends **past** the last published PCE month --
         that extension is the forecast.
     yoy:
-        The same as 12-month rates.  The forecast months chain the implied
-        monthly rates onto the published history, so a 12-month forecast is
-        eleven actual months plus one estimate, not a guess about all twelve.
+        12-month rates.  ``implied`` splices the estimate into the *missing*
+        months only (so a one-month-ahead 12-month figure carries one month of
+        model error, not twelve); ``own`` instead substitutes each month's own
+        estimate, which is how a past month is scored; ``actual`` is published.
     forecast:
         The months with an implied value and no published PCE: what this page
         exists for.  Columns ``mom``, ``yoy``, ``se`` (the standard deviation of
@@ -578,6 +579,15 @@ def bridge_nowcast(
         "actual": yoy_from_monthly(monthly["actual"], periods),
     })
     yoy["error"] = yoy["implied"] - yoy["actual"]
+
+    # ``implied`` only fills gaps, so for a month that HAS been published it is
+    # the published 12-month rate -- correct for a forecast, useless as a
+    # scorecard.  ``own`` substitutes each month's own estimate into an
+    # otherwise-published twelve months: the same object the forecast reports,
+    # evaluated on a month that has since printed.  Because the 12-month rate is
+    # a rolling sum of monthly log changes, that substitution moves it by
+    # exactly the monthly error.
+    yoy["own"] = yoy["actual"] + monthly["error"]
 
     # The forecast: months with an estimate and no published PCE.
     pending = monthly.index[monthly["implied"].notna() & monthly["actual"].isna()]

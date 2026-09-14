@@ -105,9 +105,12 @@
       price[code] = pf;
       if (pf) {
         M[code] = W().wageToPriceGain(pf, D.lags, D.horizon);
+        // Country-specific on BOTH sides: M from this country's price
+        // equation, Lambda from its own wage dynamics with the common
+        // catch-up coefficients.
         gain[code] = panelFit
           ? W().spiralGain(panelFit, pf, panels[code].lambda,
-                           { p: D.lags, horizon: D.horizon })
+                           { p: D.lags, horizon: D.horizon, country: code })
           : null;
       }
     }
@@ -264,21 +267,27 @@
 
     // The Lambda(lambda) schedule: the paper's central object, drawn as a
     // schedule rather than a number because lambda is the thing in dispute.
-    const xs = [], ys = [];
-    for (let i = 0; i <= 40; i++) {
-      const l = i / 40;
-      xs.push(l);
-      ys.push(f.panelFit ? W().priceToWageGain(f.panelFit, l, D.lags, D.horizon) : null);
-    }
+    // One schedule per country: the catch-up coefficients are common, but
+    // each country's own persistence propagates them differently, so Λ(λ) is
+    // a family of lines rather than one.
+    const xs = [];
+    for (let i = 0; i <= 40; i++) xs.push(i / 40);
+    const schedules = MODELLED.concat(REFERENCE).map(code => ({
+      x: xs, type: "scatter", mode: "lines", name: C(code).name,
+      y: xs.map(l => (f.panelFit
+        ? W().priceToWageGain(f.panelFit, l, D.lags, D.horizon, code) : null)),
+      line: { color: SERIES[code], width: code === D.country ? 2.6 : 1.2,
+              dash: C(code).modelled ? "solid" : "dot" },
+      opacity: code === D.country ? 1 : 0.7,
+    }));
     const pts = MODELLED.concat(REFERENCE).map(code => {
       const lam = f.panels[code].lambda;
       const last = lam[lam.length - 1];
       return { code, lam: last,
-               L: f.panelFit ? W().priceToWageGain(f.panelFit, last, D.lags, D.horizon) : null };
+               L: f.panelFit
+                 ? W().priceToWageGain(f.panelFit, last, D.lags, D.horizon, code) : null };
     });
-    draw("w-chart2", [
-      { x: xs, y: ys, type: "scatter", mode: "lines", name: "Λ(λ)",
-        line: { color: ACCENT, width: 2.4 } },
+    draw("w-chart2", schedules.concat([
       { x: xs, y: xs.map(() => 0), type: "scatter", mode: "lines",
         name: "no catch-up", line: { color: MUTED, width: 1, dash: "dot" },
         hoverinfo: "skip" },
@@ -286,8 +295,8 @@
         type: "scatter", mode: "markers+text", name: "today",
         textposition: "top center", textfont: { size: 10 },
         marker: { size: 9, color: pts.map(p => SERIES[p.code]) } },
-    ], {
-      title: { text: "Three-year catch-up Λ as a function of indexation intensity λ",
+    ]), {
+      title: { text: "Three-year catch-up Λ(λ), one schedule per country",
                font: { size: 14 } },
       xaxis: { gridcolor: GRID, title: "λ — share of the wage bill indexed to past prices" },
       yaxis: { gridcolor: GRID, zerolinecolor: "#4a5668",
@@ -297,13 +306,23 @@
     const code = D.country, g = f.gain[code];
     const last = g ? g[g.length - 1] : null;
     const lam = f.panels[code].lambda;
+    const dL = f.panelFit
+      ? W().priceToWageGain(f.panelFit, 1, D.lags, D.horizon, code)
+        - W().priceToWageGain(f.panelFit, 0, D.lags, D.horizon, code)
+      : null;
     stats([
       ["λ now", lam[lam.length - 1], v => v.toFixed(3)],
       ["Λ price → wage", last ? last.Lambda : null, v => v.toFixed(3)],
       ["M wage → price", f.M[code], v => v.toFixed(3)],
       ["G spiral gain", last ? last.G : null, v => v.toFixed(3)],
+      ["∂Λ/∂λ", dL, v => v.toFixed(3)],
     ]);
-    note(`Λ is the share of a real-wage shortfall recovered within ${D.horizon / 4} `
+    note(`The wage equation is <strong>partially pooled</strong>: each country keeps its `
+       + `own persistence, trend weight and slack response — a Chow test rejects pooling `
+       + `them at F = 2.9 on (120, 1030) — while the catch-up block and its interaction `
+       + `with λ are common, because λ barely moves inside a country and the cross-section `
+       + `is the only place that effect can be identified. `
+       + `Λ is the share of a real-wage shortfall recovered within ${D.horizon / 4} `
        + `year${D.horizon === 4 ? "" : "s"}; M is the share of a wage impulse that reaches `
        + `prices over the same horizon. Their product is the gain of one turn of the loop. `
        + `A gain above one is self-sustaining; no country in this panel reaches it, and only `
@@ -444,7 +463,7 @@
     const sim = W().simulateLoop(f.panelFit, pf, {
       lam: D.sim.lam, anchorQ: D.anchorQ, phiE: D.sim.phiE, mpc: D.sim.mpc,
       taylor: D.sim.taylor, shock: D.sim.shock, shockLen: D.sim.shockLen,
-      horizon: 24, p: D.lags,
+      horizon: 24, p: D.lags, country: code,
     });
     const q = sim.quarter;
     draw("w-chart", [

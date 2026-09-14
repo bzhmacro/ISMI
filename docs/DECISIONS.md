@@ -508,3 +508,96 @@ neither of which is available keylessly.
 `tests/test_wage_parity.py` live locally only. The parity test is what makes
 `web/wage_engine.js` trustworthy; if the tests are ever committed, that is the
 one to commit first.
+
+## UK, Canada, Germany, France, Japan — trimmed mean on the foreign gauges
+
+- **A cross-section earns a trim; a component count does not prove it.** The
+  worry that prompted these scopes is real: if one component outweighs the trim
+  fraction, the tail *is* that component's price. `cross_section_conditioning()`
+  measures it at a reference 8/8 cut — effective breadth `1/Σw²`, how many
+  components each tail cuts through over ten years, and how much of a tail its
+  largest contributor supplies — and `web/index.html` prints the answer under
+  the chart. Germany (effective breadth 48.7), France (41.0) and Canada (38.3)
+  have nothing heavier than an 8% tail. The UK (29.8, restaurants at 11%) beats
+  every US cut. Japan is the weakest on the site (16.7; 47 groups, rent at 18%,
+  so an 8% tail averages five components and 53% of it is whichever one leads).
+
+- **Breadth is not the same as tail risk, and `cpi70` proves it.** Its effective
+  breadth is the worst here (10.9 — owners' equivalent rent is 26% of the
+  basket) yet its tails span ~11 components, because OER habitually sits in the
+  middle of the distribution. Concentration hurts the **median** — a claim about
+  which category is at the 50th percentile — much more than the trimmed mean.
+  Both numbers are shipped for that reason.
+
+- **Canada is a replication target; Japan is an overlay.** The Bank of Canada's
+  CPI-trim (20% each tail) and CPI-median are taken on the *monthly*
+  cross-section exactly as this engine takes them, so they are scored
+  (12-month correlation 0.963 / 0.929). The remaining bias is explained, not
+  hidden: the Bank's inputs are adjusted for changes in indirect taxes and
+  seasonally adjusted with StatCan's own per-series specifications. The Bank of
+  Japan trims the **twelve-month** cross-section (BoJ Review 2015-E-6, Chart 4)
+  and strips "institutional factors", so its 10% trimmed mean is drawn and
+  measured (0.942) but never described as a replication. `_PAIR_COLUMNS["boj"]`
+  has `None` for the 1-month horizon because the Bank publishes no such rate,
+  and the page drops the overlay on that view rather than showing an empty
+  legend entry.
+
+- **No ground truth for the UK, France or Germany, and that is checked rather
+  than assumed.** The ONS publishes no limited-influence CPI. The ECB's trimmed
+  means exist (ICP items `TRIM05`–`TRIM50`, institution code **3**, not 4) but
+  only for the euro area as a whole — there is no FR or DE series — and their
+  last observation is 2025-12, the month Eurostat froze the ECOICOP v1 datasets.
+  Recorded in `config/sources.yaml` under `euro_area_trimmed_means` so the next
+  person does not repeat the search. A euro-area scope would come with ten
+  published trim fractions to check against, and needs an `EA20` backbone the
+  ISM export does not currently build.
+
+- **A scope with no published counterpart still lands on a sensible preset.**
+  `adoptPreset()` used to leave the preset alone when nothing matched, so the UK
+  inherited the Dallas Fed's 24/31 PCE cut from whatever scope the reader came
+  from. Each scope now carries a `default_preset`: its own central bank's cut
+  where one exists, the Cleveland 16% otherwise.
+
+- **`export_trim_data.py` with a scope list rewrites the file.** Passing a
+  subset (`export_trim_data.py uk ca`) writes a `trim.json` containing only
+  those scopes — it is not a merge. The refresh workflow must call it with no
+  scope arguments.
+
+## US — the PCE panel behind the trimmed mean and the CPI-to-PCE bridge
+
+- **BEA's two underlying-detail tables do not share SeriesCodes, and the join
+  must be on the root key.** The same spending line is `DNEARG` in 2.4.4U
+  (prices) and `DNEARC` in 2.4.5U (nominal dollars). `build_pce_panel` used to
+  pass the `SeriesCode` column of `config/pce_categories.csv` — the `…G` codes —
+  and then intersect it with the nominal table's raw codes, which matches
+  *nothing*. It failed silently, and only when a `BEA_API_KEY` was present: the
+  price table still supplied an index, so the result was sixty-seven years of
+  months with **zero columns**, which exported as "pce: 0 categories" and then
+  broke the CPI-to-PCE identity (5.7 instead of 4e-16) and blanked that page.
+  Without a key the exporter took the `web/data/ism.json` fallback and the bug
+  never showed. The join is now on `key`, the same convention
+  `scripts/export_web_data.py` and `ism.decomp_pipeline.bea_wide` already used,
+  and `tests/test_pce_panel_join.py` pins it with a fake client that answers
+  with BEA's own `…G`/`…C` split.
+
+- **Two tripwires, because the failure was silent both times.**
+  `MIN_PCE_CATEGORIES = 100` turns a thin or mismatched BEA fetch into an
+  exception instead of a panel, and `export_cpipce` refuses to build a bridge on
+  an empty panel rather than exporting an identity that "closes" to a large
+  number. The exporter then falls back to the panel committed in
+  `web/data/ism.json`, so a BEA outage costs freshness and not the page.
+
+- **When the PCE has caught up with the CPI, show the scorecard, not a dash.**
+  For about a fortnight each month there is no pending month to nowcast. The
+  page now shows the month that just printed against what the bridge said about
+  it *before* it printed — which is meaningful precisely because every month of
+  `implied` is fitted on a window excluding the month it predicts.
+
+- **The 12-month figure for that scorecard is `yoy["own"]`, not
+  `yoy["implied"]`.** `implied` splices the estimate into the months the PCE has
+  not reached, which is right for a forecast (eleven facts plus one estimate)
+  and useless for scoring: on a published month it *is* the published rate, so
+  it would show a zero miss every time. `own` substitutes each month's own
+  estimate into an otherwise-published twelve months, which — the 12-month rate
+  being a rolling sum of monthly log changes — differs from the published rate
+  by exactly that month's error.

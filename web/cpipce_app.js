@@ -149,11 +149,27 @@
                   `±${b.se.toFixed(2)}pp`, ""]);
       stats.push([`likely range`,
                   `${(v - b.se).toFixed(2)}% to ${(v + b.se).toFixed(2)}%`, ""]);
+    } else if (lp && lp.month) {
+      /* No pending month: the PCE for the latest CPI is already out. Rather
+         than show a dash for the fortnight until the next CPI lands, show the
+         month that just printed and how the estimator did on it -- the implied
+         value was fitted without that month, so it is the same out-of-sample
+         number the page would have shown the day before the release. */
+      const a = isMom ? lp.mom : lp.yoy;
+      const e = isMom ? lp.implied_mom : lp.implied_yoy;
+      stats.push([`${D.scope === "core" ? "Core" : "Headline"} PCE, ${lp.month} — published`,
+                  `${a >= 0 && isMom ? "+" : ""}${a.toFixed(2)}%`, "big"]);
+      if (e != null) {
+        stats.push([`this model's estimate for ${lp.month}`,
+                    `${e >= 0 && isMom ? "+" : ""}${e.toFixed(2)}%`, ""]);
+        stats.push(["miss", `${e - a >= 0 ? "+" : ""}${(e - a).toFixed(2)}pp`, ""]);
+      }
+      stats.push(["next estimate", "when the next CPI lands", ""]);
     } else {
       stats.push(["No pending month", "—", "big"]);
       stats.push(["PCE is as current as CPI", "", ""]);
     }
-    if (lp && lp.month) {
+    if (f && lp && lp.month) {
       stats.push([`last published (${lp.month})`,
                   `${isMom ? (lp.mom >= 0 ? "+" : "") + lp.mom.toFixed(2)
                            : lp.yoy.toFixed(2)}%`, ""]);
@@ -187,14 +203,24 @@
       { x, y: sliceFrom(series.actual), name: "PCE actual",
         type: "scatter", mode: "lines", line: { color: ACTUAL, width: 1.6 } },
     ];
-    // mark the forecast month so it cannot be mistaken for history
-    if (f) {
-      const i = C.dates.indexOf(f.month);
+    // mark the forecast month so it cannot be mistaken for history -- or, when
+    // the PCE has caught up with the CPI, mark the month that just printed, so
+    // the chart still has a point of interest rather than trailing off.
+    const lp = b.last_published;
+    const mark = f ? { month: f.month, y: isMom ? f.mom : f.yoy,
+                       name: `estimate (${f.month})`, filled: true }
+        : (lp && lp.month && (isMom ? lp.implied_mom : lp.implied_yoy) != null
+            ? { month: lp.month, y: isMom ? lp.implied_mom : lp.implied_yoy,
+                name: `estimate for ${lp.month} (out of sample)`, filled: false }
+            : null);
+    if (mark) {
+      const i = C.dates.indexOf(mark.month);
       if (i >= D.startIdx) traces.push({
-        x: [X[i]], y: [isMom ? f.mom : f.yoy], name: `estimate (${f.month})`,
+        x: [X[i]], y: [mark.y], name: mark.name,
         type: "scatter", mode: "markers",
-        marker: { color: IMPLIED, size: 11, symbol: "diamond",
-                  line: { color: "#fff", width: 1 } },
+        marker: { color: mark.filled ? IMPLIED : PLOT_BG, size: 11,
+                  symbol: "diamond",
+                  line: { color: mark.filled ? "#fff" : IMPLIED, width: 1.6 } },
       });
     }
     Plotly.react("x-chart", traces, {
@@ -211,12 +237,18 @@
   }
 
   function nowcastNotes() {
-    const b = bridge(), f = b.forecast;
+    const b = bridge(), f = b.forecast, lp = b.last_published;
     const bits = [];
     if (f) bits.push(`The ${f.month} estimate is built from ${f.basis} for ${f.month}, `
       + `which are published about two weeks before the PCE. Each of the 28 spending `
       + `groups is fitted on the trailing ${C.bridge.window} months <em>excluding the `
       + `month being predicted</em>, so this is a nowcast and not a fit.`);
+    else if (lp && lp.month) bits.push(`The PCE has caught up with the CPI, so there is `
+      + `nothing left to nowcast this month. The hollow diamond is what this model said `
+      + `about ${lp.month} <em>before</em> that PCE was published — each group is fitted `
+      + `on the trailing ${C.bridge.window} months excluding the month being predicted, `
+      + `so it is a like-for-like estimate and not a fit to the answer. A new estimate `
+      + `appears as soon as the next CPI lands, about two weeks ahead of the PCE.`);
     bits.push(`Band = the estimator's own root-mean-square one-month error over the last `
       + `${b.se_window} months (±${b.se.toFixed(3)}pp). Over the whole history it is `
       + `${b.rmse.toFixed(3)}pp — the accuracy is regime-dependent, roughly 0.17pp `

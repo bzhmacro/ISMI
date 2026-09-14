@@ -15,17 +15,25 @@ The indexation intensity lambda is built from a hand-assembled, row-by-row
 sourced database of who was indexed to what across seven countries from 1960
 (config/indexation_coverage.csv): contractual escalators, statutory public
 pay, minimum-wage-benchmarked agreements and formal inflation references.
-Estimated on a pooled panel with country fixed effects, because lambda barely
-moves inside any one country -- Belgium and Germany share a currency, a
-central bank and the 2022 energy shock and differ in exactly the institution
-under study.
 
-Headline estimates: Lambda(0) = -0.23 and Lambda(1) = +0.77, so without an
-escalator a real-wage loss is not recovered within three years; M runs from
-0.27 (Belgium, France) to 1.29 (UK); G was 0.76 in Italy under the scala
-mobile and is negative in five of seven countries today.
+The wage equation is PARTIALLY POOLED. A Chow test rejects one coefficient
+vector for seven countries (F = 2.87 on (120, 1030), p = 3e-19; own-lag
+persistence runs from 0.967 in the US to 0.222 in Italy), so every country
+keeps its own persistence, trend weight and slack response. Only the catch-up
+level and its interaction with lambda are common, because lambda barely moves
+inside a country and the cross-section is the only place that effect is
+identified. Homogeneity binds once per country.
 
-Two specification decisions are load-bearing and documented in
+Freeing the dynamics cuts the interaction from +0.339 to +0.110: two-thirds
+of what a fully pooled specification attributed to indexation was pooled-
+dynamics misspecification. What survives is the sign — dLambda/dlambda is
+positive in all seven countries, +0.102 to +0.364 — and that is now the
+headline rather than the magnitude. The level of Lambda is persistence-
+dominated and not comparable across countries; G is negative in all seven
+today. Belgium pairs the highest lambda in the panel with M = -0.083, which
+is why its indexation never produced excess inflation.
+
+Two further specification decisions are load-bearing and documented in
 docs/DECISIONS.md: the panel is estimated on four-quarter growth rates
 because annualised quarterly growth of non-ECI wage series is close to white
 noise, and the catch-up term is a one-sided real-wage gap rather than
@@ -38,7 +46,7 @@ rules implemented and validated against published decisions; a parity-tested
 browser twin; the interactive page; and the paper, with a house-style HTML
 build and a LaTeX PDF.
 
-31/31 validation checks pass; 29 Python/JavaScript parity and unit tests pass.
+35/35 validation checks pass; 34 Python/JavaScript parity and unit tests pass.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01QbhU99rAqbGdJ6nMdBUash

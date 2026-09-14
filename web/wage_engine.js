@@ -166,11 +166,19 @@ const WageEngine = (() => {
     return aug.map(row => row.slice(k));
   }
 
-  /* b_r = b + V R (R'VR)^{-1} (r - R'b),  V = (X'X)^{-1}
-     Standard errors are classical, on the restricted covariance. They are
-     indicative: the panel is estimated on overlapping year-on-year
-     observations, so the residuals are serially correlated and these
-     understate uncertainty. The site says so where it prints them. */
+  /* Least squares subject to linear restrictions R'b = r.
+
+     R is either one restriction (a flat array of length k) or several (an
+     array of m such arrays, i.e. columns). The closed form is the same:
+
+       b_r = b + V R (R'VR)^{-1} (r - R'b),   V = (X'X)^{-1}
+
+     with (R'VR) a scalar in the one-restriction case and m x m otherwise.
+     Several are needed as soon as each country has its own dynamics: long-run
+     homogeneity then has to bind once per country.
+
+     Standard errors are classical and understate uncertainty on overlapping
+     year-on-year data; the site says so where it prints them. */
   function restrictedOls(y, X, names, R, r) {
     const n = X.length, k = X[0].length;
     const XtX = [];
@@ -193,22 +201,53 @@ const WageEngine = (() => {
     let dof = n - k;
 
     if (R) {
-      const VR = V.map(row => row.reduce((a, v, j) => a + v * R[j], 0));
-      let denom = 0;
-      for (let i = 0; i < k; i++) denom += R[i] * VR[i];
-      if (Math.abs(denom) > 1e-14) {
-        let Rb = 0;
-        for (let i = 0; i < k; i++) Rb += R[i] * beta[i];
-        const adj = (r - Rb) / denom;
-        beta = beta.map((b, i) => b + VR[i] * adj);
-        const V2 = [];
-        for (let i = 0; i < k; i++) {
-          V2.push(new Array(k));
-          for (let j = 0; j < k; j++) V2[i][j] = V[i][j] - VR[i] * VR[j] / denom;
+      const cols = Array.isArray(R[0]) ? R : [R];       // m columns of length k
+      const m = cols.length;
+      const rv = Array.isArray(r) ? r : new Array(m).fill(r === undefined ? 0 : r);
+      // VR is k x m
+      const VR = [];
+      for (let i = 0; i < k; i++) {
+        VR.push(new Array(m).fill(0));
+        for (let a = 0; a < m; a++) {
+          let s = 0;
+          for (let j = 0; j < k; j++) s += V[i][j] * cols[a][j];
+          VR[i][a] = s;
         }
-        V = V2;
       }
-      dof = n - k + 1;
+      // RVR is m x m
+      const RVR = [];
+      for (let a = 0; a < m; a++) {
+        RVR.push(new Array(m).fill(0));
+        for (let b2 = 0; b2 < m; b2++) {
+          let s = 0;
+          for (let i = 0; i < k; i++) s += cols[a][i] * VR[i][b2];
+          RVR[a][b2] = s;
+        }
+      }
+      /* A single restriction is a scalar divide; routing it through the
+         ridged Gauss-Jordan inverse costs accuracy for nothing. */
+      const RVRinv = (m === 1) ? [[1 / RVR[0][0]]] : inv(RVR);
+      // resid_r = r - R'b
+      const rb = new Array(m).fill(0);
+      for (let a = 0; a < m; a++) {
+        let s = 0;
+        for (let i = 0; i < k; i++) s += cols[a][i] * beta[i];
+        rb[a] = rv[a] - s;
+      }
+      const adj = RVRinv.map(row => row.reduce((acc, v, j) => acc + v * rb[j], 0));
+      beta = beta.map((b2, i) => b2 + VR[i].reduce((acc, v, a) => acc + v * adj[a], 0));
+      const V2 = [];
+      for (let i = 0; i < k; i++) {
+        V2.push(new Array(k));
+        for (let j = 0; j < k; j++) {
+          let s = 0;
+          for (let a = 0; a < m; a++)
+            for (let b2 = 0; b2 < m; b2++) s += VR[i][a] * RVRinv[a][b2] * VR[j][b2];
+          V2[i][j] = V[i][j] - s;
+        }
+      }
+      V = V2;
+      dof = n - k + m;
     }
 
     let ssr = 0, ym = 0;
@@ -229,13 +268,34 @@ const WageEngine = (() => {
       names, beta, se, resid, nobs: n,
       r2: tss > 0 ? 1 - ssr / tss : NaN,
       coef(name) { const i = this.names.indexOf(name); return i < 0 ? 0 : this.beta[i]; },
-      sumOf(prefix) {
+      /* Effective coefficients for one country: a block is either
+         country-specific (`gw_l1__DE`) or common (`gw_l1`). Collapsing the two
+         lets the gains and the simulator be written once. */
+      forCountry(country) {
+        const out = {};
+        for (let i = 0; i < this.names.length; i++) {
+          const n2 = this.names[i];
+          const k2 = n2.indexOf("__");
+          if (k2 >= 0) {
+            if (country && n2.slice(k2 + 2) === country) out[n2.slice(0, k2)] = this.beta[i];
+          } else if (!(n2 in out)) out[n2] = this.beta[i];
+        }
+        return out;
+      },
+      sumOf(prefix, country) {
+        if (country) {
+          const c = this.forCountry(country);
+          let s = 0;
+          for (const n2 of Object.keys(c)) if (n2.startsWith(prefix)) s += c[n2];
+          return s;
+        }
         let s = 0;
         for (let i = 0; i < this.names.length; i++)
-          if (this.names[i].startsWith(prefix)) s += this.beta[i];
+          if (this.names[i].startsWith(prefix) && this.names[i].indexOf("__") < 0)
+            s += this.beta[i];
         return s;
       },
-      tstat() { return this.beta.map((b, i) => (this.se[i] > 0 ? b / this.se[i] : NaN)); },
+      tstat() { return this.beta.map((b2, i) => (this.se[i] > 0 ? b2 / this.se[i] : NaN)); },
     };
   }
 
@@ -321,19 +381,37 @@ const WageEngine = (() => {
   }
 
   /* --------------------------------------------------------------- Eq. W4' */
-  /* Pooled across countries with country fixed effects. lambda barely moves
-     within a country -- 0.02 to 0.13 across sixty-five years of US data -- so
-     the interaction is identified across the panel, where it runs from 0.02
-     to 1.00 and Belgium and Germany share a currency and a shock while
-     differing in exactly the institution under study. */
-  function fitPanelWageEquation(panels, cfg, interact) {
+  /* The panel wage equation, PARTIALLY POOLED.
+
+     Blocks named in `free` get their own coefficients in every country; the
+     rest are common. The default frees the dynamics -- persistence, the trend
+     weight, the slack response -- and pools only the catch-up level and its
+     interaction with lambda.
+
+     Pooling everything is not credible: wage-setting in Belgium, where half
+     the private sector sits on a pivot-index trigger, and in the United
+     States, where almost nobody does, are not the same process, and an
+     estimator that says they are hands the catch-up term whatever the common
+     persistence gets wrong. On this panel a Chow test rejects pooling at
+     F = 2.9 on (120, 1030). Freeing everything is the opposite failure:
+     lambda is constant in Belgium and spans 0.014 to 0.124 in sixty-five
+     years of US data, so a country-by-country interaction is identified off
+     nothing. The split follows the economics -- what differs by country is
+     free, the one parameter the model is about is common, because that is
+     where the cross-country variation lives.
+
+     Because each country keeps its own persistence, the three-year catch-up
+     Lambda is country-specific even though the catch-up coefficients are
+     common: the same impulse propagates differently through different
+     dynamics. Homogeneity is therefore imposed once per country. */
+  function fitPanelWageEquation(panels, cfg, interact, free) {
     cfg = { ...DEFAULT_CONFIG, ...(cfg || {}) };
     const p = cfg.lags;
+    const freeSet = new Set(free === undefined ? ["gw", "pistar", "slack"] : free);
     const codes = Object.keys(panels).sort();
-    let names = null;
-    const Xall = [], yall = [];
-    const perCountry = [];
 
+    const perCountry = [];
+    let union = [];
     for (const code of codes) {
       const panel = panels[code];
       const blocks = [
@@ -344,31 +422,67 @@ const WageEngine = (() => {
       if (panel.slack) blocks.push(["slack_l", panel.slack, range1(p)]);
       if (interact !== false && panel.lambda)
         blocks.push(["cux_l", mul(panel.lambda, panel.catchup), range1(p)]);
-      const d = design(panel.gw, blocks, false);
-      perCountry.push({ code, d });
-      if (!names) names = d.names.slice();
-    }
-    if (!names) return null;
-    const feNames = codes.map(c => "fe_" + c);
-    const allNames = names.concat(feNames);
 
-    for (const { code, d } of perCountry) {
-      // A country whose columns differ (a missing slack series, say) would
-      // silently misalign the design matrix, so skip it rather than pad it.
-      if (d.names.join("|") !== names.join("|")) continue;
-      const feIdx = codes.indexOf(code);
-      for (let i = 0; i < d.X.length; i++) {
-        const fe = new Array(codes.length).fill(0);
-        fe[feIdx] = 1;
-        Xall.push(d.X[i].concat(fe));
-        yall.push(d.y[i]);
+      const named = [];
+      for (const [prefix, series, lags] of blocks) {
+        if (!series) continue;
+        const stem = prefix.split("_l")[0];
+        for (const L of lags) {
+          const nm = freeSet.has(stem) ? `${prefix}${L}__${code}` : `${prefix}${L}`;
+          named.push([nm, lagged(series, L)]);
+        }
+      }
+      perCountry.push({ code, named, y: panel.gw });
+      for (const [nm] of named) if (!union.includes(nm)) union.push(nm);
+    }
+    if (!union.length) return null;
+    const feNames = codes.map(c => "fe_" + c);
+    const allNames = union.concat(feNames);
+
+    const X = [], Y = [];
+    for (const { code, named, y } of perCountry) {
+      const map = new Map(named);
+      const n = y.length;
+      for (let t = 0; t < n; t++) {
+        if (!isNum(y[t])) continue;
+        const row = new Array(allNames.length).fill(0);
+        let ok = true;
+        for (let i = 0; i < union.length; i++) {
+          const nm = union[i];
+          const k2 = nm.indexOf("__");
+          // A country's own column is structurally zero on other countries'
+          // rows -- that is the design, not missing data.
+          if (k2 >= 0 && nm.slice(k2 + 2) !== code) { row[i] = 0; continue; }
+          const col = map.get(nm);
+          if (!col) { ok = false; break; }
+          const v = col[t];
+          if (!isNum(v)) { ok = false; break; }
+          row[i] = v;
+        }
+        if (!ok) continue;
+        row[union.length + codes.indexOf(code)] = 1;
+        X.push(row); Y.push(y[t]);
       }
     }
-    if (yall.length <= allNames.length + 2) return null;
-    const R = cfg.homogeneity
-      ? allNames.map(n => (n.startsWith("gw_l") || n.startsWith("pistar_l") ? 1 : 0))
-      : null;
-    return restrictedOls(yall, Xall, allNames, R, 1);
+    if (Y.length <= allNames.length + 2) return null;
+
+    let R = null, rv = 0;
+    if (cfg.homogeneity) {
+      const isDyn = n2 => n2.startsWith("gw_l") || n2.startsWith("pistar_l");
+      if (freeSet.has("gw") || freeSet.has("pistar")) {
+        R = codes.map(c => allNames.map(nm => {
+          const k2 = nm.indexOf("__");
+          const base = k2 >= 0 ? nm.slice(0, k2) : nm;
+          const owner = k2 >= 0 ? nm.slice(k2 + 2) : null;
+          return (isDyn(base) && (owner === null || owner === c)) ? 1 : 0;
+        }));
+        rv = codes.map(() => 1);
+      } else {
+        R = allNames.map(nm => (isDyn(nm) ? 1 : 0));
+        rv = 1;
+      }
+    }
+    return restrictedOls(Y, X, allNames, R, rv);
   }
 
   /* ----------------------------------------------------------- Eqs. W6-W8 */
@@ -389,12 +503,18 @@ const WageEngine = (() => {
     return y[y.length - 1];
   }
 
-  function priceToWageGain(wageFit, lam, p, horizon) {
+  /* `country` selects that country's own dynamics in a partially pooled fit.
+     The catch-up coefficients are common, but the persistence they propagate
+     through is not, so Lambda differs across countries at the same lambda --
+     and it should: an own-lag sum of 0.97 and one of 0.22 do not turn the same
+     impulse into the same three-year response. */
+  function priceToWageGain(wageFit, lam, p, horizon, country) {
     p = p || 4;
+    const c = country ? wageFit.forCountry(country) : null;
+    const get = n => (c ? (c[n] || 0) : wageFit.coef(n));
     const own = [], drv = [0];
-    for (let k = 1; k <= p; k++) own.push(wageFit.coef("gw_l" + k));
-    for (let k = 1; k <= p; k++)
-      drv.push(wageFit.coef("cu_l" + k) + lam * wageFit.coef("cux_l" + k));
+    for (let k = 1; k <= p; k++) own.push(get("gw_l" + k));
+    for (let k = 1; k <= p; k++) drv.push(get("cu_l" + k) + lam * get("cux_l" + k));
     return cumulativeResponse(own, drv, horizon);
   }
 
@@ -430,7 +550,7 @@ const WageEngine = (() => {
     const Phi = fiscalGain(priceFit, opts.phiE || 0, opts.mpc || 0, opts.p, opts.horizon);
     return lambda.map(l => {
       if (!isNum(l)) return { lambda: null, Lambda: null, M, G: null, G_fiscal: null };
-      const L = priceToWageGain(wageFit, l, opts.p, opts.horizon);
+      const L = priceToWageGain(wageFit, l, opts.p, opts.horizon, opts.country);
       return { lambda: l, Lambda: L, M, G: L * M, G_fiscal: (L + Phi) * M };
     });
   }
@@ -506,15 +626,17 @@ const WageEngine = (() => {
   function simulateLoop(wageFit, priceFit, params) {
     const pr = {
       lam: 0.10, anchorQ: 0.05, phiE: 0, mpc: 0.30, taylor: 0.5,
-      shock: 10, shockLen: 4, horizon: 24, p: 4, ...(params || {}),
+      shock: 10, shockLen: 4, horizon: 24, p: 4, country: null, ...(params || {}),
     };
     const p = pr.p;
+    const wc = pr.country ? wageFit.forCountry(pr.country) : null;
+    const wget = n => (wc ? (wc[n] || 0) : wageFit.coef(n));
     const a = [], b = [], c = [], d = [], B = [], M = [], E = [], P = [];
     for (let k = 1; k <= p; k++) {
-      a.push(wageFit.coef("gw_l" + k));
-      b.push(wageFit.coef("pistar_l" + k));
-      c.push(wageFit.coef("slack_l" + k));
-      d.push(wageFit.coef("cu_l" + k) + pr.lam * wageFit.coef("cux_l" + k));
+      a.push(wget("gw_l" + k));
+      b.push(wget("pistar_l" + k));
+      c.push(wget("slack_l" + k));
+      d.push(wget("cu_l" + k) + pr.lam * wget("cux_l" + k));
       B.push(priceFit.coef("gp_l" + k));
     }
     for (let k = 0; k <= p; k++) {
