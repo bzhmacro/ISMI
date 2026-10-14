@@ -155,45 +155,25 @@
       : "every gauge holds the newest published vintage";
     sum.appendChild(el("span", "muted", headline));
 
-    /* ---- the button ---- */
-    if (STATUS && STATUS.configured) {
-      const btn = el("button", "refresh");
-      btn.type = "button";
-      const cooling = STATUS.cooldownMsRemaining > 0;
-      if (active) {
-        btn.textContent = "Refreshing…";
-        btn.disabled = true;
-      } else if (!due.length) {
-        btn.textContent = "Up to date";
-        btn.disabled = true;
-      } else if (cooling) {
-        btn.textContent = `Wait ${Math.ceil(STATUS.cooldownMsRemaining / 60000)} min`;
-        btn.disabled = true;
-        btn.title = "A refresh ran very recently.";
-      } else {
-        btn.textContent = `Refresh ${due.map((g) => g.name).join(", ")}`;
-        btn.disabled = false;
-        btn.addEventListener("click", (e) => { e.preventDefault(); dispatch(btn); });
-      }
-      sum.appendChild(btn);
-
-      /* Force: for a print you know is out before the calendar agrees, an
-         off-schedule revision, or an annual update. Needs the shared token,
-         because the calendar gate is what makes the plain button safe to leave
-         unauthenticated. Hidden entirely unless the server has REFRESH_TOKEN
-         set, so a stock deployment shows no dead control. */
-      // The site is members-only (middleware.js), so every visitor here is a
-      // member: show Force whenever the server supports it. A device without
-      // the token is asked for it once, on the first press.
-      if (STATUS.forceAvailable && !active) {
-        const f = el("button", "refresh");
-        f.type = "button";
-        f.textContent = "Force";
-        f.title = "Rebuild now regardless of the release calendar (requires the token)";
-        f.addEventListener("click", (e) => { e.preventDefault(); forceRefresh(f); });
-        sum.appendChild(f);
-      }
+    /* ---- the button: always shown, always usable unless a run is live ----
+       Nothing due → it forces a full rebuild. Something due and no cooldown →
+       an ordinary calendar-gated refresh of just those gauges. If the server
+       is not configured, pressing it reports why instead of hiding. */
+    const btn = el("button", "refresh");
+    btn.type = "button";
+    const cooling = STATUS && STATUS.cooldownMsRemaining > 0;
+    if (active) {
+      btn.textContent = "Refreshing…";
+      btn.disabled = true;
+    } else if (due.length && !cooling) {
+      btn.textContent = `Refresh ${due.map((g) => g.name).join(", ")}`;
+      btn.addEventListener("click", (e) => { e.preventDefault(); dispatch(btn); });
+    } else {
+      btn.textContent = "Force refresh";
+      btn.title = "Rebuild every gauge now, regardless of the release calendar";
+      btn.addEventListener("click", (e) => { e.preventDefault(); forceRefresh(btn); });
     }
+    sum.appendChild(btn);
     host.appendChild(sum);
 
     /* ---- the table ---- */
@@ -465,9 +445,9 @@
       if (!res.ok) throw new Error(res.status);
       CAL = await res.json();
     } catch {
-      // No calendar published yet (run scripts/export_release_calendar.py).
-      // Show nothing rather than a broken control.
-      return;
+      // No calendar published: still show the panel so the refresh button
+      // is reachable; the table is simply empty.
+      CAL = { generated_utc: "", gauges: [], notes: [] };
     }
     LOADED_BUILD = CAL.generated_utc;
 
