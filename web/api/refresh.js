@@ -168,7 +168,8 @@ module.exports = async function handler(req, res) {
     localBehind,          // e.g. Canada: behind, but refreshed by hand
     notes: calendar.notes || [],
     configured,
-    forceAvailable: Boolean(process.env.REFRESH_TOKEN),
+    forceAvailable: true,
+    forceNeedsToken: Boolean(process.env.REFRESH_TOKEN),
     run: state.run || null,
     active: Boolean(state.active),
     cooldownMsRemaining: state.cooldownMsRemaining || 0,
@@ -189,13 +190,12 @@ module.exports = async function handler(req, res) {
   const secret = process.env.REFRESH_TOKEN;
   const supplied = body.token || req.headers["x-refresh-token"] || "";
 
+  // The whole site, this endpoint included, sits behind the members-only gate
+  // (middleware.js), so force needs no extra secret. If REFRESH_TOKEN is set
+  // it is still checked, so a token can be re-imposed without code changes.
   let forced = false;
   if (wantForce) {
-    if (!secret) {
-      return res.status(501).json({ ...status, error: "force not configured",
-        detail: "Set REFRESH_TOKEN in the Vercel project environment to enable force." });
-    }
-    if (!timingSafeEqual(String(supplied), secret)) {
+    if (secret && !timingSafeEqual(String(supplied), secret)) {
       return res.status(403).json({ ...status, error: "bad token",
         detail: "Force requires the shared token." });
     }

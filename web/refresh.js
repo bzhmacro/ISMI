@@ -254,14 +254,29 @@
       host.appendChild(el("div", "note", `⚠ ${n.note.replace(/\s+/g, " ").trim()}`));
     }
 
-    const msg = el("div", "msg");
+    const msg = el("div", "msg" + (LAST_MSG.kind ? " " + LAST_MSG.kind : ""), LAST_MSG.text);
     msg.id = "refresh-msg";
+    if (LAST_MSG.reload) addReload(msg);
     host.appendChild(msg);
 
     if (wasOpen || due.length || active) host.setAttribute("open", "");
   }
 
+  function addReload(m) {
+    if (!m) return;
+    const a = el("button", "refresh", "Reload");
+    a.type = "button";
+    a.style.marginLeft = "10px";
+    a.addEventListener("click", () => location.reload());
+    m.appendChild(a);
+  }
+
+  // Kept so a re-render (every poll) does not wipe the last status line.
+  let LAST_MSG = { text: "", kind: "" };
   function say(text, kind) {
+    LAST_MSG = { text: text || "", kind: kind || "" };
+    const n = document.getElementById("force-update-msg");
+    if (n) n.textContent = text ? ` — ${text}` : "";
     const m = document.getElementById("refresh-msg");
     if (!m) return;
     m.textContent = text || "";
@@ -322,7 +337,7 @@
 
   async function forceRefresh(btn) {
     let token = readToken();
-    if (!token) {
+    if (!token && STATUS && STATUS.forceNeedsToken) {
       token = (window.prompt("Refresh token (asked once on this device):") || "").trim();
       if (!token) { say("Force cancelled — no token entered.", "err"); return; }
     }
@@ -344,6 +359,7 @@
         // A rejected token must not stay cached, or every later attempt fails
         // silently with no way to correct it from the UI.
         if (res.status === 403) { saveToken(""); }
+        if (res.status === 409 && body.error === "already running") startPolling();
         say(body.detail || body.error || `Force failed (${res.status}).`, "err");
       }
     } catch (e) {
@@ -351,6 +367,25 @@
     }
     btn.disabled = false;
     render();
+  }
+
+  /* "Force update" link in the Sources box (index.html). Works from any view;
+     progress shows in the freshness panel under "Data through", which is
+     opened so the link's effect is visible. */
+  function wireSourcesLink() {
+    const link = document.getElementById("force-update");
+    if (!link) return;
+    const note = document.getElementById("force-update-msg");
+    link.addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (link.dataset.busy) return;
+      link.dataset.busy = "1";
+      if (note) note.textContent = " — starting…";
+      const host = document.getElementById("freshbar");
+      if (host) host.setAttribute("open", "");
+      await forceRefresh({ disabled: false });
+      delete link.dataset.busy;
+    });
   }
 
   async function loadStatus() {
@@ -374,14 +409,9 @@
       if (LOADED_BUILD && fresh.generated_utc > LOADED_BUILD) {
         CAL = fresh;
         say("New data is live. Reload to see it.", "ok");
-        const m = document.getElementById("refresh-msg");
-        if (m) {
-          const a = el("button", "refresh", "Reload");
-          a.type = "button";
-          a.style.marginLeft = "10px";
-          a.addEventListener("click", () => location.reload());
-          m.appendChild(a);
-        }
+        LAST_MSG.reload = true;
+        addReload(document.getElementById("refresh-msg"));
+        addReload(document.getElementById("force-update-msg"));
         return true;
       }
       CAL = fresh;
@@ -426,6 +456,7 @@
 
   async function boot() {
     captureKeyFromUrl();          // before anything renders
+    wireSourcesLink();
     const anchor = document.getElementById("asof");
     if (!anchor) return;
 
