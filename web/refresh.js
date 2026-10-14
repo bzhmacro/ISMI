@@ -45,8 +45,17 @@
       { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
   };
 
+  /* Whole calendar days between today (in the viewer's own timezone) and a
+     release date. The old version rounded (UTC midnight of the release − now),
+     so any time after midday a release due TOMORROW came out as 0 → "today",
+     and one due today came out as "yesterday". Compare date to date instead. */
+  const localToday = () => {
+    const n = new Date();
+    return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+  };
   const relative = (iso) => {
-    const days = Math.round((new Date(iso) - Date.now()) / 86400000);
+    const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+    const days = Math.round((Date.UTC(y, m - 1, d) - localToday()) / 86400000);
     if (days === 0) return "today";
     if (days === 1) return "tomorrow";
     if (days === -1) return "yesterday";
@@ -173,9 +182,10 @@
          because the calendar gate is what makes the plain button safe to leave
          unauthenticated. Hidden entirely unless the server has REFRESH_TOKEN
          set, so a stock deployment shows no dead control. */
-      // Only on an activated device, so ordinary visitors never see a control
-      // they cannot use.
-      if (STATUS.forceAvailable && readToken() && !active) {
+      // The site is members-only (middleware.js), so every visitor here is a
+      // member: show Force whenever the server supports it. A device without
+      // the token is asked for it once, on the first press.
+      if (STATUS.forceAvailable && !active) {
         const f = el("button", "refresh");
         f.type = "button";
         f.textContent = "Force";
@@ -311,12 +321,10 @@
   }
 
   async function forceRefresh(btn) {
-    const token = readToken();
+    let token = readToken();
     if (!token) {
-      say("This device is not activated. Open the site once with " +
-          "?key=YOUR_TOKEN appended to the address, then Force works here " +
-          "permanently.", "err");
-      return;
+      token = (window.prompt("Refresh token (asked once on this device):") || "").trim();
+      if (!token) { say("Force cancelled — no token entered.", "err"); return; }
     }
     btn.disabled = true;
     say("Forcing a rebuild…");
