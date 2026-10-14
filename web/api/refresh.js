@@ -80,14 +80,25 @@ function evaluateGauge(g, now) {
            release: expectedRelease };
 }
 
+/* Read the calendar bundled with this deployment. It used to be fetched over
+   HTTP from the site itself, but since the members-only gate (middleware.js)
+   that request carries no sign-in and gets the HTML sign-in page back —
+   "Unexpected token '<'". Every data commit redeploys, so the bundled copy is
+   always the one the page is serving. The HTTP path remains as a fallback,
+   forwarding the caller's cookie so it passes the gate. */
 async function readCalendar(req) {
+  try {
+    return require("../data/release_calendar.json");
+  } catch { /* not bundled — fall through */ }
   const proto = (req.headers["x-forwarded-proto"] || "https").split(",")[0];
   const host = req.headers["x-forwarded-host"] || req.headers.host;
   const res = await fetch(`${proto}://${host}/data/release_calendar.json`, {
-    headers: { "Cache-Control": "no-cache" },
+    headers: { "Cache-Control": "no-cache", Cookie: req.headers.cookie || "" },
   });
   if (!res.ok) throw new Error(`release_calendar.json ${res.status}`);
-  return res.json();
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { throw new Error("release_calendar.json came back as a page, not JSON (sign-in gate?)"); }
 }
 
 /* Cooldown state straight from the GitHub runs API — no KV, no cron drift. */
