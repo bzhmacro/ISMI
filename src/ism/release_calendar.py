@@ -66,6 +66,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CALENDAR_PATH = ROOT / "config" / "release_calendar.yaml"
 ISM_JSON = ROOT / "web" / "data" / "ism.json"
 DECOMP_JSON = ROOT / "web" / "data" / "decomp.json"
+TRIM_JSON = ROOT / "web" / "data" / "trim.json"
 
 UTC = dt.timezone.utc
 
@@ -128,6 +129,14 @@ class Gauge:
     rule: str = ""
     source: str = ""
     manual_command: str = ""
+    # Inputs that live in web/data/trim.json rather than ism/decomp — today
+    # just the PPI series behind the CPI->PCE bridge ("trim:ppi").
+    trim_targets: list[str] = field(default_factory=list)
+
+    def target_keys(self) -> list[str]:
+        return ([f"ism:{t}" for t in self.ism_targets]
+                + [f"decomp:{t}" for t in self.decomp_targets]
+                + [f"trim:{t}" for t in self.trim_targets])
     notes: list[str] = field(default_factory=list)
 
     # -- release timing ----------------------------------------------------
@@ -233,6 +242,7 @@ def load_calendar(path: Path | None = None) -> dict[str, Gauge]:
             ci=bool(g.get("ci", True)),
             ism_targets=list(targets.get("ism") or []),
             decomp_targets=list(targets.get("decomp") or []),
+            trim_targets=list(targets.get("trim") or []),
             release_time=dt.time(hh, mm),
             timezone=g.get("timezone", "UTC"),
             utc_hour_fallback=int(g.get("utc_hour_fallback", 12)),
@@ -281,6 +291,16 @@ def committed_vintages() -> dict[str, str | None]:
         for key, val in (data.get(group_key) or {}).items():
             ds = val.get("dates") or []
             out[f"{ns}:{key}"] = fmt_month(parse_month(ds[-1])) if ds else None
+    # trim.json: the PPI inputs to the CPI->PCE bridge carry their own vintage
+    # (cpipce.ppi.last_month), independent of the CPI scopes in the same file.
+    if TRIM_JSON.exists():
+        try:
+            data = json.loads(TRIM_JSON.read_text(encoding="utf-8"))
+            ppi = (data.get("cpipce") or {}).get("ppi") or {}
+            out["trim:ppi"] = ppi.get("last_month") or None
+        except Exception as e:  # noqa: BLE001
+            print(f"warning: {TRIM_JSON.name} is not valid JSON ({e}); "
+                  f"treating its gauges as absent", file=sys.stderr)
     return out
 
 
@@ -323,9 +343,7 @@ def evaluate(now: dt.datetime | None = None,
     out: dict[str, Status] = {}
     for name, g in calendar.items():
         expected = g.expected_vintage(now)
-        keys = [f"ism:{t}" for t in g.ism_targets] + \
-               [f"decomp:{t}" for t in g.decomp_targets]
-        targets = {k: committed.get(k) for k in keys}
+        targets = {k: committed.get(k) for k in g.target_keys()}
         present = [v for v in targets.values() if v]
         out[name] = Status(
             gauge=g,
@@ -409,13 +427,16 @@ def cmd_due(args) -> int:
         st = evaluate(now, calendar=cal)
         names = due_gauges(st, ci_only=not args.include_local)
 
-    ism, decomp = [], []
+    ism, decomp, trim = [], [], []
     for n in names:
         ism += cal[n].ism_targets
         decomp += cal[n].decomp_targets
+        trim += cal[n].trim_targets
     # de-dupe, preserve the canonical order the exporters use
     ism = list(dict.fromkeys(ism))
     decomp = list(dict.fromkeys(decomp))
+    trim = list(dict.fromkeys(trim))
+    anything = bool(ism or decomp or trim)
 
     if args.target == "ism":
         print(" ".join(ism))
@@ -423,7 +444,7 @@ def cmd_due(args) -> int:
         print(" ".join(decomp))
     elif args.json:
         print(json.dumps({"gauges": names, "ism": ism, "decomp": decomp,
-                          "any": bool(ism or decomp)}))
+                          "trim": trim, "any": anything}))
     else:
         print(" ".join(names))
 
@@ -433,7 +454,8 @@ def cmd_due(args) -> int:
             "gauges": " ".join(names),
             "ism": " ".join(ism),
             "decomp": " ".join(decomp),
-            "any": "true" if (ism or decomp) else "false",
+            "trim": " ".join(trim),
+            "any": "true" if anything else "false",
         }
         if path:
             with open(path, "a", encoding="utf-8") as fh:
@@ -536,11 +558,9 @@ def cmd_check(args) -> int:
                             f"release time / fallback differ")
 
     # -- 4. nothing in the committed data is unowned ----------------------
-    owned_ism = {t for g in cal.values() for t in g.ism_targets}
-    owned_decomp = {t for g in cal.values() for t in g.decomp_targets}
+    owned = {k for g in cal.values() for k in g.target_keys()}
     for key in committed_vintages():
-        ns, _, nm = key.partition(":")
-        if nm not in (owned_ism if ns == "ism" else owned_decomp):
+        if key not in owned:
             errs.append(f"{key} is in the committed web data but no gauge refreshes it")
 
     # -- 5. the crons cover the calendar ----------------------------------
@@ -556,10 +576,8 @@ def cmd_check(args) -> int:
         ci = [n for n, g in cal.items() if g.ci]
         committed = {}
         for n in ci:
-            for t in cal[n].ism_targets:
-                committed[f"ism:{t}"] = "2026-07"
-            for t in cal[n].decomp_targets:
-                committed[f"decomp:{t}"] = "2026-07"
+            for k in cal[n].target_keys():
+                committed[k] = "2026-07"
         worst = {n: 0.0 for n in ci}
         seen = {n: 0 for n in ci}
         day, end = dt.date(2026, 9, 1), dt.date(2027, 7, 1)
@@ -571,10 +589,8 @@ def cmd_check(args) -> int:
                     worst[n] = max(worst[n], (now - cal[n].available_at_utc(
                         parse_month(e))).total_seconds() / 3600)
                     seen[n] += 1
-                    for t in cal[n].ism_targets:
-                        committed[f"ism:{t}"] = e
-                    for t in cal[n].decomp_targets:
-                        committed[f"decomp:{t}"] = e
+                    for k in cal[n].target_keys():
+                        committed[k] = e
             day += dt.timedelta(days=1)
         for n in ci:
             if seen[n] < 9:

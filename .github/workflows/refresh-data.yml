@@ -97,6 +97,7 @@ jobs:
       any:    ${{ steps.gate.outputs.any }}
       ism:    ${{ steps.gate.outputs.ism }}
       decomp: ${{ steps.gate.outputs.decomp }}
+      trim:   ${{ steps.gate.outputs.trim }}
       gauges: ${{ steps.gate.outputs.gauges }}
     steps:
       - uses: actions/checkout@v4
@@ -168,6 +169,7 @@ jobs:
           echo "gauges due : ${{ needs.plan.outputs.gauges }}"
           echo "ism        : ${{ needs.plan.outputs.ism }}"
           echo "decomp     : ${{ needs.plan.outputs.decomp }}"
+          echo "trim       : ${{ needs.plan.outputs.trim }}"
 
       # Only the due backbones are passed, so an unrelated source being down
       # cannot touch a gauge that was already current. The exporters seed from
@@ -193,7 +195,9 @@ jobs:
         run: python scripts/export_decomp_data.py ${{ needs.plan.outputs.decomp }}
 
       - name: Rebuild trimmed-mean + CPI->PCE data (web/data/trim.json)
-        if: contains(needs.plan.outputs.ism, 'cpi') || contains(needs.plan.outputs.ism, 'pce')
+        # Also when only PPI is due: its series feed the CPI->PCE bridge,
+        # which lives in this file.
+        if: contains(needs.plan.outputs.ism, 'cpi') || contains(needs.plan.outputs.ism, 'pce') || needs.plan.outputs.trim != ''
         env:
           BLS_API_KEY:        ${{ secrets.BLS_API_KEY }}
         run: python scripts/export_trim_data.py

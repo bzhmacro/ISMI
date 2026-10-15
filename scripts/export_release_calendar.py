@@ -80,8 +80,7 @@ def build(back: int = 6, forward: int = 18) -> dict:
             })
         releases.sort(key=lambda r: r["ref"])
 
-        keys = [f"ism:{t}" for t in g.ism_targets] + \
-               [f"decomp:{t}" for t in g.decomp_targets]
+        keys = g.target_keys()
         present = [committed[k] for k in keys if committed.get(k)]
 
         gauges.append({

@@ -176,6 +176,61 @@ gauges:
       # 2027 not yet published by BEA.
 
   # ---------------------------------------------------------------------
+  ppi:
+    label: US PPI (BLS, CPI-to-PCE bridge inputs)
+    provider: BLS
+    frequency: monthly
+    ci: true
+    # Not an index on its own: these are the PPI series BEA prices medical
+    # services, health insurance, airfares and financial services from, which
+    # the CPI->PCE page regresses on. They live in web/data/trim.json
+    # (cpipce.ppi.last_month), and a refresh re-runs export_trim_data.py.
+    targets:
+      ism: []
+      decomp: []
+      trim: [ppi]
+    release_time: "08:30"
+    timezone: America/New_York
+    utc_hour_fallback: 14
+    # The PPI-by-industry flat files (download.bls.gov/pub/time.series/pc/)
+    # update on release morning but not always at 08:30 sharp, so allow an
+    # hour rather than CPI's half-hour. The 17:00 UTC poll covers it either way.
+    fetch_delay_hours: 1
+    rule: >-
+      No derivation rule is published; PPI is a Principal Federal Economic
+      Indicator with a pre-announced annual calendar. Usually lands within a
+      day or two of the CPI for the same month, 08:30 ET, roughly two weeks
+      before the PCE. The 2026 calendar was disrupted by the late-2025
+      shutdown: Nov 2025 came out 2026-01-14, Dec 2025 on 2026-01-30 and Jan
+      2026 on 2026-02-27 (all excluded from the shape checks).
+    source: https://www.bls.gov/schedule/2026/
+    expect:
+      weekdays: [Mon, Tue, Wed, Thu, Fri]
+      day_range: [10, 18]
+      lag_months: 1
+      exceptions: ["2025-11", "2025-12", "2026-01"]
+    fallback:
+      lag_months: 1
+      day: 20                      # conservative: latest normal print was the 18th
+    dates:
+      # -- shutdown-disrupted -------------------------------------------------
+      "2025-11": "2026-01-14"      # M+2
+      "2025-12": "2026-01-30"
+      "2026-01": "2026-02-27"
+      # -- normal cadence ------------------------------------------------------
+      "2026-02": "2026-03-18"
+      "2026-03": "2026-04-14"
+      "2026-04": "2026-05-13"
+      "2026-05": "2026-06-11"
+      "2026-06": "2026-07-15"
+      "2026-07": "2026-08-13"
+      "2026-08": "2026-09-10"
+      "2026-09": "2026-10-15"
+      "2026-10": "2026-11-13"
+      "2026-11": "2026-12-15"
+      # 2027 not yet transcribed (BLS publishes it ~Sep-Oct 2026).
+
+  # ---------------------------------------------------------------------
   uk:
     label: UK CPI (ONS MM23 COICOP classes)
     provider: ONS
