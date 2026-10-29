@@ -426,6 +426,33 @@ WEB_SCOPE_NOTES = {
            "the narrowest cross-section on the site: 47 medium groups with "
            "rent at 18% of the basket, so an 8% tail is on average barely five "
            "components and half of it is whichever single component leads it"],
+    "au": ["the ABS trimmed mean (15% each tail) and weighted median -- the "
+           "RBA's preferred underlying measures -- are overlaid and scored, and "
+           "they are built the way this engine builds them: the quarterly "
+           "cross-section of expenditure-class changes, chained",
+           "quarterly, like the ABS measures; the one difference is the seasonal "
+           "adjustment -- the ABS adjusts each class with its own X-13 "
+           "specification, ours is a rolling quarter-dummy estimate on the "
+           "original series",
+           "the ABS series removes the effect of the GST's introduction "
+           "(2000-Q3 to 2001-Q2) and ours does not, so the two part by about "
+           "3.5pp for those four quarters; outside them the 4-quarter rates "
+           "agree to 0.985 correlation since 1998",
+           "weights are the ABS re-weights back to the 13th series (1998); "
+           "the 13th-15th match today's classes only in part, and earlier "
+           "quarters are back-updated"],
+    "nz": ["Stats NZ publishes no trimmed mean or weighted median (the RBNZ's "
+           "core measure is a sectoral factor model), so the overlay is "
+           "headline CPI only",
+           "quarterly; half the classes start in 1999, so the early cross-"
+           "section is thin"],
+    "no": ["no published trimmed mean is overlaid: SSB's and Norges Bank's "
+           "trimmed-mean CPI is built on the national CPI, not the HICP these "
+           "panels come from",
+           "HICP class detail for Norway starts in 2000"],
+    "se": ["no published trimmed mean is overlaid: the Riksbank's measures "
+           "(CPIF, CPIF excluding energy, its trimmed means) are built on the "
+           "national CPI, not the HICP these panels come from"],
     "ca": ["the Bank of Canada's CPI-trim (20% each tail) and CPI-median are "
            "overlaid, and they are built the way this engine builds them -- "
            "monthly cross-section, chained -- so they are a genuine check",
@@ -437,7 +464,7 @@ WEB_SCOPE_NOTES = {
 
 
 def panel_from_web_data(payload: dict, backbone: str, sa: str = "rolling",
-                        periods_per_year: int = 12) -> TrimPanel:
+                        periods_per_year: Optional[int] = None) -> TrimPanel:
     """Build a :class:`TrimPanel` from a backbone block of ``web/data/ism.json``.
 
     The ISM site already ships every gauge's raw category panel and weights, so
@@ -450,6 +477,8 @@ def panel_from_web_data(payload: dict, backbone: str, sa: str = "rolling",
     which is which, and why.
     """
     block = payload["backbones"][backbone]
+    # quarterly gauges (au, nz) declare ppy=4 in ism.json
+    periods_per_year = periods_per_year or int(block.get("ppy", 12))
     notes = list(WEB_SCOPE_NOTES.get(backbone, WEB_SCOPE_NOTES[None]))
     idx = pd.to_datetime([d + "-01" for d in block["dates"]])
     keys = [c["key"] for c in block["categories"]]
@@ -535,6 +564,7 @@ def cross_section_conditioning(
     from .trim_engine import TrimConfig, compute_trim
 
     cfg = TrimConfig(lower=lower, upper=upper, sa=sa or panel.sa,
+                     sa_window=10 * panel.periods_per_year,
                      periods_per_year=panel.periods_per_year)
     res = compute_trim(panel.inflation, panel.weights, cfg)
     rates, wts = res.sa_panel, res.weights

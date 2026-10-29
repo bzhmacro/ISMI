@@ -27,6 +27,10 @@ same construction is applied to every country here:
     fr        INSEE quarterly consumption by product (Excel)  ~40 prods   1949Q1
               (t_conso_val/vol; falls back to A17 ~17 if blocked)
     de        Destatis GENESIS 81000-0120 by purpose (COICOP) ~12+ divs   1991Q1
+    au        ABS 5206.0 Table 8 HFCE (SA, CP + CVM)          17 cats     1959Q3
+    nz        Stats NZ GDP release HFCE by item (SA)          10 divs     1987Q2
+    no        SSB 14658 HFCE by COICOP (SA vol; deflator SA'd) 13 divs    1978Q1
+    se        SCB NR0103 T14 HFCE by purpose (SA)             13 divs     1981Q1
 
 Every loader returns the SAME `DecompPanels` contract as the US pipeline
 (`ism.decomp_pipeline.build_decomp_panels`), so the panels flow unchanged into
@@ -254,6 +258,50 @@ def build_jp_panels(client=None, spec: str = "levels",
     return panels
 
 
+
+# ---------------------------------------------------------------------------
+# Australia, New Zealand, Norway, Sweden -- COICOP-division-level HFCE
+# ---------------------------------------------------------------------------
+def _port(scope, loader, what, force, spec):
+    nominal, volume, labels = loader(force=force)
+    panels = panels_from_nominal_real(nominal, volume, labels, scope=scope, spec=spec)
+    i0, i1 = panels.log_price.index[0], panels.log_price.index[-1]
+    print(f"[{scope}-decomp] {len(panels.categories)} {what}, "
+          f"{i0.year}Q{i0.quarter} -> {i1.year}Q{i1.quarter}")
+    return panels
+
+
+def build_au_panels(client=None, spec: str = "levels", force: bool = False) -> DecompPanels:
+    """Australia port: ABS 5206.0 Table 8, 17 HFCE categories, SA, CP + CVM, 1959Q3+."""
+    from .abs_au import au_hce_panels
+    return _port("au", au_hce_panels, "HFCE categories", force, spec)
+
+
+def build_nz_panels(client=None, spec: str = "levels", force: bool = False) -> DecompPanels:
+    """New Zealand port: Stats NZ GDP release, 10 COICOP divisions, SA, 1987Q2+.
+
+    Health and education are suppressed (CONFIDENTIAL) in the SA series."""
+    from .statsnz import nz_hce_panels
+    return _port("nz", nz_hce_panels, "COICOP divisions", force, spec)
+
+
+def build_no_panels(client=None, spec: str = "levels", force: bool = False) -> DecompPanels:
+    """Norway port: SSB table 14658, 13 COICOP divisions, 1978Q1+.
+
+    Volume is SSB's seasonally adjusted series; the deflator is SSB's unadjusted
+    one with a rolling quarterly seasonal removed (SSB publishes no SA current
+    prices) -- see ism.nordic.no_hce_panels and docs/DECISIONS.md.
+    """
+    from .nordic import no_hce_panels
+    return _port("no", no_hce_panels, "COICOP divisions", force, spec)
+
+
+def build_se_panels(client=None, spec: str = "levels", force: bool = False) -> DecompPanels:
+    """Sweden port: SCB NR0103 T14, 13 COICOP divisions, SA, CP + constant, 1981Q1+."""
+    from .nordic import se_hce_panels
+    return _port("se", se_hce_panels, "COICOP divisions", force, spec)
+
+
 #: Registry used by scripts/export_decomp_data.py and scripts/build_decomp.py.
 PORTS = {
     "ca": build_ca_panels,
@@ -261,4 +309,8 @@ PORTS = {
     "fr": build_fr_panels,
     "de": build_de_panels,
     "jp": build_jp_panels,
+    "au": build_au_panels,
+    "nz": build_nz_panels,
+    "no": build_no_panels,
+    "se": build_se_panels,
 }

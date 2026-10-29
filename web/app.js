@@ -98,8 +98,10 @@ function backbone() {
   };
 }
 
+/* Ranges for the ACTIVE backbone: a quarterly gauge (Australia, New Zealand)
+   ships its own ui block in periods of a quarter; everything else uses meta.ui. */
 function ui() {
-  const m = (DATA.meta && DATA.meta.ui) || {};
+  const m = (backbone() && backbone().ui) || (DATA.meta && DATA.meta.ui) || {};
   return {
     ar_orders: m.ar_orders || (DATA.meta && DATA.meta.ar_orders) || [1, 3, 12],
     window: m.window || { min: 60, max: 240, step: 6, default: 120 },
@@ -114,7 +116,10 @@ function exSet() {
   return EXCLUDED[STATE.backbone];
 }
 
-function baseKey() { return (DATA.meta && DATA.meta.baseline) || "AR1|k3|extensive"; }
+function baseKey() {
+  return (backbone() && backbone().baseline) || (DATA.meta && DATA.meta.baseline) || "AR1|k3|extensive";
+}
+function ppy() { return (backbone() && backbone().ppy) || 12; }
 
 /* live = this backbone ships raw panels AND the worker is up (or booting) */
 function liveUI() { return !!(WORKER && backbone().panel); }
@@ -234,7 +239,12 @@ function buildBackboneSegment() {
   if (names.length < 2) { host.closest(".control").hidden = true; return; }
   const label = n => (DATA.backbones && DATA.backbones[n] && DATA.backbones[n].label) || n.toUpperCase();
   segment("backbone", names, STATE.backbone, label, n => {
+    const prev = ppy();
     STATE.backbone = n;
+    if (ppy() !== prev) {          // monthly <-> quarterly: re-seat W, k, AR
+      const u = ui();
+      STATE.W = u.window.default; STATE.k = u.k.default; STATE.ar = u.ar_orders[0];
+    }
     STATE.selectedDate = null;
     applyBackbone();
     requestCompute(0);
@@ -304,6 +314,19 @@ function segment(id, values, current, label, onPick) {
     };
     host.appendChild(btn);
   });
+}
+
+/* Slider ranges follow the active backbone (months or quarters). */
+function syncSliders() {
+  const u = ui();
+  const W = $("W");
+  W.min = u.window.min; W.max = u.window.max; W.step = u.window.step; W.value = STATE.W;
+  $("W-label").textContent = STATE.W;
+  const unit = $("W-unit");
+  if (unit) unit.textContent = ppy() === 4 ? "quarters" : "months";
+  const K = $("k-slider");
+  K.min = u.k.min; K.max = u.k.max; K.value = STATE.k;
+  $("k-label").textContent = STATE.k;
 }
 
 function setupSliders() {
@@ -442,25 +465,31 @@ function applyBackbone() {
   $("meta").textContent = `${b.n_categories} categories · ${b.dates[0]}–${lastMonth}`;
   const cnt = $("cat-count");
   if (cnt) cnt.textContent =
-    STATE.backbone === "cpi" ? "~70 BLS CPI item strata" : "~130 disaggregated PCE categories";
+    STATE.backbone === "cpi" ? "~70 BLS CPI item strata"
+      : STATE.backbone === "pce" ? "~130 disaggregated PCE categories"
+      : `${b.n_categories} ${b.label} categories${ppy() === 4 ? " (quarterly)" : ""}`;
   const foot = $("foot-source");
   if (foot) foot.textContent = backboneFooter(b);
   const wnote = $("weight-note");
   if (wnote) wnote.textContent = b.weight_note || "";
 
+  syncSliders();
   buildParamControls();
   buildCatList();
 }
 
 function shortHeadlineLabel(b) {
-  return STATE.backbone === "cpi" ? "CPI inflation (12m)" : "PCE inflation (12m)";
+  return `${b.label || STATE.backbone.toUpperCase()} inflation (${ppy() === 4 ? "4q" : "12m"})`;
 }
 
 function backboneFooter(b) {
   if (STATE.backbone === "cpi") {
     return "CPI backbone: BLS CPI-U item strata (CUUR0000*, NSA); weights = Dec-2023 relative importance, renormalised monthly. No author overlay (the paper uses PCE).";
   }
-  return "PCE backbone: BEA Underlying Detail + FRED. Baseline index correlates ~0.99 with the authors' series.";
+  if (STATE.backbone === "pce") {
+    return "PCE backbone: BEA Underlying Detail + FRED. Baseline index correlates ~0.99 with the authors' series.";
+  }
+  return `${b.label} backbone: ${b.source_note || ""}. ${b.weight_note || ""}. No author overlay.`;
 }
 
 function sliceFrom(arr) { return arr ? arr.slice(STATE.startIdx) : []; }
@@ -646,7 +675,7 @@ function setupDownload() {
     const { res } = currentResult();
     if (!res) return;
     const head = b.headline ? b.headline.series : null;
-    const headCol = STATE.backbone === "cpi" ? "cpi_yoy" : "pce_yoy";
+    const headCol = `${STATE.backbone}_${ppy() === 4 ? "4q" : "yoy"}`;
     const rows = [["date", "ISM", "S_pos", "S_neg", "author_ISM", headCol]];
     for (let i = STATE.startIdx; i < b.dates.length; i++) {
       rows.push([b.dates[i], res.ISM[i], res.S_pos[i], res.S_neg[i],

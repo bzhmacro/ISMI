@@ -61,7 +61,7 @@ twin), and `notebooks/decomp_replication.ipynb`. The interactive site has a
 top-level **Model** toggle to switch between the momentum index and this
 decomposition. Full maths→code map: `docs/decomp_methodology.md`.
 
-### Country ports of the decomposition (Canada, UK, France, Germany, Japan)
+### Country ports of the decomposition (Canada, UK, France, Germany, Japan, Australia, New Zealand, Norway, Sweden)
 
 The same estimator runs on **quarterly national-accounts** household consumption
 for several countries (`src/ism/decomp_ports.py`, registered in `PORTS`), which
@@ -76,6 +76,10 @@ as scopes in the decomposition site's **Scope** selector:
 | `fr` | INSEE quarterly accounts (A17) | ~17 products | 1949 | yes |
 | `de` | Eurostat `namq_10_fcs` by durability | 4 categories | 1991 | no (self-fetch; no key) |
 | `jp` | Cabinet Office SNA HCE by type (e-Stat) | 4 form categories | 1994 | no (self-fetch; needs `ESTAT_API_ID`) |
+| `au` | ABS 5206.0 Table 8 HFCE (SA) | 17 categories | 1959 | no (self-fetch; no key) |
+| `nz` | Stats NZ GDP release, HFCE by COICOP (SA) | 10 divisions | 1987 | no (self-fetch; no key) |
+| `no` | SSB table 14658, HFCE by COICOP | 13 divisions | 1978 | no (self-fetch; no key) |
+| `se` | SCB NR0103 T14, HFCE by purpose (SA) | 13 divisions | 1981 | no (self-fetch; no key) |
 
 There is no published supply/demand series for these countries, so they are
 validated by internal coherence (`ism.decomp_validate.sanity_quarterly_decomp`)
@@ -205,6 +209,8 @@ Validated against the published series, 1998 onward:
 | `ca` (StatCan, 119 classes) | BoC CPI-trim (20/20) | 0.963 | 0.315 | +0.181 |
 | `ca` | BoC CPI-median | 0.929 | 0.369 | +0.087 |
 | `jp` (47 medium groups) | BoJ 10% trimmed mean | 0.942 | 0.408 | +0.178 |
+| `au` (87 classes, quarterly) | ABS trimmed mean (15/15) | 0.985 | 0.189 | -0.013 |
+| `au` | ABS weighted median | 0.967 | 0.263 | -0.013 |
 
 The two foreign pairs are looser on purpose. The Bank of Canada's inputs are
 adjusted for changes in indirect taxes and seasonally adjusted with StatCan's
@@ -343,6 +349,23 @@ Concordance: `config/cpi_pce_concordance.csv` (all 70 CPI strata and all 130 PCE
 categories → 28 common groups, plus four groups flagged `scope` where the two
 gauges measure different things — net insurance versus premiums, imputed
 financial services). Full maths→code map: `docs/cpi_pce_methodology.md`.
+
+## Australia, New Zealand, Norway and Sweden
+
+All four are on every price page (breakdown, momentum, supply vs demand,
+trimmed mean). Norway and Sweden use Eurostat's HICP exactly as France and
+Germany do; Australia (ABS) and New Zealand (Stats NZ) are **quarterly** —
+neither has a long monthly CPI — and the pages switch to quarters for them.
+Australia's trimmed mean is validated against the ABS's own (the RBA's
+preferred measure): 0.985 correlation on the 4-quarter rate since 1998. All
+sources are keyless; details and the judgement calls are in
+`docs/DECISIONS.md`.
+
+```bash
+python scripts/export_web_data.py au nz no se     # breakdown + momentum panels
+python scripts/export_decomp_data.py au nz no se  # supply vs demand
+python scripts/export_trim_data.py                # trimmed mean (all scopes)
+```
 
 ## Repository layout
 

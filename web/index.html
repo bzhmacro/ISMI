@@ -73,7 +73,7 @@
       <div class="control">
         <label>Index</label>
         <div class="seg" id="b-gauge"></div>
-        <small>US CPI uses the BLS major expenditure groups; UK, France and Germany use COICOP divisions. US PCE, Japan and Canada have flat category codes with no parent in the data yet — see the note below.</small>
+        <small>US CPI uses the BLS major expenditure groups; UK, France, Germany, Norway and Sweden use COICOP divisions; Australia and New Zealand use their statistics offices' own CPI groups and are <em>quarterly</em>. US PCE, Japan and Canada have flat category codes with no parent in the data yet — see the note below.</small>
       </div>
       <div class="control">
         <label>Horizon</label>
@@ -84,7 +84,7 @@
         <label>Benchmark</label>
         <div class="seg" id="b-ar"></div>
         <div class="subctl">
-          <label class="mini">rolling window <b id="b-W-label">120</b> months</label>
+          <label class="mini">rolling window <b id="b-W-label">120</b> <span id="b-W-unit">months</span></label>
           <input type="range" id="b-W" min="60" max="240" step="6" value="120" />
         </div>
         <small>The AR(p) forecast each category is measured against. Its residual is the "surprise"; everything else is expected.</small>
@@ -145,13 +145,17 @@
         nothing on this site carries those.
       </p>
       <p class="muted">
-        <strong>Coverage.</strong> Four gauges carry their official taxonomy in
+        <strong>Coverage.</strong> <strong>Australia</strong> and
+        <strong>New Zealand</strong> ship their official CPI group with every
+        category (the ABS's eleven groups; Stats NZ's eleven), and are quarterly —
+        neither country has a long monthly CPI — so horizons and windows on this
+        page switch to quarters for them. Six more gauges carry their official taxonomy in
         the category code itself, so the grouping is a property of the data and
         not a mapping anyone maintains by hand: <strong>US CPI</strong> (the
         BLS major group is the third character of the stratum code, <code>SEF*</code>
-        → food &amp; beverages) and <strong>UK</strong>, <strong>France</strong>
-        and <strong>Germany</strong> (COICOP divisions, from <code>04.1</code>
-        and <code>CP0116</code> respectively).
+        → food &amp; beverages) and <strong>UK</strong>, <strong>France</strong>,
+        <strong>Germany</strong>, <strong>Norway</strong> and <strong>Sweden</strong>
+        (COICOP divisions, from <code>04.1</code> and <code>CP0116</code> respectively).
         <strong>US PCE</strong>, <strong>Japan</strong> and <strong>Canada</strong>
         use flat codes — <code>DNEAR</code>, <code>0021</code>, <code>P40</code> —
         that encode no parent. Their hierarchies do exist, but in the pipelines:
@@ -174,13 +178,13 @@
       <div class="control">
         <label>Price gauge</label>
         <div class="seg" id="backbone"></div>
-        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata; UK = ONS; FR/DE = Eurostat HICP; JP = e-Stat; CA = Statistics Canada.</small>
+        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata; UK = ONS; FR/DE/NO/SE = Eurostat HICP; JP = e-Stat; CA = Statistics Canada; AU = ABS and NZ = Stats NZ, both <em>quarterly</em> (window in quarters, run length k = 2 quarters by default).</small>
       </div>
       <div class="control">
         <label>Benchmark model</label>
         <div class="seg" id="ar"></div>
         <div class="subctl" id="W-ctl">
-          <label class="mini">rolling window <b id="W-label">120</b> months</label>
+          <label class="mini">rolling window <b id="W-label">120</b> <span id="W-unit">months</span></label>
           <input type="range" id="W" min="60" max="240" step="6" value="120" />
         </div>
         <small>AR(p) estimated on a rolling W-month window (Eq. 3).</small>
@@ -271,7 +275,7 @@
       <div class="control">
         <label>Scope</label>
         <div class="seg" id="d-scope"></div>
-        <small>US = monthly BEA PCE (headline / core, ex food &amp; energy). Quarterly national-accounts ports: Canada (StatCan HCE, total / goods / services, Bank of Canada SAP 2026-33), UK (ONS Consumer Trends), France (INSEE), Germany (Eurostat, by durability), Japan (Cabinet Office SNA, by type).</small>
+        <small>US = monthly BEA PCE (headline / core, ex food &amp; energy). Quarterly national-accounts ports: Canada (StatCan HCE, total / goods / services, Bank of Canada SAP 2026-33), UK (ONS Consumer Trends), France (INSEE), Germany (Eurostat, by durability), Japan (Cabinet Office SNA, by type), Australia (ABS 5206.0, 17 categories), New Zealand (Stats NZ, 10 COICOP divisions), Norway (SSB, 13) and Sweden (SCB, 13).</small>
       </div>
       <div class="control">
         <label>VAR lags <em>J</em></label>
@@ -354,8 +358,14 @@
         on those via the Scope selector: <strong>Canada</strong> (Bank of Canada
         variant, Kang–Sekkel–Taskin–Yang SAP 2026-33; total / goods / services),
         <strong>UK</strong> (ONS Consumer Trends), <strong>France</strong> (INSEE),
-        <strong>Germany</strong> (Eurostat, by durability) and
-        <strong>Japan</strong> (Cabinet Office SNA, by type). Everything is
+        <strong>Germany</strong> (Eurostat, by durability),
+        <strong>Japan</strong> (Cabinet Office SNA, by type),
+        <strong>Australia</strong> (ABS national accounts, 17 categories),
+        <strong>New Zealand</strong> (Stats NZ, 10 COICOP divisions — health and
+        education are confidential in the seasonally adjusted series),
+        <strong>Norway</strong> (SSB, 13 divisions; SSB adjusts only the volumes,
+        so the deflator's seasonal is removed here) and
+        <strong>Sweden</strong> (SCB, 13 divisions). Everything is
         recomputed
         <strong>client-side</strong> by a parity-tested port of the Python engine;
         drag <em>J</em>, the window, the precision cut or the category set and
@@ -371,7 +381,7 @@
       <div class="control">
         <label>Cross-section</label>
         <div class="seg" id="t-scope"></div>
-        <small>The Cleveland cut is the 45-component cross-section behind the published median CPI (owners' equivalent rent split by census region); the 70-strata cut is this repo's finer CPI partition; PCE is the BEA underlying detail the Dallas Fed trims. The five foreign gauges reuse the other models' category panels — only Canada and Japan have a published measure to check against.</small>
+        <small>The Cleveland cut is the 45-component cross-section behind the published median CPI (owners' equivalent rent split by census region); the 70-strata cut is this repo's finer CPI partition; PCE is the BEA underlying detail the Dallas Fed trims. The foreign gauges reuse the other models' category panels — only Canada, Japan and Australia have a published measure to check against (Australia's ABS trimmed mean and weighted median are quarterly, like its panel).</small>
       </div>
       <div class="control">
         <label>Preset</label>

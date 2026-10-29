@@ -295,6 +295,26 @@ def statcan_core_history(force: bool = False) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------------------
+# Australian Bureau of Statistics (the RBA's underlying measures)
+# ----------------------------------------------------------------------------
+def abs_core_history(force: bool = False) -> pd.DataFrame:
+    """ABS trimmed mean (15% each tail) and weighted median, quarterly, SA.
+
+    The RBA's preferred underlying-inflation measures, computed by the ABS on
+    the quarterly cross-section of seasonally adjusted expenditure-class
+    changes -- the same object our estimator trims, so like Canada's this is a
+    real validation target.  The difference that remains: the ABS adjusts each
+    class with its own X-13 specification, ours with a rolling quarter-dummy
+    seasonal on the original series.
+
+    Columns ``trim_saar`` / ``median_saar`` (q/q, annualised) and
+    ``trim_yoy`` / ``median_yoy`` (4-quarter %), quarter-start index.
+    """
+    from .abs_au import official_underlying
+    return official_underlying(force=force)
+
+
+# ----------------------------------------------------------------------------
 # Bank of Japan
 # ----------------------------------------------------------------------------
 def boj_core_history(force: bool = False) -> pd.DataFrame:

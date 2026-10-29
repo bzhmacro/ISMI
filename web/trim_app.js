@@ -60,6 +60,12 @@
     render();
   }
 
+  /* Seasonal window: ten years in the scope's own periods (120 months, 40
+
+     quarters) -- the exporter's precomputed baseline uses the same rule. */
+
+  const saWin = () => ((scope().ppy || 12) === 12 ? D.saWindow : 10 * scope().ppy);
+
   const scope = () => DATA.scopes[D.scope];
   const ui = () => DATA.meta.ui;
 
@@ -151,7 +157,7 @@
 
   function requestCompute(delay = 140) {
     if (!WORKER || !READY || !LIVE.has(D.scope)) return;
-    const key = [D.scope, D.lower, D.upper, D.sa, D.saWindow, D.weightVintage,
+    const key = [D.scope, D.lower, D.upper, D.sa, saWin(), D.weightVintage,
                  [...exSet()].join(",")].join("|");
     if (key === REQ_KEY && RESULT) return;
     REQ_KEY = key;
@@ -161,7 +167,7 @@
       WORKER.postMessage({
         type: "compute", id: REQ, scope: D.scope,
         params: {
-          lower: D.lower, upper: D.upper, sa: D.sa, saWindow: D.saWindow,
+          lower: D.lower, upper: D.upper, sa: D.sa, saWindow: saWin(),
           ppy: scope().ppy || 12, weightVintage: D.weightVintage,
           minCategories: 5, excluded: [...exSet()],
         },
@@ -202,13 +208,23 @@
     });
   }
 
+  /* Horizon labels follow the scope's frequency (quarterly for Australia and
+     New Zealand), so this segment is rebuilt on every scope switch. */
+  function buildViewSeg() {
+    const q = (scope().ppy || 12) === 4;
+    seg("t-view", ["yoy", "rate"], D.view,
+        v => v === "yoy" ? (q ? "4-quarter" : "12-month")
+                         : (q ? "1-quarter annualised" : "1-month annualised"),
+        v => { D.view = v; render(); });
+  }
+
   function buildControls() {
     seg("t-scope", DATA.meta.scopes, D.scope,
         k => DATA.scopes[k].tab || k,
         k => {
           D.scope = k; D.sa = DATA.scopes[k].sa; RESULT = null; REQ_KEY = "";
           adoptPreset();          // a CPI preset means nothing on the PCE scope
-          applyScope(); syncSA(); syncPreset(); requestCompute(0); render();
+          applyScope(); syncSA(); syncPreset(); buildViewSeg(); requestCompute(0); render();
         });
 
     const presets = ui().presets;
@@ -220,9 +236,7 @@
           requestCompute(0);
         });
 
-    seg("t-view", ["yoy", "rate"], D.view,
-        v => v === "yoy" ? "12-month" : "1-month annualised",
-        v => { D.view = v; render(); });
+    buildViewSeg();
 
     seg("t-weights", ui().weight_vintages, D.weightVintage,
         v => ({ versioned: "Versioned (month by month)", latest: "Latest, frozen",
@@ -368,8 +382,10 @@
     if (!res) return;
     const x = sliceFrom(X);
     const ours = D.view === "yoy" ? res.yoy : res.rate;
-    const yLabel = D.view === "yoy" ? "12-month inflation (%)"
-                                    : "1-month inflation, annualised (%)";
+    const q = (scope().ppy || 12) === 4;
+    const yLabel = D.view === "yoy" ? (q ? "4-quarter inflation (%)" : "12-month inflation (%)")
+                                    : (q ? "1-quarter inflation, annualised (%)"
+                                         : "1-month inflation, annualised (%)");
 
     const traces = [{
       x, y: sliceFrom(ours), name: ourName(), type: "scatter", mode: "lines",

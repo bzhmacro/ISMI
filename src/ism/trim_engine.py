@@ -165,9 +165,12 @@ TRIM20_CA = TrimConfig(lower=0.20, upper=0.20)
 #: changes, while this preset (like every other here) trims the monthly one.
 #: See :func:`ism.official_trim.boj_core_history`.
 TRIM10_JP = TrimConfig(lower=0.10, upper=0.10)
+#: ABS / RBA trimmed mean: 15% of the weight cut from each tail of the
+#: *quarterly* cross-section of seasonally adjusted expenditure-class changes.
+TRIM15_AU = TrimConfig(lower=0.15, upper=0.15, periods_per_year=4, sa_window=40)
 
 PRESETS = {"median": MEDIAN_CPI, "trim16": TRIM16_CPI, "trim_pce": TRIM_PCE,
-           "trim20": TRIM20_CA, "trim10": TRIM10_JP}
+           "trim20": TRIM20_CA, "trim10": TRIM10_JP, "trim15": TRIM15_AU}
 
 
 # ----------------------------------------------------------------------------

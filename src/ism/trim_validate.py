@@ -43,7 +43,7 @@ from typing import Iterable, Optional
 import numpy as np
 import pandas as pd
 
-from .official_trim import (boj_core_history, cleveland_components,
+from .official_trim import (abs_core_history, boj_core_history, cleveland_components,
                             cleveland_history, dallas_detail, dallas_history,
                             statcan_core_history)
 from .trim_engine import MEDIAN_CPI, TRIM16_CPI, TRIM_PCE, TrimConfig, compute_trim
@@ -67,6 +67,8 @@ OFFICIAL = {
     ("ca", "trim20"): ("statcan", "trim"),
     ("jp", "median"): ("boj", "median"),
     ("jp", "trim10"): ("boj", "trim10"),
+    ("au", "median"): ("abs", "median"),
+    ("au", "trim15"): ("abs", "trim"),
 }
 
 #: How to find the 1-month-annualised and 12-month columns of each publisher's
@@ -78,7 +80,14 @@ _PAIR_COLUMNS = {
     "dallas": ("m1", "m12"),
     "statcan": ("{series}_saar", "{series}_yoy"),
     "boj": (None, "{series}_yoy"),
+    "abs": ("{series}_saar", "{series}_yoy"),
 }
+
+#: Periods left out of a scope's score because the published series is adjusted
+#: for something ours deliberately is not.  Australia: the ABS trimmed mean and
+#: weighted median remove the effect of the GST's introduction (1 July 2000),
+#: which moves every 4-quarter rate from 2000-Q3 to 2001-Q2 by ~3.5pp.
+EXCLUDE = {"au": [("2000-07-01", "2001-04-01")]}
 
 #: The revised-vintage Cleveland series and the current Dallas methodology both
 #: cover this span cleanly; earlier months mix vintages.
@@ -110,6 +119,8 @@ def _score(ours: pd.Series, official: pd.Series, start: Optional[str],
                      axis=1, sort=True).dropna()
     if start:
         both = both[both.index >= pd.Timestamp(start)]
+    for lo, hi in EXCLUDE.get(scope, ()):
+        both = both[~((both.index >= pd.Timestamp(lo)) & (both.index <= pd.Timestamp(hi)))]
     if both.empty:
         return None
     err = both["ours"] - both["official"]
@@ -128,6 +139,7 @@ _HISTORIES = {
     "dallas": dallas_history,
     "statcan": statcan_core_history,
     "boj": boj_core_history,
+    "abs": abs_core_history,
 }
 
 
@@ -179,6 +191,7 @@ def compare_to_official(
             continue
 
         cfg = TrimConfig(lower=base.lower, upper=base.upper, sa=panel.sa,
+                         sa_window=10 * panel.periods_per_year,
                          periods_per_year=panel.periods_per_year)
         res = compute_trim(panel.inflation, panel.weights, cfg)
 
@@ -213,7 +226,8 @@ def compare_latest_cross_section(
     Returns ``[component, rate_ours, rate_official, d_rate, w_ours,
     w_official, d_weight]`` with weights in percent.
     """
-    cfg = cfg or TrimConfig(sa=panel.sa, periods_per_year=panel.periods_per_year)
+    cfg = cfg or TrimConfig(sa=panel.sa, sa_window=10 * panel.periods_per_year,
+                            periods_per_year=panel.periods_per_year)
     res = compute_trim(panel.inflation, panel.weights, cfg)
 
     valid = res.n_categories[res.n_categories > 0]

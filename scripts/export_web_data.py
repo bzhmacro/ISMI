@@ -45,6 +45,8 @@ enforced by tests/test_web_engine_parity.py.
     python scripts/export_web_data.py uk          # only UK CPI (ONS MM23)
     python scripts/export_web_data.py fr de       # France + Germany (Eurostat HICP v2)
     python scripts/export_web_data.py jp          # Japan (e-Stat; needs ESTAT_API_ID)
+    python scripts/export_web_data.py no se       # Norway + Sweden (Eurostat HICP v2)
+    python scripts/export_web_data.py au nz       # Australia (ABS) + New Zealand (Stats NZ), QUARTERLY
 """
 from __future__ import annotations
 
@@ -96,6 +98,20 @@ UI_PARAMS = {
     "schemes": list(SCHEMES),
     "rho_cap": {"min": 0.5, "max": 0.99, "step": 0.01, "default": RHO_CAP},
 }
+
+# Quarterly backbones (Australia, New Zealand: neither publishes a long monthly
+# CPI) carry their own ranges and baseline. W = 40 quarters keeps the paper's
+# 10-year window; k = 2 quarters is the shortest run that is still a *run* (the
+# paper's k = 3 months is one quarter). AR orders 1/2/4 span up to a year, as
+# 1/3/12 do monthly. See docs/DECISIONS.md.
+UI_QUARTERLY = {
+    "ar_orders": [1, 2, 4],
+    "window": {"min": 20, "max": 80, "step": 2, "default": 40},
+    "k": {"min": 1, "max": 6, "default": 2},
+    "schemes": list(SCHEMES),
+    "rho_cap": {"min": 0.5, "max": 0.99, "step": 0.01, "default": RHO_CAP},
+}
+BASELINE_Q = dict(ar=1, k=2, scheme="extensive", W=40)
 
 # author file may live in data/raw/ or data/raw/external/
 AUTHOR_PATHS = [ROOT / "data" / "raw" / "external" / "ISM_public_author.xlsx",
@@ -230,16 +246,34 @@ def build_euro_panel(geo):
     return infl.loc[common], weights.loc[common], cat_list, headline
 
 
+def build_quarterly_panel(country):
+    """ABS (au) / Stats NZ (nz) quarterly CPI -> (inflation, weights, cats, headline, first anchor).
+
+    Categories carry their official top-level group so the Breakdown page can
+    stack them without a hand-made mapping.
+    """
+    if country == "au":
+        from ism.abs_au import build_au_cpi_panel as build
+    else:
+        from ism.statsnz import build_nz_cpi_panel as build
+    infl, weights, labels, groups, headline, first = build()
+    common = infl.index.intersection(weights.index)
+    infl, weights = infl.loc[common], weights.loc[common]
+    cats = [(k, labels[k], groups[k]) for k in infl.columns]
+    return infl, weights, cats, headline, first
+
+
 # ---------------------------------------------------------------------------
 # the core: baseline combo (for instant paint) + raw panels (for the browser)
 # ---------------------------------------------------------------------------
-def compute_baseline(infl, weights):
-    """Precompute the single BASELINE combo, mirroring web/engine.js exactly."""
+def compute_baseline(infl, weights, base=None):
+    """Precompute the single baseline combo, mirroring web/engine.js exactly."""
+    base = base or dict(BASELINE, W=120)
     index = infl.index
-    ar, k, scheme = BASELINE["ar"], BASELINE["k"], BASELINE["scheme"]
+    ar, k, scheme, W = base["ar"], base["k"], base["scheme"], base["W"]
     assert scheme == "extensive", "baseline must be the extensive-margin combo"
 
-    R = residual_panel(infl, ISMConfig(ar_order=ar))
+    R = residual_panel(infl, ISMConfig(ar_order=ar, window=W))
     valid = infl.notna() & weights.notna() & R.notna()
     wn = _norm_weights(weights, valid)
     mp, mn = momentum_signals(R, ISMConfig(run_length=k))
@@ -271,6 +305,9 @@ def panel_payload(infl, weights):
                         for x in v])
         return out
     return {"inflation": cols(infl), "weights": cols(weights)}
+
+
+QUARTERLY = ("au", "nz")
 
 
 def build_backbone(name):
@@ -307,9 +344,10 @@ def build_backbone(name):
                     "forward-filled monthly and renormalised. History starts "
                     "1988, so the W=120 baseline yields an index from ~1998.")
             weight_note = "weights = ONS annual CPI weights (per mille), ffilled monthly, renormalised"
-        elif name in ("fr", "de"):
+        elif name in ("fr", "de", "no", "se"):
             geo = name.upper()
-            country = {"fr": "France", "de": "Germany"}[name]
+            country = {"fr": "France", "de": "Germany",
+                       "no": "Norway", "se": "Sweden"}[name]
             infl, weights, categories, headline = build_euro_panel(geo)
             label = f"{geo} HICP"
             source_note = f"Eurostat HICP ECOICOP v2 (prc_hicp_minr / prc_hicp_iw, geo={geo}, NSA)"
@@ -321,6 +359,39 @@ def build_backbone(name):
                     "History starts 1996, so the W=120 baseline yields an index "
                     "from ~2006.")
             weight_note = "weights = annual Eurostat HICP item weights (per mille), ffilled monthly, renormalised"
+        elif name == "au":
+            infl, weights, categories, headline, first = build_quarterly_panel("au")
+            label = "AU CPI"
+            source_note = ("ABS Consumer Price Index, 87 expenditure classes, weighted "
+                           "average of eight capital cities (ABS Data API, dataflow CPI "
+                           "v2.0.0, original), QUARTERLY")
+            head_label = "Australia CPI inflation (4-quarter, %)"
+            author = None
+            note = ("ISM computed in the browser from the ABS CPI's 87 expenditure "
+                    "classes, quarterly (the complete monthly CPI only starts in "
+                    "2024). Defaults are the quarterly analogue of the paper: "
+                    "10-year (40-quarter) window, run length k = 2 quarters. "
+                    "Weights are the ABS's own re-weights -- the 13th to 17th "
+                    "series (1998-2017, from 6431.0), annual since 2018 and "
+                    "quarterly contributions from 2025-Q4 -- price-updated "
+                    f"between anchors; quarters before {first:%Y} are back-updated.")
+            weight_note = (f"weights = ABS expenditure-class weights, re-weights {first:%Y}-on, "
+                           "price-updated quarterly (back-updated before the first)")
+        elif name == "nz":
+            infl, weights, categories, headline, first = build_quarterly_panel("nz")
+            label = "NZ CPI"
+            source_note = ("Stats NZ Consumers Price Index, level-3 classes (CPI release "
+                           "index-numbers CSV), QUARTERLY")
+            head_label = "New Zealand CPI inflation (4-quarter, %)"
+            author = None
+            note = ("ISM computed in the browser from Stats NZ's CPI classes, "
+                    "quarterly (New Zealand has no full monthly CPI). Half the "
+                    "classes start in 1999-Q2, so the 40-quarter baseline index "
+                    "starts thin and fills out from about 2009. Weights are the "
+                    "class weights of the 2014, 2017, 2020 and 2024 CPI reviews, "
+                    "price-updated between reviews and back-updated before 2014.")
+            weight_note = ("weights = Stats NZ CPI-review class weights (2014/2017/2020/2024), "
+                           "price-updated quarterly (back-updated before 2014)")
         elif name == "jp":
             # Requires a free e-Stat application ID (ESTAT_API_ID in .env);
             # without it this backbone is skipped with a clear message.
@@ -369,14 +440,26 @@ def build_backbone(name):
         print(f"  [{name}] skipped: {type(exc).__name__}: {exc}")
         return None
 
-    print(f"  [{name}] {infl.shape[1]} categories, {infl.shape[0]} months")
+    print(f"  [{name}] {infl.shape[1]} categories, {infl.shape[0]} periods")
     # Round FIRST, then compute the baseline from the rounded panel, so the
     # precomputed combo and the browser engine see byte-identical inputs (a
     # borderline residual sign can otherwise flip between the two).
+    quarterly = name in QUARTERLY
+    base = BASELINE_Q if quarterly else dict(BASELINE, W=120)
     infl, weights = infl.round(PANEL_DP), weights.round(PANEL_DP)
-    combos, drivers = compute_baseline(infl, weights)
+    combos, drivers = compute_baseline(infl, weights, base)
     index = infl.index
+    def _cat(c):
+        out = {"key": c[0], "label": c[1]}
+        if len(c) > 2 and c[2]:
+            out["group"] = c[2]
+        return out
+    extra = {}
+    if quarterly:
+        extra = {"ppy": 4, "ui": UI_QUARTERLY,
+                 "baseline": f"AR{base['ar']}|k{base['k']}|{base['scheme']}"}
     return {
+        **extra,
         "panel": panel_payload(infl, weights),
         "label": label,
         "source_note": source_note,
@@ -384,7 +467,7 @@ def build_backbone(name):
         "n_categories": int(infl.shape[1]),
         "note": note,
         "dates": [d.strftime("%Y-%m") for d in index],
-        "categories": [{"key": k, "label": lab} for k, lab in categories],
+        "categories": [_cat(c) for c in categories],
         "author": None if author is None else {
             "ISM": _series_to_list(author["ISM"], index),
             "S_pos": _series_to_list(author["S_pos"], index),
@@ -395,9 +478,12 @@ def build_backbone(name):
     }
 
 
+KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp", "ca", "au", "nz", "no", "se")
+
+
 def main(argv=None):
     argv = argv or sys.argv[1:]
-    wanted = [a.lower() for a in argv] or ["pce", "cpi", "uk", "fr", "de", "jp", "ca"]
+    wanted = [a.lower() for a in argv] or list(KNOWN)
 
     dest = ROOT / "web" / "data" / "ism.json"
 
@@ -428,7 +514,6 @@ def main(argv=None):
     default = (prev_default if prev_default in backbones
                else "pce" if "pce" in backbones else next(iter(backbones)))
     # Stable order: US gauges first, then the country ports, then anything else.
-    KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp", "ca")
     order = [b for b in KNOWN if b in backbones] + \
             [b for b in backbones if b not in KNOWN]
     out = {

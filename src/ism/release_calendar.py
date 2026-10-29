@@ -593,7 +593,9 @@ def cmd_check(args) -> int:
                         committed[k] = e
             day += dt.timedelta(days=1)
         for n in ci:
-            if seen[n] < 9:
+            # ten months hold ~10 monthly releases but only 2-3 quarterly ones
+            floor = 9 if cal[n].frequency == "monthly" else 2
+            if seen[n] < floor:
                 errs.append(f"{n}: only {seen[n]} refreshes simulated in 10 months")
             # 8h, not 12h: the point is same-day pickup. A 12h bound quietly
             # tolerates "caught by the 04:00 poll the next morning", which is

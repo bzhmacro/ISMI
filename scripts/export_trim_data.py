@@ -57,8 +57,9 @@ from ism.cpi_pce import (aggregate, bridge_nowcast,  # noqa: E402
 from ism.decomp_pipeline import core_exclusions  # noqa: E402
 from ism.ppi import (fetch_ppi_levels, group_regressors,  # noqa: E402
                      load_bridge_series as load_ppi_series, ppi_inflation)
-from ism.trim_engine import (MEDIAN_CPI, TRIM10_JP, TRIM16_CPI,  # noqa: E402
-                             TRIM20_CA, TRIM_PCE, TrimConfig, compute_trim)
+from ism.trim_engine import (MEDIAN_CPI, TRIM10_JP, TRIM15_AU,  # noqa: E402
+                             TRIM16_CPI, TRIM20_CA, TRIM_PCE, TrimConfig,
+                             compute_trim)
 from ism.trim_pipeline import (build_cleveland_panel,  # noqa: E402
                                build_cpi70_panel, build_pce_panel,
                                cross_section_conditioning, panel_from_web_data)
@@ -70,25 +71,28 @@ ISM_JSON = ROOT / "web" / "data" / "ism.json"
 PANEL_DP = 6          # decimals kept for the shipped panels
 SERIES_DP = 4
 
-ALL_SCOPES = ("cpi45", "cpi70", "pce", "uk", "ca", "de", "fr", "jp")
+ALL_SCOPES = ("cpi45", "cpi70", "pce", "uk", "ca", "de", "fr", "jp",
+              "au", "nz", "no", "se")
 DEFAULT_SCOPES = ALL_SCOPES
 
 TABS = {"cpi45": "US CPI (Cleveland cut)", "cpi70": "US CPI (70 strata)",
         "pce": "US PCE", "uk": "UK CPI", "ca": "Canada CPI", "de": "Germany HICP",
-        "fr": "France HICP", "jp": "Japan CPI"}
+        "fr": "France HICP", "jp": "Japan CPI", "au": "Australia CPI",
+        "nz": "New Zealand CPI", "no": "Norway HICP", "se": "Sweden HICP"}
 
 MEASURES = {"median": MEDIAN_CPI, "trim16": TRIM16_CPI, "trim_pce": TRIM_PCE,
-            "trim20": TRIM20_CA, "trim10": TRIM10_JP}
+            "trim20": TRIM20_CA, "trim10": TRIM10_JP, "trim15": TRIM15_AU}
 
 #: Which preset a scope should land on when the reader switches to it -- the
 #: one its own central bank publishes, so the "Published" read-out has
 #: something in it.  Falls back to the first preset with an overlay.
 DEFAULT_PRESET = {"cpi45": "trim16", "cpi70": "trim16", "pce": "trim_pce",
-                  "ca": "trim20", "jp": "trim10",
+                  "ca": "trim20", "jp": "trim10", "au": "trim15",
                   #: no published counterpart, so there is nothing to match --
                   #: land on the most widely used cut rather than inheriting
                   #: whichever one the previous scope happened to be showing.
-                  "uk": "trim16", "de": "trim16", "fr": "trim16"}
+                  "uk": "trim16", "de": "trim16", "fr": "trim16",
+                  "nz": "trim16", "no": "trim16", "se": "trim16"}
 
 UI = {
     "lower": {"min": 0, "max": 0.5, "step": 0.01, "default": 0.08},
@@ -104,6 +108,8 @@ UI = {
                    "label": "CPI-trim (Bank of Canada)"},
         "trim10": {"lower": 0.10, "upper": 0.10,
                    "label": "10% trim (Bank of Japan)"},
+        "trim15": {"lower": 0.15, "upper": 0.15,
+                   "label": "15% trim (ABS / RBA)"},
     },
     "sa_methods": ["none", "rolling", "dummy"],
     "weight_vintages": ["versioned", "latest", "first"],
@@ -119,6 +125,7 @@ SOURCES = {
     "boc": "https://www.bankofcanada.ca/rates/indicators/key-variables/"
            "key-inflation-indicators-and-the-target-range/",
     "boj": "https://www.boj.or.jp/en/research/research_data/cpi/index.htm",
+    "abs": "https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia",
 }
 
 
@@ -248,6 +255,19 @@ def official_for(scope: str, official: dict, index: pd.Index):
                 "label": "Bank of Japan 10% trimmed mean",
                 "rate": None, "yoy": _series(bj["trim10_yoy"], index),
             }
+    if scope == "au":
+        ab = official.get("abs")
+        if ab is not None:
+            out["median"] = {
+                "label": "ABS weighted median (RBA)",
+                "rate": _series(ab["median_saar"], index),
+                "yoy": _series(ab["median_yoy"], index),
+            }
+            out["trim15"] = {
+                "label": "ABS trimmed mean (RBA)",
+                "rate": _series(ab["trim_saar"], index),
+                "yoy": _series(ab["trim_yoy"], index),
+            }
     return out
 
 
@@ -304,6 +324,7 @@ def export_scope(scope: str, panel, official: dict, ism_payload: dict) -> dict:
     baseline = {}
     for name, base in MEASURES.items():
         cfg = TrimConfig(lower=base.lower, upper=base.upper, sa=panel.sa,
+                         sa_window=10 * panel.periods_per_year,
                          periods_per_year=panel.periods_per_year)
         res = compute_trim(panel.inflation, panel.weights, cfg)
         baseline[name] = {"lower": base.lower, "upper": base.upper,

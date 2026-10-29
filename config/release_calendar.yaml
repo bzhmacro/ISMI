@@ -515,3 +515,172 @@ gauges:
     # expenditure" rows from https://www150.statcan.gc.ca/n1/dai-quo/cal1-eng.htm
     # into a `dates:` block here, keyed by the first month of each quarter.
     dates: {}
+
+  # ---------------------------------------------------------------------
+  # Norway and Sweden: the same Eurostat full-HICP release as France and
+  # Germany, so they reuse its timing blocks verbatim.
+  "no":                  # quoted: bare `no` is boolean false in YAML 1.1
+    label: Norway HICP (Eurostat, COICOP leaves)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: ["no"]
+      decomp: []
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Same Eurostat full-HICP release as France (see `fr`). SSB publishes the
+      national CPI on the 10th, but the panel here is the HICP.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    expect: *eurostat_expect
+    fallback: *eurostat_fallback
+    dates: *eurostat_hicp_full
+
+  se:
+    label: Sweden HICP (Eurostat, COICOP leaves)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [se]
+      decomp: []
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Same Eurostat full-HICP release as France (see `fr`). SCB publishes the
+      national CPI/HICP around the 13th, but the panel here is Eurostat's.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    expect: *eurostat_expect
+    fallback: *eurostat_fallback
+    dates: *eurostat_hicp_full
+
+  # ---------------------------------------------------------------------
+  # Quarterly gauges. Reference "months" are the FIRST month of the quarter,
+  # matching the panels' date axis (2026-07 = Q3 2026). None of these dates
+  # were transcribed from a verified agency calendar, so -- as for `ca_hce` --
+  # only a deliberately conservative fallback is given: it can make the monitor
+  # flag a gauge a few days late, never ask for a quarter that is not out.
+  au:
+    label: Australia CPI quarterly (ABS, 87 expenditure classes)
+    provider: Australian Bureau of Statistics
+    frequency: quarterly
+    ci: true
+    targets:
+      ism: [au]
+      decomp: []
+    release_time: "11:30"
+    timezone: Australia/Sydney
+    utc_hour_fallback: 1
+    rule: >-
+      The quarterly CPI series are published with the monthly CPI release for
+      the last month of the quarter, about four weeks after quarter end
+      (2026-Q3 was in the API by 28 October 2026).
+    source: https://www.abs.gov.au/release-calendar/future-releases
+    fallback:
+      lag_months: 3                # Q3 (ref 2026-07) -> October
+      day: 30                      # ABS: last Wednesday of the month after the quarter
+    dates: {}
+
+  au_hce:
+    label: Australia HFCE quarterly (ABS 5206.0 Table 8) — decomposition scope
+    provider: Australian Bureau of Statistics
+    frequency: quarterly
+    ci: true
+    targets:
+      ism: []
+      decomp: [au]
+    release_time: "11:30"
+    timezone: Australia/Sydney
+    utc_hour_fallback: 1
+    rule: >-
+      Australian National Accounts: National Income, Expenditure and Product,
+      first Wednesday of the third month after the quarter (Q2 -> early
+      September).
+    source: https://www.abs.gov.au/release-calendar/future-releases
+    fallback:
+      lag_months: 5
+      day: 12
+    dates: {}
+
+  nz:
+    label: New Zealand CPI quarterly (Stats NZ, CPI classes)
+    provider: Stats NZ
+    frequency: quarterly
+    ci: true
+    targets:
+      ism: [nz]
+      decomp: []
+    release_time: "10:45"
+    timezone: Pacific/Auckland
+    utc_hour_fallback: 22
+    rule: >-
+      Consumers price index, released around the third week of the month
+      after the quarter (September 2026 quarter: 22 October 2026, 10:45 NZT).
+    source: https://www.stats.govt.nz/release-calendar/
+    fallback:
+      lag_months: 3
+      day: 26
+    dates: {}
+
+  nz_hce:
+    label: New Zealand HFCE quarterly (Stats NZ GDP release) — decomposition scope
+    provider: Stats NZ
+    frequency: quarterly
+    ci: true
+    targets:
+      ism: []
+      decomp: [nz]
+    release_time: "10:45"
+    timezone: Pacific/Auckland
+    utc_hour_fallback: 22
+    rule: >-
+      Gross domestic product release, about eleven weeks after the quarter
+      (June quarter -> mid/late September).
+    source: https://www.stats.govt.nz/release-calendar/
+    fallback:
+      lag_months: 5
+      day: 28
+    dates: {}
+
+  no_hce:
+    label: Norway HFCE quarterly (SSB table 14658) — decomposition scope
+    provider: Statistics Norway
+    frequency: quarterly
+    ci: true
+    targets:
+      ism: []
+      decomp: ["no"]
+    release_time: "08:00"
+    timezone: Europe/Oslo
+    utc_hour_fallback: 6
+    rule: >-
+      Quarterly national accounts, about seven weeks after the quarter (Q2 ->
+      mid-August).
+    source: https://www.ssb.no/en/kalender
+    fallback:
+      lag_months: 5
+      day: 1
+    dates: {}
+
+  se_hce:
+    label: Sweden HFCE quarterly (SCB NR0103) — decomposition scope
+    provider: Statistics Sweden
+    frequency: quarterly
+    ci: true
+    targets:
+      ism: []
+      decomp: [se]
+    release_time: "08:00"
+    timezone: Europe/Stockholm
+    utc_hour_fallback: 6
+    rule: >-
+      GDP indicator / quarterly national accounts, published around the end of
+      the second month after the quarter (Q2 -> late August).
+    source: https://www.scb.se/en/finding-statistics/publishing-calendar/
+    fallback:
+      lag_months: 5
+      day: 8
+    dates: {}

@@ -112,6 +112,10 @@ SCOPES = {
     "fr":          dict(country="fr", tab="France",  ppy=4, J=4, W=40, ui=UI_QUARTERLY),
     "de":          dict(country="de", tab="Germany", ppy=4, J=4, W=40, ui=UI_QUARTERLY),
     "jp":          dict(country="jp", tab="Japan",   ppy=4, J=4, W=40, ui=UI_QUARTERLY),
+    "au":          dict(country="au", tab="Australia",   ppy=4, J=4, W=40, ui=UI_QUARTERLY),
+    "nz":          dict(country="nz", tab="New Zealand", ppy=4, J=4, W=40, ui=UI_QUARTERLY),
+    "no":          dict(country="no", tab="Norway",      ppy=4, J=4, W=40, ui=UI_QUARTERLY),
+    "se":          dict(country="se", tab="Sweden",      ppy=4, J=4, W=40, ui=UI_QUARTERLY),
 }
 DEFAULT_ORDER = list(SCOPES.keys())
 
@@ -145,6 +149,35 @@ COUNTRY_META = {
            "household consumption by type (four form categories: durable / semi-"
            "durable / non-durable goods, services — a coarse cross-section): 4 lags "
            "over a 40-quarter window. No published author overlay."),
+    "au": ("Australia PCE",
+           "ABS Australian National Accounts 5206.0 Table 8, household final "
+           "consumption expenditure (17 categories, SA, current prices + chain "
+           "volume measures)",
+           "Decomposition computed in the browser from the ABS quarterly HFCE "
+           "(17 categories): reduced-form VAR of log price & log quantity on 4 lags "
+           "over a 40-quarter window. No published author overlay."),
+    "nz": ("New Zealand PCE",
+           "Stats NZ GDP release, household final consumption expenditure by "
+           "COICOP division (10 of 12 divisions -- health and education are "
+           "suppressed as confidential in the SA series; nominal + chain volume)",
+           "Decomposition computed in the browser from Stats NZ quarterly HFCE by "
+           "COICOP division (10 categories — a coarse cross-section): 4 lags over a "
+           "40-quarter window. No published author overlay."),
+    "no": ("Norway PCE",
+           "Statistics Norway table 14658, household final consumption by COICOP "
+           "division (13; SA volume; deflator = unadjusted current/constant with a "
+           "rolling quarterly seasonal removed)",
+           "Decomposition computed in the browser from SSB quarterly HFCE by COICOP "
+           "division (13 categories — a coarse cross-section). SSB publishes current "
+           "prices unadjusted only, so the deflator is seasonally adjusted here "
+           "(rolling quarter dummies, no look-ahead). 4 lags over a 40-quarter "
+           "window. No published author overlay."),
+    "se": ("Sweden PCE",
+           "Statistics Sweden NR0103 (T14), household consumption expenditure by "
+           "purpose (13 COICOP divisions, SA, current + constant prices)",
+           "Decomposition computed in the browser from SCB quarterly household "
+           "consumption by COICOP division (13 categories — a coarse cross-section): "
+           "4 lags over a 40-quarter window. No published author overlay."),
 }
 
 
@@ -166,14 +199,14 @@ def build_panels(scope, proxy=False):
 
     US scopes (headline/core) use the BEA pipeline (U20403/04/05); with
     proxy=True quantity is derived as nominal/price. The quarterly country ports
-    (ca/uk/fr/de) use ism.decomp_ports (StatCan / ONS / INSEE / Destatis)."""
+    (ca/uk/fr/de/jp/au/nz/no/se) use ism.decomp_ports."""
     spec = SCOPES[scope]
     country = spec["country"]
     if country == "ca":
         from ism.decomp_ports import build_ca_panels
         p = build_ca_panels(scope=spec["ca_scope"], spec="levels")
         return p.log_price, p.log_quantity, p.inflation, p.weights, p.categories
-    if country in ("uk", "fr", "de", "jp"):
+    if country != "us":                       # every quarterly national-accounts port
         from ism.decomp_ports import PORTS
         p = PORTS[country](spec="levels")
         return p.log_price, p.log_quantity, p.inflation, p.weights, p.categories

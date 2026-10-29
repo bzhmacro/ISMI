@@ -601,3 +601,87 @@ one to commit first.
   estimate into an otherwise-published twelve months, which — the 12-month rate
   being a rolling sum of monthly log changes — differs from the published rate
   by exactly that month's error.
+
+## Australia, New Zealand, Norway, Sweden — four more gauges (2026-10-28)
+
+All four run through the breakdown, momentum, supply/demand and trimmed-mean
+pages. Clients: `ism.abs_au`, `ism.statsnz`, `ism.nordic`; Norway's and
+Sweden's CPI side reuses `ism.eurostat` (HICP, as for France and Germany).
+Every source is keyless.
+
+| | CPI panel (breakdown / momentum / trim) | consumption panel (supply vs demand) |
+|---|---|---|
+| AU | ABS CPI, 87 expenditure classes, **quarterly** 1972– | ABS 5206.0 Table 8, 17 categories, SA, 1959Q3– |
+| NZ | Stats NZ CPI, 105 classes, **quarterly** 1974– (half from 1999) | Stats NZ GDP release, 10 COICOP divisions, SA, 1987Q2– |
+| NO | Eurostat HICP, 91 classes, monthly 2000– | SSB 14658, 13 COICOP divisions, 1978Q1– |
+| SE | Eurostat HICP, 118 classes, monthly 1996– | SCB NR0103 T14, 13 COICOP divisions, SA, 1981Q1– |
+
+- **Australia and New Zealand are quarterly, and the pages now know it.**
+  Neither has a long monthly CPI (the ABS complete monthly CPI starts in 2024;
+  New Zealand has none), and a 10-year window cannot be fitted on two years.
+  `ism.json` backbones now carry `ppy` and, when quarterly, their own `ui`
+  block and `baseline` key; `web/app.js` and `web/breakdown_app.js` read them,
+  so windows, horizons, run lengths and labels are in quarters for those two
+  and unchanged for everything else. Quarterly defaults: W = 40 quarters (the
+  paper's ten years), **k = 2 quarters** (the paper's k = 3 months is a single
+  quarter, so 2 is the shortest run that is still a run), AR orders 1/2/4.
+  The trim page's seasonal window is now ten years in the scope's own periods
+  (120 months, 40 quarters) in both the exporter and `web/trim_app.js`.
+
+- **Australian CPI weights are the ABS's own, back to 1998.** The CPI_WEIGHTS
+  dataflow has the annual re-weights from 2018 and the v2 CPI has quarterly
+  contributions from 2025-Q4; earlier re-weights come from 6431.0 *Historical
+  Weighting Patterns*. The 16th (2011) and 17th (2017) series match all 87
+  classes by name; the 13th-15th match 31-48, and for those only the
+  *relative* weights of the matched classes are taken from the table (the
+  unmatched keep their back-updated share, and nothing is reassigned from
+  classes that no longer exist, such as mortgage interest). This mattered:
+  with 2018-anchored back-updating alone the 15% trimmed mean tracked the ABS's
+  at 0.82 from 1998; with the historical anchors, 0.985 (RMSE 0.19pp,
+  4-quarter rate). Back-updating over decades inflates classes whose relative
+  price fell (computers, audio-visual) until they dominate the bottom tail.
+
+- **Australia's trim score excludes the four GST quarters.** The ABS trimmed
+  mean and weighted median remove the effect of the GST's introduction
+  (2000-Q3); ours does not, so 4-quarter rates part by ~3.5pp from 2000-Q3 to
+  2001-Q2. `trim_validate.EXCLUDE` leaves those quarters out of the score
+  (charted, not scored). Final: trimmed mean 0.985 (1-quarter 0.914), median
+  0.967 — tighter than Canada's.
+
+- **New Zealand weights are the CPI-review class weights** (June 2014,
+  September 2017, June 2020, December 2024), matched by name, price-updated
+  between reviews and back-updated before 2014. Three classes were renamed
+  between the tables and the CPI release (`statsnz.NAME_ALIASES`); classes
+  that are their own subgroup appear in the tables at subgroup level, so both
+  name columns are read. Two classes with no review weight and one dropped
+  from the 2024 basket are left out (105 of 108).
+
+- **New Zealand's consumption panel has 10 divisions, not 12.** Stats NZ marks
+  health and education CONFIDENTIAL in the seasonally adjusted series, so they
+  arrive empty. "Imports of low value goods purchased directly by households"
+  is a channel, not a purpose, and is excluded.
+
+- **Norway's deflator is seasonally adjusted here.** SSB publishes the volumes
+  seasonally adjusted but current prices only unadjusted. The unadjusted
+  deflator's quarterly seasonal is removed with the trim engine's rolling
+  quarter-dummy estimator (40 quarters, no look-ahead) and nominal is rebuilt
+  as SA deflator × SA volume. It removes most of the seasonal (clothing:
+  12.5pp max-min across quarters → 0.9pp) but insurance and financial
+  services keeps an 8pp pattern — read that division with care.
+
+- **Norway's HICP detail starts in 2000**, so its momentum index starts in
+  2010 (Sweden's in 2006).
+
+- **Norway and Sweden use the HICP, not the national CPI**, for consistency
+  with France and Germany and to reuse a validated pipeline. The national
+  trimmed means (SSB/Norges Bank, Riksbank) are built on the national CPIs, so
+  they are not overlaid on the trim page.
+
+- **YAML's Norway problem.** A bare `no:` key in `config/release_calendar.yaml`
+  parses as boolean `false`; the gauge and its targets are quoted.
+
+- **Release calendar.** New gauges are `ci: true` (the workflow is generic).
+  Norway and Sweden share the Eurostat HICP dates; the quarterly gauges use
+  conservative fallbacks only (no verified agency calendar transcribed yet),
+  and the refresh-count floors in `cmd_check` and the workflow-replay test
+  are 2 for quarterly gauges instead of 9.

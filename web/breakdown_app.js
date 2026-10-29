@@ -90,6 +90,14 @@
       from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
     { key: "de", label: "Germany", names: COICOP,
       from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
+    { key: "no", label: "Norway", names: COICOP,
+      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
+    { key: "se", label: "Sweden", names: COICOP,
+      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
+    // Quarterly gauges. Their exporter ships the official top-level group with
+    // each category (ABS CPI groups, Stats NZ CPI groups), so `from` is unused.
+    { key: "au", label: "Australia", names: null, from: () => null },
+    { key: "nz", label: "New Zealand", names: null, from: () => null },
     { key: "pce", label: "US PCE", names: null, from: () => null },
     { key: "jp", label: "Japan", names: null, from: () => null },
     { key: "ca", label: "Canada", names: null, from: () => null },
@@ -100,13 +108,42 @@
   const UNCLASSIFIED = "Unclassified";
 
   const D = {
-    gauge: "cpi", p: 1, W: 120, horizon: 12, sel: null, nTail: 120,
+    gauge: "cpi", p: 1, W: 120, horizon: 12, annual: true, sel: null, nTail: 120,
     ready: false, detailFrom: 0, res: null,
   };
   let DATA = null, B = null, WORKER = null, REQ = 0, DATES = [];
   let GROUP_LIST = [], GROUP_OF = [];
 
   function gaugeSpec(key) { return GAUGES.find((g) => g.key === key); }
+
+  /* Periods per year of the active gauge: 12 for the monthly CPIs, 4 for the
+     quarterly ones (Australia, New Zealand). Every horizon, window and label on
+     this page is expressed in periods, so it scales with this. */
+  const ppy = () => (B && B.ppy) || 12;
+  const unit = () => (ppy() === 4 ? "quarter" : "month");
+  const horizonLabel = () => (D.annual ? (ppy() === 4 ? "4q" : "12m") : (ppy() === 4 ? "1q" : "1m"));
+
+  /* Re-scale the frequency-dependent controls to the active gauge. */
+  function syncFrequency() {
+    const P = ppy();
+    D.horizon = D.annual ? P : 1;
+    D.W = 10 * P;
+    D.nTail = 10 * P;
+    seg("b-horizon",
+      [[true, P === 4 ? "4-quarter" : "12-month"], [false, P === 4 ? "1-quarter" : "1-month"]],
+      () => D.annual, (v) => { D.annual = v; D.horizon = v ? ppy() : 1; D.sel = null; compute(); });
+    const w = $("b-W");
+    if (w) {
+      w.min = 5 * P; w.max = 20 * P; w.step = P === 4 ? 2 : 6; w.value = D.W;
+      const lab = $("b-W-label"); if (lab) lab.textContent = D.W;
+      const u = $("b-W-unit"); if (u) u.textContent = `${unit()}s`;
+    }
+    const span = $("b-span");
+    if (span) {
+      span.min = 2 * P; span.max = Math.max(30 * P, 2 * P); span.step = P; span.value = D.nTail;
+      const lab = $("b-span-label"); if (lab) lab.textContent = `${Math.round(D.nTail / P)}y`;
+    }
+  }
 
   /* Build the group list and the per-category group index for a backbone.
      Returns null when the gauge cannot be grouped from available data. */
@@ -196,6 +233,7 @@
       return;
     }
     DATES = B.dates;
+    syncFrequency();
 
     const g = buildGroups(spec, B);
     if (!g) {
@@ -273,7 +311,7 @@
     status("computing…");
     WORKER.postMessage({
       type: "compute", id: ++REQ,
-      p: D.p, W: D.W, horizon: D.horizon, detailMonths: 60,
+      p: D.p, W: D.W, horizon: D.horizon, detailMonths: 5 * ppy(),
     });
   }
 
@@ -304,8 +342,6 @@
     seg("b-gauge", avail.map((g) => [g.key, g.label]),
       () => D.gauge, (v) => selectGauge(v));
 
-    seg("b-horizon", [[12, "12-month"], [1, "1-month"]],
-      () => D.horizon, (v) => { D.horizon = v; D.sel = null; compute(); });
     seg("b-ar", [[1, "AR(1)"], [2, "AR(2)"], [3, "AR(3)"]],
       () => D.p, (v) => { D.p = v; compute(); });
 
@@ -325,10 +361,10 @@
     if (span) {
       span.value = D.nTail;
       const lab = $("b-span-label");
-      if (lab) lab.textContent = `${Math.round(D.nTail / 12)}y`;
+      if (lab) lab.textContent = `${Math.round(D.nTail / ppy())}y`;
       span.oninput = () => {
         D.nTail = +span.value;
-        if (lab) lab.textContent = `${Math.round(D.nTail / 12)}y`;
+        if (lab) lab.textContent = `${Math.round(D.nTail / ppy())}y`;
         render();
       };
     }
@@ -356,14 +392,14 @@
     const sum = total[t];
     const sup = totalSurprise[t];
     const published = B.headline && B.headline.series ? B.headline.series[t] : null;
-    const label = D.horizon === 12 ? "12m" : "1m";
+    const label = horizonLabel();
 
     const rows = [
       [pct(sum), `Σ contributions (${label})`],
       [published == null ? "—" : pct(published), "Published headline"],
       [published == null || sum == null ? "—" : pp(sum - published), "Gap vs published"],
       [pp(sup), "Of which surprise"],
-      [DATES[t] || "—", "Month"],
+      [DATES[t] || "—", ppy() === 4 ? "Quarter (start month)" : "Month"],
     ];
     const host = $("b-readout");
     if (host) {
@@ -398,7 +434,7 @@
       xaxis: { gridcolor: GRID, zerolinecolor: GRID },
       yaxis: {
         gridcolor: GRID, zerolinecolor: GRID,
-        title: { text: `contribution, pp (${D.horizon === 12 ? "12m" : "1m"})`, font: { size: 11 } },
+        title: { text: `contribution, pp (${horizonLabel()})`, font: { size: 11 } },
       },
       legend: { orientation: "h", y: -0.16, font: { size: 10 } },
       showlegend: true,
