@@ -301,6 +301,62 @@ def build_au_cpi_panel(force: bool = False):
     return infl, weights, labels, groups, headline, first
 
 
+def _wide_monthly(df: pd.DataFrame, measure: int) -> pd.DataFrame:
+    sel = df[(df["MEASURE"] == measure) & (df["REGION"] == 50) & (df["FREQ"] == "M")
+             & (df["TSEST"] == 10)]
+    w = sel.pivot_table(index="TIME_PERIOD", columns="INDEX", values="OBS_VALUE",
+                        aggfunc="first")
+    w.index = pd.to_datetime(w.index + "-01")
+    return w.sort_index()
+
+
+def build_au_monthly_cpi_panel(force: bool = False):
+    """Complete MONTHLY CPI: (inflation m/m %, weights, labels, groups, headline 12m %).
+
+    Inflation is the ARITHMETIC m/m change and weights are the previous month's
+    shares (see below), unlike the log changes / same-month shares of the other
+    backbones, so the breakdown's summed contributions match the published rate.
+
+    Breakdown page only. The ABS complete monthly CPI prices all 87
+    expenditure classes every month from April 2024; the older Monthly CPI
+    Indicator (2017-) repriced some items only quarterly, so those months are
+    left out rather than mixed in. Weights are the monthly contributions to the
+    index number (from 2024-12), price-updated / back-updated in between as
+    for the quarterly panel. Thirty months is far too short for the momentum
+    model's ten-year window, which is why every other page keeps the quarterly
+    CPI.
+    """
+    leaves, labels, groups = cpi_tree(force=force)
+    df = sdmx_csv(CPI_FLOW, "1+4..10.50.M", name="cpi_v2_m.csv", force=force)
+    idx = _wide_monthly(df, 1)
+    price = idx.reindex(columns=leaves)
+    full = price.notna().all(axis=1)
+    if not full.any():
+        raise RuntimeError("no month prices every expenditure class")
+    price = price.loc[full.idxmax():]            # first fully priced month on
+    contrib = _wide_monthly(df, 4).reindex(columns=leaves)
+    anchors = {t: row / row.sum() for t, row in contrib.iterrows()
+               if t in price.index and row.notna().all()}
+    if not anchors:
+        raise RuntimeError("no monthly contribution weights")
+    # Contribution arithmetic as the ABS does it (Laspeyres): month t's change
+    # in class i counts with i's share AT t-1, and as an arithmetic, not log,
+    # change. With the month-t share and log changes, the twelve monthly
+    # contributions summed to 0.41pp above the published 12-month rate on
+    # average -- volatile classes (holiday travel swings +/-10% a month) carry a
+    # bigger share in the months they jump. This way the gap is -0.04pp.
+    weights = price_updated_weights(price, anchors).where(price.notna())
+    weights = weights.shift(1).where(price.notna())
+    weights = weights.div(weights.sum(axis=1).replace(0, np.nan), axis=0)
+    infl = 100.0 * price.pct_change()
+    head = idx[ALL_GROUPS]
+    headline = 100.0 * (head / head.shift(12) - 1.0)
+    print(f"[au_m] ABS monthly CPI: {len(leaves)} classes, "
+          f"{price.index[0]:%Y-%m}..{price.index[-1]:%Y-%m}; "
+          f"{len(anchors)} monthly weight vectors from {min(anchors):%Y-%m}")
+    return infl, weights, labels, groups, headline, min(anchors)
+
+
 def official_underlying(force: bool = False) -> pd.DataFrame:
     """ABS trimmed mean + weighted median, SA: q/q annualised and 4-quarter %."""
     df = sdmx_csv(CPI_Q_FLOW, f"1+2+3.{TRIMMED_MEAN}+{WEIGHTED_MEDIAN}.20.50.Q",

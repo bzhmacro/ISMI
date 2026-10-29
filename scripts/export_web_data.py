@@ -308,6 +308,7 @@ def panel_payload(infl, weights):
 
 
 QUARTERLY = ("au", "nz")
+BREAKDOWN_ONLY = ("au_m",)
 
 
 def build_backbone(name):
@@ -377,6 +378,27 @@ def build_backbone(name):
                     f"between anchors; quarters before {first:%Y} are back-updated.")
             weight_note = (f"weights = ABS expenditure-class weights, re-weights {first:%Y}-on, "
                            "price-updated quarterly (back-updated before the first)")
+        elif name == "au_m":
+            # Breakdown page ONLY: 30 months cannot carry the momentum model's
+            # ten-year window, so the other pages keep the quarterly `au` CPI.
+            from ism.abs_au import build_au_monthly_cpi_panel
+            infl, weights, labels, groups, headline, first = build_au_monthly_cpi_panel()
+            categories = [(k, labels[k], groups[k]) for k in infl.columns]
+            label = "AU CPI (monthly)"
+            source_note = ("ABS complete monthly CPI, 87 expenditure classes, weighted "
+                           "average of eight capital cities (dataflow CPI v2.0.0, "
+                           "original), MONTHLY from 2024-04")
+            head_label = "Australia CPI inflation (12m, %)"
+            author = None
+            note = ("Breakdown page only. The ABS has priced every expenditure class "
+                    "monthly only since April 2024, too short for the ten-year "
+                    "benchmark the momentum, trimmed-mean and supply/demand pages "
+                    "need, so those use the quarterly CPI. Here contributions use "
+                    "every priced class; the 'surprise' benchmark is fitted on a "
+                    "short window and is indicative only.")
+            weight_note = (f"weights = ABS monthly contributions to the index from "
+                           f"{first:%Y-%m} (back-updated earlier), lagged one month and "
+                           "applied to arithmetic m/m changes, the ABS contribution arithmetic")
         elif name == "nz":
             infl, weights, categories, headline, first = build_quarterly_panel("nz")
             label = "NZ CPI"
@@ -458,6 +480,13 @@ def build_backbone(name):
     if quarterly:
         extra = {"ppy": 4, "ui": UI_QUARTERLY,
                  "baseline": f"AR{base['ar']}|k{base['k']}|{base['scheme']}"}
+    if name in BREAKDOWN_ONLY:
+        # pages: which views list this backbone (absent = all). breakdown: a
+        # short benchmark window, and contributions that do not wait for it.
+        extra.update({"pages": ["breakdown"],
+                      "breakdown": {"window": {"min": 12, "max": 24, "step": 1,
+                                               "default": 18},
+                                    "contrib_without_residual": True}})
     return {
         **extra,
         "panel": panel_payload(infl, weights),
@@ -478,7 +507,7 @@ def build_backbone(name):
     }
 
 
-KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp", "ca", "au", "nz", "no", "se")
+KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp", "ca", "au", "au_m", "nz", "no", "se")
 
 
 def main(argv=None):

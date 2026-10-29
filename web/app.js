@@ -235,7 +235,12 @@ function requestCompute(delay = 150) {
 function buildBackboneSegment() {
   const host = $("backbone");
   if (!host) return;
-  const names = (DATA.meta && DATA.meta.backbones) || ["pce"];
+  // A backbone may declare which views list it (Australia's monthly CPI is on
+  // the Breakdown page only: too short for this model's ten-year window).
+  const names = ((DATA.meta && DATA.meta.backbones) || ["pce"]).filter(n => {
+    const p = DATA.backbones && DATA.backbones[n] && DATA.backbones[n].pages;
+    return !p || p.includes("ism");
+  });
   if (names.length < 2) { host.closest(".control").hidden = true; return; }
   const label = n => (DATA.backbones && DATA.backbones[n] && DATA.backbones[n].label) || n.toUpperCase();
   segment("backbone", names, STATE.backbone, label, n => {

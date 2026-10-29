@@ -98,6 +98,13 @@ onmessage = (e) => {
     if (msg.type === "compute") {
       const t0 = Date.now();
       const { p, W, horizon } = msg;
+      // Default (every long gauge): a category enters the month's accounting
+      // only once its benchmark residual exists, so contributions and surprises
+      // share one basket. A SHORT gauge (Australia's monthly CPI, 30 months)
+      // would then show nothing at all, so it sends contribNeedsResidual=false:
+      // contributions use every priced category, and the surprise is reported
+      // only where the benchmark can be estimated.
+      const needR = msg.contribNeedsResidual !== false;
       const detailMonths = msg.detailMonths || 60;
       const R = residuals(p, W);
       const { infl, w, n } = PANEL;
@@ -115,15 +122,15 @@ onmessage = (e) => {
         let wsum = 0;
         for (let c = 0; c < ncat; c++) {
           if (Number.isFinite(infl[c][t]) && Number.isFinite(w[c][t]) &&
-              Number.isFinite(R[c][t])) wsum += w[c][t];
+              (!needR || Number.isFinite(R[c][t]))) wsum += w[c][t];
         }
         if (!(wsum > 0)) continue;
         for (let c = 0; c < ncat; c++) {
           if (!(Number.isFinite(infl[c][t]) && Number.isFinite(w[c][t]) &&
-                Number.isFinite(R[c][t]))) continue;
+                (!needR || Number.isFinite(R[c][t])))) continue;
           const wn = w[c][t] / wsum;
           cMonthly[c][t] = wn * infl[c][t];
-          sMonthly[c][t] = wn * R[c][t];
+          sMonthly[c][t] = Number.isFinite(R[c][t]) ? wn * R[c][t] : NaN;
         }
       }
 
@@ -134,20 +141,22 @@ onmessage = (e) => {
         gS.push(new Float64Array(n));
       }
       const anyValid = new Uint8Array(n);
+      const anySurprise = new Uint8Array(n);
       for (let t = 0; t < n; t++) {
-        let seen = 0;
+        let seen = 0, seenS = 0;
         for (let c = 0; c < ncat; c++) {
           const v = cMonthly[c][t];
           if (!Number.isFinite(v)) continue;
           seen = 1;
           gC[GROUP_OF[c]][t] += v;
-          gS[GROUP_OF[c]][t] += sMonthly[c][t];
+          if (Number.isFinite(sMonthly[c][t])) { gS[GROUP_OF[c]][t] += sMonthly[c][t]; seenS = 1; }
         }
         anyValid[t] = seen;
+        anySurprise[t] = seenS;
       }
       for (let t = 0; t < n; t++) {
-        if (anyValid[t]) continue;
-        for (let g = 0; g < NGROUP; g++) { gC[g][t] = NaN; gS[g][t] = NaN; }
+        if (!anyValid[t]) for (let g = 0; g < NGROUP; g++) gC[g][t] = NaN;
+        if (!anySurprise[t]) for (let g = 0; g < NGROUP; g++) gS[g][t] = NaN;
       }
 
       const groupContrib = gC.map((a) => rollingSum(a, horizon));
@@ -159,7 +168,7 @@ onmessage = (e) => {
         if (!anyValid[t]) { totMonthly[t] = NaN; totSMonthly[t] = NaN; continue; }
         let a = 0, b = 0;
         for (let g = 0; g < NGROUP; g++) { a += gC[g][t]; b += gS[g][t]; }
-        totMonthly[t] = a; totSMonthly[t] = b;
+        totMonthly[t] = a; totSMonthly[t] = anySurprise[t] ? b : NaN;
       }
       const total = rollingSum(totMonthly, horizon);
       const totalSurprise = rollingSum(totSMonthly, horizon);

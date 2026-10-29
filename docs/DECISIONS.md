@@ -685,3 +685,23 @@ Every source is keyless.
   conservative fallbacks only (no verified agency calendar transcribed yet),
   and the refresh-count floors in `cmd_check` and the workflow-replay test
   are 2 for quarterly gauges instead of 9.
+
+## Australia's monthly CPI — Breakdown page only (2026-10-29)
+
+- **Why only there.** The ABS complete monthly CPI prices all 87 classes every
+  month only from April 2024 (the 2017- Monthly CPI Indicator repriced some
+  items quarterly, so those months are not used). Thirty months cannot carry
+  the momentum model's ten-year window, the trimmed mean's seasonal estimate or
+  the decomposition's quantities, so those pages keep the quarterly `au` CPI.
+  The `au_m` backbone carries `pages: ["breakdown"]`; `web/app.js` hides it.
+- **Contributions do not wait for the benchmark.** By default the breakdown
+  counts a category only once its AR residual exists; on 30 months with a
+  ten-year window that leaves nothing. `au_m` sends
+  `contribNeedsResidual: false`: contributions use every priced class, the
+  surprise is shown only where the benchmark can be fitted, on an 18-month
+  window (slider 12-24) -- indicative only. Other gauges are unchanged.
+- **Laspeyres contribution arithmetic.** For `au_m` the panel ships
+  arithmetic m/m changes and the previous month's shares. With log changes and
+  same-month shares the twelve summed contributions ran 0.41pp above the
+  published 12-month rate on average (volatile classes carry a bigger share in
+  the months they jump); this way the gap is -0.04pp (max 0.07pp).

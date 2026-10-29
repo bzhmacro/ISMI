@@ -684,3 +684,24 @@ gauges:
       lag_months: 5
       day: 8
     dates: {}
+
+  au_m:
+    label: Australia CPI monthly (ABS) — Breakdown page only
+    provider: Australian Bureau of Statistics
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [au_m]
+      decomp: []
+    release_time: "11:30"
+    timezone: Australia/Sydney
+    utc_hour_fallback: 1
+    rule: >-
+      The complete monthly CPI is released on the last Wednesday of the month
+      after the reference month (September 2026: 28 October 2026). No verified
+      calendar transcribed; the fallback below runs a few days late on purpose.
+    source: https://www.abs.gov.au/release-calendar/future-releases
+    fallback:
+      lag_months: 2
+      day: 2
+    dates: {}

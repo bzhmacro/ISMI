@@ -97,6 +97,9 @@
     // Quarterly gauges. Their exporter ships the official top-level group with
     // each category (ABS CPI groups, Stats NZ CPI groups), so `from` is unused.
     { key: "au", label: "Australia", names: null, from: () => null },
+    // Complete monthly CPI, April 2024 on. Breakdown page only; the other
+    // models use the quarterly `au` series (see the backbone's note).
+    { key: "au_m", label: "Australia (monthly)", names: null, from: () => null },
     { key: "nz", label: "New Zealand", names: null, from: () => null },
     { key: "pce", label: "US PCE", names: null, from: () => null },
     { key: "jp", label: "Japan", names: null, from: () => null },
@@ -126,15 +129,17 @@
   /* Re-scale the frequency-dependent controls to the active gauge. */
   function syncFrequency() {
     const P = ppy();
+    const bw = B && B.breakdown && B.breakdown.window;   // short gauges ship their own
     D.horizon = D.annual ? P : 1;
-    D.W = 10 * P;
-    D.nTail = 10 * P;
+    D.W = bw ? bw.default : 10 * P;
+    D.nTail = Math.min(10 * P, Math.max(2 * P, (B && B.dates ? B.dates.length : 10 * P)));
     seg("b-horizon",
       [[true, P === 4 ? "4-quarter" : "12-month"], [false, P === 4 ? "1-quarter" : "1-month"]],
       () => D.annual, (v) => { D.annual = v; D.horizon = v ? ppy() : 1; D.sel = null; compute(); });
     const w = $("b-W");
     if (w) {
-      w.min = 5 * P; w.max = 20 * P; w.step = P === 4 ? 2 : 6; w.value = D.W;
+      w.min = bw ? bw.min : 5 * P; w.max = bw ? bw.max : 20 * P;
+      w.step = bw ? bw.step : (P === 4 ? 2 : 6); w.value = D.W;
       const lab = $("b-W-label"); if (lab) lab.textContent = D.W;
       const u = $("b-W-unit"); if (u) u.textContent = `${unit()}s`;
     }
@@ -234,6 +239,8 @@
     }
     DATES = B.dates;
     syncFrequency();
+    const gn = $("b-gauge-note");
+    if (gn) { gn.textContent = (B.pages && B.note) ? B.note : ""; gn.hidden = !gn.textContent; }
 
     const g = buildGroups(spec, B);
     if (!g) {
@@ -312,6 +319,7 @@
     WORKER.postMessage({
       type: "compute", id: ++REQ,
       p: D.p, W: D.W, horizon: D.horizon, detailMonths: 5 * ppy(),
+      contribNeedsResidual: !(B && B.breakdown && B.breakdown.contrib_without_residual),
     });
   }
 
