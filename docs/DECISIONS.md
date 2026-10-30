@@ -705,3 +705,63 @@ Every source is keyless.
   same-month shares the twelve summed contributions ran 0.41pp above the
   published 12-month rate on average (volatile classes carry a bigger share in
   the months they jump); this way the gap is -0.04pp (max 0.07pp).
+
+## Italy, Spain, preliminary (flash) prints, special aggregates (2026-10-30)
+
+- **Italy and Spain on every page.** CPI side: Eurostat HICP, same pipeline as
+  France/Germany (124 and 120 classes, 1996-). Supply/demand: Eurostat
+  `namq_10_fcs` by durability (four categories, flagged coarse like Germany
+  and Japan) -- Istat publishes household consumption by purpose only
+  annually and INE's quarterly accounts have no split at all. No published
+  trimmed mean exists for either.
+
+- **Norway's 2026 HICP weights were incomplete; fixed for every HICP gauge.**
+  Norway published 2026 item weights for only part of its classes (leaf
+  weights summed to 633 per mille), so since January 62 priced classes had no
+  weight and the panel weighted about a third of the basket.
+  `eurostat.fill_leaf_weights` now shares a parent's published weight, less
+  its published children, among the missing children in proportion to their
+  previous-year weights; published weights are never changed. It also fills
+  24-51 class-years for France, Italy and Spain. Norway: 1,000 per mille in 2026.
+
+- **HICP special aggregates.** Each HICP category is tagged FOOD / NRG /
+  IGD_NNRG / SERV (`eurostat.special_aggregate`): divisions 01-02 are food,
+  04.5 and 07.2.2 energy, and the rest services or goods by the product type
+  Eurostat prints in the label -- "(S)" or "(ND)/(SD)/(D)". Against Eurostat's
+  published aggregates the 2026 weights agree to 0.1 per mille except energy
+  (~1.5 high: lubricants share 07.2.2 with motor fuel), and monthly rates
+  correlate 0.97-1.00 in all six HICP countries. The Breakdown page offers it
+  as a "Group by" alternative to COICOP divisions.
+
+- **Flash prints are markers and a provisional bar, never data.** A flash is
+  the headline plus at most four aggregates, so it cannot feed the momentum
+  index, the trimmed mean or the category breakdown. `ism.flash` attaches the
+  latest preliminary print to a backbone only while it is newer than the last
+  final month; the next export after the final drops it.
+  - France: INSEE loads provisional values into its BDM series (status P) --
+    CPI aggregates and the HICP all-items as indices, so monthly and annual
+    changes are exact. Food and tobacco are combined on HICP weights.
+  - Germany: Destatis does not load the flash into GENESIS; the press release
+    is parsed (CPI annual rates for services, goods, energy, food; non-energy
+    goods = goods less energy and food on Destatis' weights; HICP annual and
+    monthly rate from the text). No monthly component changes, so the
+    1-month view shows no German provisional bar.
+  - Spain: INE's Tempus tables carry the flash as "Preview" -- headline HICP
+    only, drawn as one unsplit bar.
+  - Italy: not wired. Istat's flash for October is due 31 October; its SDMX
+    flows showed no provisional loading to verify against, and a parser was
+    not shipped untested.
+  - France's and Germany's components are national-CPI aggregates; their
+    provisional segments sum to the CPI flash (France, October: 3.40pp) while
+    the marker is the HICP flash (3.8%). The page states both.
+  - Charts plot the flash on the headline line's own scale (log 12-month
+    change); the hover gives the published rate.
+  - Release calendar: `fr_flash`, `de_flash`, `es_flash`, target `flash:<geo>`,
+    whose committed vintage is the newer of the flash and the final month --
+    so the final also satisfies the gauge, and the refresh is the backbone's
+    ordinary export (no workflow change).
+
+- **Local Eurostat caches never expire.** Rebuilding France and Germany from a
+  September cache would have rolled them back to June; clear
+  `data/raw/eurostat` (or run `scripts/expire_cache.py`) before a local export.
+  CI starts clean, so it is unaffected.

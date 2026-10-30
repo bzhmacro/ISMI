@@ -112,6 +112,8 @@ SCOPES = {
     "fr":          dict(country="fr", tab="France",  ppy=4, J=4, W=40, ui=UI_QUARTERLY),
     "de":          dict(country="de", tab="Germany", ppy=4, J=4, W=40, ui=UI_QUARTERLY),
     "jp":          dict(country="jp", tab="Japan",   ppy=4, J=4, W=40, ui=UI_QUARTERLY),
+    "it":          dict(country="it", tab="Italy",       ppy=4, J=4, W=40, ui=UI_QUARTERLY),
+    "es":          dict(country="es", tab="Spain",       ppy=4, J=4, W=40, ui=UI_QUARTERLY),
     "au":          dict(country="au", tab="Australia",   ppy=4, J=4, W=40, ui=UI_QUARTERLY),
     "nz":          dict(country="nz", tab="New Zealand", ppy=4, J=4, W=40, ui=UI_QUARTERLY),
     "no":          dict(country="no", tab="Norway",      ppy=4, J=4, W=40, ui=UI_QUARTERLY),
@@ -148,6 +150,21 @@ COUNTRY_META = {
            "Decomposition computed in the browser from Japan's quarterly SNA "
            "household consumption by type (four form categories: durable / semi-"
            "durable / non-durable goods, services — a coarse cross-section): 4 lags "
+           "over a 40-quarter window. No published author overlay."),
+    "it": ("Italy PCE",
+           "Eurostat quarterly national accounts, household consumption by "
+           "durability (namq_10_fcs, SCA, nominal + chain-linked real)",
+           "Decomposition computed in the browser from Eurostat's quarterly "
+           "household consumption by durability (four categories: durable / semi-"
+           "durable / non-durable goods, services — a coarse cross-section; Istat "
+           "publishes consumption by purpose only annually): 4 lags over a "
+           "40-quarter window. No published author overlay."),
+    "es": ("Spain PCE",
+           "Eurostat quarterly national accounts, household consumption by "
+           "durability (namq_10_fcs, SCA, nominal + chain-linked real)",
+           "Decomposition computed in the browser from Eurostat's quarterly "
+           "household consumption by durability (four categories — a coarse "
+           "cross-section; INE publishes no quarterly split by purpose): 4 lags "
            "over a 40-quarter window. No published author overlay."),
     "au": ("Australia PCE",
            "ABS Australian National Accounts 5206.0 Table 8, household final "

@@ -146,6 +146,8 @@
   const CAUTION_SOURCE = {
     jp: "Japan's quarterly national accounts",
     de: "Germany's quarterly national accounts",
+    it: "Italy's quarterly national accounts",
+    es: "Spain's quarterly national accounts",
   };
 
   function cautionText(n) {

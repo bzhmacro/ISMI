@@ -76,6 +76,7 @@ as scopes in the decomposition site's **Scope** selector:
 | `fr` | INSEE quarterly accounts (A17) | ~17 products | 1949 | yes |
 | `de` | Eurostat `namq_10_fcs` by durability | 4 categories | 1991 | no (self-fetch; no key) |
 | `jp` | Cabinet Office SNA HCE by type (e-Stat) | 4 form categories | 1994 | no (self-fetch; needs `ESTAT_API_ID`) |
+| `it` / `es` | Eurostat `namq_10_fcs` by durability | 4 categories | 1995 | no (self-fetch; no key) |
 | `au` | ABS 5206.0 Table 8 HFCE (SA) | 17 categories | 1959 | no (self-fetch; no key) |
 | `nz` | Stats NZ GDP release, HFCE by COICOP (SA) | 10 divisions | 1987 | no (self-fetch; no key) |
 | `no` | SSB table 14658, HFCE by COICOP | 13 divisions | 1978 | no (self-fetch; no key) |
@@ -366,6 +367,16 @@ python scripts/export_web_data.py au nz no se     # breakdown + momentum panels
 python scripts/export_decomp_data.py au nz no se  # supply vs demand
 python scripts/export_trim_data.py                # trimmed mean (all scopes)
 ```
+
+## Italy, Spain and preliminary prints
+
+Italy and Spain run on every page (HICP via Eurostat; supply/demand on the
+coarse durability split, as for Germany). France, Germany and Spain also show
+their **preliminary (flash) print** as soon as it is published: a hollow
+marker after the last final month on the momentum and trimmed-mean charts, and
+on the Breakdown page — grouped by food / energy / goods / services — a hatched
+provisional bar, replaced automatically once the final HICP arrives. Details:
+`src/ism/flash.py`, `docs/DECISIONS.md`.
 
 ## Repository layout
 

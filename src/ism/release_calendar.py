@@ -132,11 +132,17 @@ class Gauge:
     # Inputs that live in web/data/trim.json rather than ism/decomp — today
     # just the PPI series behind the CPI->PCE bridge ("trim:ppi").
     trim_targets: list[str] = field(default_factory=list)
+    # Preliminary (flash) prints attached to an ism backbone ("flash:fr"). The
+    # committed vintage is the newer of the flash month and the backbone's last
+    # final month, so the final release also satisfies the flash gauge; the
+    # refresh itself is the backbone's ordinary `export_web_data.py <geo>`.
+    flash_targets: list[str] = field(default_factory=list)
 
     def target_keys(self) -> list[str]:
         return ([f"ism:{t}" for t in self.ism_targets]
                 + [f"decomp:{t}" for t in self.decomp_targets]
-                + [f"trim:{t}" for t in self.trim_targets])
+                + [f"trim:{t}" for t in self.trim_targets]
+                + [f"flash:{t}" for t in self.flash_targets])
     notes: list[str] = field(default_factory=list)
 
     # -- release timing ----------------------------------------------------
@@ -243,6 +249,7 @@ def load_calendar(path: Path | None = None) -> dict[str, Gauge]:
             ism_targets=list(targets.get("ism") or []),
             decomp_targets=list(targets.get("decomp") or []),
             trim_targets=list(targets.get("trim") or []),
+            flash_targets=list(targets.get("flash") or []),
             release_time=dt.time(hh, mm),
             timezone=g.get("timezone", "UTC"),
             utc_hour_fallback=int(g.get("utc_hour_fallback", 12)),
@@ -291,6 +298,10 @@ def committed_vintages() -> dict[str, str | None]:
         for key, val in (data.get(group_key) or {}).items():
             ds = val.get("dates") or []
             out[f"{ns}:{key}"] = fmt_month(parse_month(ds[-1])) if ds else None
+            if ns == "ism":
+                fl = (val.get("flash") or {}).get("date")
+                last = out[f"{ns}:{key}"]
+                out[f"flash:{key}"] = max(x for x in (fl, last) if x) if (fl or last) else None
     # trim.json: the PPI inputs to the CPI->PCE bridge carry their own vintage
     # (cpipce.ppi.last_month), independent of the CPI scopes in the same file.
     if TRIM_JSON.exists():
@@ -429,7 +440,7 @@ def cmd_due(args) -> int:
 
     ism, decomp, trim = [], [], []
     for n in names:
-        ism += cal[n].ism_targets
+        ism += cal[n].ism_targets + cal[n].flash_targets   # flash rides on the backbone export
         decomp += cal[n].decomp_targets
         trim += cal[n].trim_targets
     # de-dupe, preserve the canonical order the exporters use
@@ -560,6 +571,10 @@ def cmd_check(args) -> int:
     # -- 4. nothing in the committed data is unowned ----------------------
     owned = {k for g in cal.values() for k in g.target_keys()}
     for key in committed_vintages():
+        # flash:<geo> is derived for every backbone, but only gauges that HAVE
+        # a preliminary print need an owner; the backbone owns the rest.
+        if key.startswith("flash:") and key not in owned:
+            continue
         if key not in owned:
             errs.append(f"{key} is in the committed web data but no gauge refreshes it")
 

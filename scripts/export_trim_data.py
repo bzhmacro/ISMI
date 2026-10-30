@@ -71,13 +71,14 @@ ISM_JSON = ROOT / "web" / "data" / "ism.json"
 PANEL_DP = 6          # decimals kept for the shipped panels
 SERIES_DP = 4
 
-ALL_SCOPES = ("cpi45", "cpi70", "pce", "uk", "ca", "de", "fr", "jp",
+ALL_SCOPES = ("cpi45", "cpi70", "pce", "uk", "ca", "de", "fr", "it", "es", "jp",
               "au", "nz", "no", "se")
 DEFAULT_SCOPES = ALL_SCOPES
 
 TABS = {"cpi45": "US CPI (Cleveland cut)", "cpi70": "US CPI (70 strata)",
         "pce": "US PCE", "uk": "UK CPI", "ca": "Canada CPI", "de": "Germany HICP",
-        "fr": "France HICP", "jp": "Japan CPI", "au": "Australia CPI",
+        "fr": "France HICP", "it": "Italy HICP", "es": "Spain HICP",
+        "jp": "Japan CPI", "au": "Australia CPI",
         "nz": "New Zealand CPI", "no": "Norway HICP", "se": "Sweden HICP"}
 
 MEASURES = {"median": MEDIAN_CPI, "trim16": TRIM16_CPI, "trim_pce": TRIM_PCE,
@@ -92,7 +93,8 @@ DEFAULT_PRESET = {"cpi45": "trim16", "cpi70": "trim16", "pce": "trim_pce",
                   #: land on the most widely used cut rather than inheriting
                   #: whichever one the previous scope happened to be showing.
                   "uk": "trim16", "de": "trim16", "fr": "trim16",
-                  "nz": "trim16", "no": "trim16", "se": "trim16"}
+                  "nz": "trim16", "no": "trim16", "se": "trim16",
+                  "it": "trim16", "es": "trim16"}
 
 UI = {
     "lower": {"min": 0, "max": 0.5, "step": 0.01, "default": 0.08},
@@ -200,8 +202,11 @@ def headline_for(scope: str, ism_payload: dict, index: pd.Index):
         return None
     idx = pd.to_datetime([d + "-01" for d in block["dates"]])
     s = pd.Series(block["headline"]["series"], index=idx, dtype=float)
-    return {"label": block["headline"].get("label", "headline inflation (12m, %)"),
-            "series": _series(s, index)}
+    out = {"label": block["headline"].get("label", "headline inflation (12m, %)"),
+           "series": _series(s, index)}
+    if block.get("flash"):                 # preliminary print (see ism.flash)
+        out["flash"] = block["flash"]
+    return out
 
 
 def official_for(scope: str, official: dict, index: pd.Index):

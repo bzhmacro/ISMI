@@ -90,6 +90,10 @@
       from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
     { key: "de", label: "Germany", names: COICOP,
       from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
+    { key: "it", label: "Italy", names: COICOP,
+      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
+    { key: "es", label: "Spain", names: COICOP,
+      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
     { key: "no", label: "Norway", names: COICOP,
       from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
     { key: "se", label: "Sweden", names: COICOP,
@@ -106,12 +110,20 @@
     { key: "ca", label: "Canada", names: null, from: () => null },
   ];
 
+  // HICP special aggregates: an alternative grouping for the HICP gauges. The
+  // exporter tags each category with `agg` (ism.eurostat.special_aggregate);
+  // it is also the only grouping a flash print can be split by.
+  const AGG = { FOOD: "Food, alcohol & tobacco", NRG: "Energy",
+                IGD_NNRG: "Non-energy industrial goods", SERV: "Services" };
+  const AGG_COLOURS = ["#BE8A31", "#CE5533", "#8A85E8", "#2AA695"];
+
   const PLOT_BG = "#161D2C", GRID = "#2A3448", INK = "#EDE6D6", MUTED = "#B9B2A0";
   const SURPRISE_POS = "#CE5533", SURPRISE_NEG = "#2AA695";
   const UNCLASSIFIED = "Unclassified";
 
   const D = {
     gauge: "cpi", p: 1, W: 120, horizon: 12, annual: true, sel: null, nTail: 120,
+    grouping: "coicop",
     ready: false, detailFrom: 0, res: null,
   };
   let DATA = null, B = null, WORKER = null, REQ = 0, DATES = [];
@@ -125,6 +137,71 @@
   const ppy = () => (B && B.ppy) || 12;
   const unit = () => (ppy() === 4 ? "quarter" : "month");
   const horizonLabel = () => (D.annual ? (ppy() === 4 ? "4q" : "12m") : (ppy() === 4 ? "1q" : "1m"));
+
+  /* Grouping control: only offered where every category carries `agg`. */
+  function syncGrouping() {
+    const ctl = $("b-grouping-ctl");
+    const ok = hasAgg(B);
+    if (ctl) ctl.hidden = !ok;
+    if (!ok) D.grouping = "coicop";
+    seg("b-grouping", [["coicop", "COICOP divisions"], ["agg", "Food / energy / goods / services"]],
+      () => D.grouping, (v) => { if (v !== D.grouping) { D.grouping = v; selectGauge(D.gauge); } });
+  }
+
+  /* A preliminary print newer than the last final month, or null. */
+  function pendingFlash() {
+    const f = B && B.flash;
+    if (!f || !f.date || !DATES.length || f.date <= DATES[DATES.length - 1]) return null;
+    return f;
+  }
+
+  const logp = (r) => (r == null || !Number.isFinite(r) ? null : 100 * Math.log1p(r / 100));
+
+  /* Provisional bar for the flash month (special-aggregate grouping only).
+     Each aggregate's contribution = its weight in the last final month x its
+     flash change (log, like the final bars). Where the flash gives no split --
+     or no change at this horizon -- the headline is drawn as one unsplit bar. */
+  function provisional() {
+    const f = pendingFlash();
+    if (!f) return null;
+    const key = D.annual ? "yoy" : "mom";
+    const head = logp((f.headline || {})[key]);
+    if (D.grouping !== "agg") return null;
+    const last = DATES.length - 1;
+    const wg = GROUP_LIST.map(() => 0);
+    B.categories.forEach((c, i) => {
+      const w = B.panel.weights[i][last];
+      if (Number.isFinite(w) && GROUP_OF[i] >= 0) wg[GROUP_OF[i]] += w;
+    });
+    const tot = wg.reduce((a, b) => a + b, 0) || 1;
+    const comps = f.components || {};
+    const vals = GROUP_LIST.map((g, gi) => {
+      const v = logp((comps[g[0]] || {})[key]);
+      return v == null ? null : (wg[gi] / tot) * v;
+    });
+    if (vals.every((v) => v != null)) return { date: f.date, vals, head, split: true, f };
+    return head == null ? null : { date: f.date, vals: null, head, split: false, f };
+  }
+
+  function flashNote() {
+    const host = $("b-flash-note");
+    if (!host) return;
+    const f = pendingFlash();
+    if (!f) { host.hidden = true; host.textContent = ""; return; }
+    host.hidden = false;
+    const pr = D.grouping === "agg" ? provisional() : null;
+    const sum = pr && pr.split ? pr.vals.reduce((a, v) => a + v, 0) : null;
+    const hv = (f.headline || {})[D.annual ? "yoy" : "mom"];
+    host.textContent = `Preliminary ${f.date} (${f.source}). ` +
+      (D.grouping === "agg"
+        ? `The hatched bar is provisional: ${f.components_basis}; weights are the last final month's. ` +
+          (sum != null && hv != null
+            ? `Its segments sum to ${sum.toFixed(2)}pp against a ${hv.toFixed(1)}% HICP flash — ` +
+              "the components come from the national CPI, which can differ from the HICP. "
+            : "")
+        : `Switch "Group by" to food / energy / goods / services to see it as a hatched bar. `) +
+      "It is replaced by the full category detail when the final HICP is published.";
+  }
 
   /* Re-scale the frequency-dependent controls to the active gauge. */
   function syncFrequency() {
@@ -152,8 +229,16 @@
 
   /* Build the group list and the per-category group index for a backbone.
      Returns null when the gauge cannot be grouped from available data. */
+  const hasAgg = (b) => !!(b && (b.categories || []).length &&
+                              b.categories.every((c) => c.agg));
+
   function buildGroups(spec, backbone) {
     const cats = backbone.categories || [];
+    if (D.grouping === "agg" && hasAgg(backbone)) {
+      const order = Object.keys(AGG);
+      const list = order.map((k, i) => [k, AGG[k], AGG_COLOURS[i]]);
+      return { list, of: cats.map((c) => order.indexOf(c.agg)) };
+    }
     const codes = cats.map((c) => {
       // Prefer an explicit group from the exporter when present — that is the
       // authoritative hierarchy, and it supersedes anything derived here.
@@ -239,8 +324,10 @@
     }
     DATES = B.dates;
     syncFrequency();
+    syncGrouping();
     const gn = $("b-gauge-note");
     if (gn) { gn.textContent = (B.pages && B.note) ? B.note : ""; gn.hidden = !gn.textContent; }
+    flashNote();
 
     const g = buildGroups(spec, B);
     if (!g) {
@@ -386,6 +473,7 @@
     if (!D.res) return;
     renderReadout();
     renderStack();
+    flashNote();
     renderGroups();
     renderSurprises();
     if (window.ChartExport) window.ChartExport.scan();
@@ -409,6 +497,11 @@
       [pp(sup), "Of which surprise"],
       [DATES[t] || "—", ppy() === 4 ? "Quarter (start month)" : "Month"],
     ];
+    const f = pendingFlash();
+    if (f) {
+      const v = (f.headline || {})[D.annual ? "yoy" : "mom"];
+      rows.push([v == null ? "—" : pct(v, 1), `Preliminary ${f.date} (flash, published rate)`]);
+    }
     const host = $("b-readout");
     if (host) {
       host.innerHTML = rows
@@ -434,6 +527,29 @@
       };
     }).filter(Boolean);
 
+    const prov = provisional();
+    if (prov) {
+      const px = [prov.date + "-01"];
+      if (prov.split) {
+        GROUP_LIST.forEach((g, gi) => {
+          traces.push({
+            x: px, y: [prov.vals[gi]], name: `${g[1]} (preliminary)`, type: "bar",
+            showlegend: false, legendgroup: g[1],
+            marker: { color: g[2], line: { width: 0 },
+                      pattern: { shape: "/", fgcolor: PLOT_BG, size: 5, solidity: 0.4, fillmode: "overlay" } },
+            hovertemplate: `%{x|%b %Y} · PRELIMINARY<br>${g[1]}: %{y:.2f}pp<extra></extra>`,
+          });
+        });
+      } else {
+        traces.push({
+          x: px, y: [prov.head], name: "Preliminary headline (not split)", type: "bar",
+          marker: { color: MUTED, line: { width: 0 },
+                    pattern: { shape: "/", fgcolor: PLOT_BG, size: 5, solidity: 0.4, fillmode: "overlay" } },
+          hovertemplate: "%{x|%b %Y} · PRELIMINARY<br>headline %{y:.2f} (log scale)<extra></extra>",
+        });
+      }
+    }
+
     const layout = {
       paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG,
       font: { color: INK, size: 12 },
@@ -447,6 +563,12 @@
       legend: { orientation: "h", y: -0.16, font: { size: 10 } },
       showlegend: true,
     };
+    if (prov) {
+      const top = prov.split ? prov.vals.reduce((a, v) => a + Math.max(0, v || 0), 0)
+                             : Math.max(0, prov.head || 0);
+      layout.annotations = [{ x: prov.date + "-01", y: top, yanchor: "bottom",
+        text: "flash", showarrow: false, font: { size: 10, color: MUTED } }];
+    }
     Plotly.react("b-chart", traces, layout, { responsive: true, displayModeBar: false });
 
     const gd = $("b-chart");

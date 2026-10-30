@@ -74,7 +74,12 @@
         <label>Index</label>
         <div class="seg" id="b-gauge"></div>
         <small id="b-gauge-note" style="color:var(--c4,#BE8A31)" hidden></small>
-        <small>US CPI uses the BLS major expenditure groups; UK, France, Germany, Norway and Sweden use COICOP divisions; Australia and New Zealand use their statistics offices' own CPI groups and are <em>quarterly</em>; <em>Australia (monthly)</em> is the ABS complete monthly CPI from April 2024, on this page only — the other models use the quarterly prints. US PCE, Japan and Canada have flat category codes with no parent in the data yet — see the note below.</small>
+        <small>US CPI uses the BLS major expenditure groups; UK, France, Germany, Italy, Spain, Norway and Sweden use COICOP divisions (the HICP gauges can also be grouped by food / energy / goods / services); Australia and New Zealand use their statistics offices' own CPI groups and are <em>quarterly</em>; <em>Australia (monthly)</em> is the ABS complete monthly CPI from April 2024, on this page only — the other models use the quarterly prints. US PCE, Japan and Canada have flat category codes with no parent in the data yet — see the note below.</small>
+      </div>
+      <div class="control" id="b-grouping-ctl" hidden>
+        <label>Group by</label>
+        <div class="seg" id="b-grouping"></div>
+        <small>Food / energy / goods / services are the HICP special aggregates — the only split a preliminary (flash) print comes with.</small>
       </div>
       <div class="control">
         <label>Horizon</label>
@@ -102,6 +107,7 @@
       <p id="b-status" class="status"></p>
       <div class="statrow readout-compact" id="b-readout"></div>
       <div id="b-chart" class="chart"></div>
+      <p id="b-flash-note" class="muted" style="font-size:12px;margin:4px 0 0" hidden></p>
       <p class="note">
         Contributions are expenditure-weighted category inflation, with weights
         renormalised monthly over the valid basket — the same convention the

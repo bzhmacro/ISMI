@@ -77,7 +77,8 @@ from ism import uk_pipeline                                          # noqa: E40
 from ism.ons import OnsClient                                        # noqa: E402
 from ism.eurostat import (EurostatClient, hicp_labels,               # noqa: E402
                           hicp_price_panel, hicp_weights,
-                          monthly_weights_from_annual, HICP_ALL_ITEMS)
+                          monthly_weights_from_annual, HICP_ALL_ITEMS,
+                          fill_leaf_weights, special_aggregate)
 from ism.eu_pipeline import select_coicop_leaves                     # noqa: E402
 
 AR_ORDERS = (1, 3, 12)
@@ -233,7 +234,7 @@ def build_euro_panel(geo):
     headline = yoy_inflation(price[HICP_ALL_ITEMS])
     leaves = select_coicop_leaves(price)
     price = price[leaves].dropna(how="all", axis=1)
-    annual = hicp_weights(client, geo=geo)
+    annual = fill_leaf_weights(hicp_weights(client, geo=geo), list(price.columns))
     wm = monthly_weights_from_annual(annual, price.index)
     cols = [c for c in price.columns if c in wm.columns]
     price, wm = price[cols], wm[cols]
@@ -243,7 +244,8 @@ def build_euro_panel(geo):
     common = infl.index.intersection(weights.index)
     labels = hicp_labels(client, geo=geo)
     cat_list = [(c, f"{labels.get(c, c)} ({c})") for c in cols]
-    return infl.loc[common], weights.loc[common], cat_list, headline
+    return infl.loc[common], weights.loc[common], cat_list, headline, \
+        {c: special_aggregate(c, labels.get(c, "")) for c in cols}
 
 
 def build_quarterly_panel(country):
@@ -308,6 +310,8 @@ def panel_payload(infl, weights):
 
 
 QUARTERLY = ("au", "nz")
+#: Gauges with a preliminary print (see ism.flash). Italy is not wired yet.
+FLASH_GAUGES = ("fr", "de", "es")
 BREAKDOWN_ONLY = ("au_m",)
 
 
@@ -345,11 +349,11 @@ def build_backbone(name):
                     "forward-filled monthly and renormalised. History starts "
                     "1988, so the W=120 baseline yields an index from ~1998.")
             weight_note = "weights = ONS annual CPI weights (per mille), ffilled monthly, renormalised"
-        elif name in ("fr", "de", "no", "se"):
+        elif name in ("fr", "de", "it", "es", "no", "se"):
             geo = name.upper()
-            country = {"fr": "France", "de": "Germany",
-                       "no": "Norway", "se": "Sweden"}[name]
-            infl, weights, categories, headline = build_euro_panel(geo)
+            country = {"fr": "France", "de": "Germany", "it": "Italy",
+                       "es": "Spain", "no": "Norway", "se": "Sweden"}[name]
+            infl, weights, categories, headline, aggs = build_euro_panel(geo)
             label = f"{geo} HICP"
             source_note = f"Eurostat HICP ECOICOP v2 (prc_hicp_minr / prc_hicp_iw, geo={geo}, NSA)"
             head_label = f"{country} HICP inflation (12m, %)"
@@ -466,6 +470,23 @@ def build_backbone(name):
     # Round FIRST, then compute the baseline from the rounded panel, so the
     # precomputed combo and the browser engine see byte-identical inputs (a
     # borderline residual sign can otherwise flip between the two).
+    aggs = locals().get("aggs")
+    flash = None
+    if name in FLASH_GAUGES:
+        kw = {}
+        if name == "fr" and aggs:
+            # INSEE gives food and tobacco separately; combine on HICP weights
+            w_last = weights.iloc[-1]
+            food = sum(w_last.get(k, 0) for k, a in aggs.items() if a == "FOOD" and k != "CP0230")
+            kw["food_tobacco_split"] = (float(food), float(w_last.get("CP0230", 0) or 0))
+        from ism.flash import fetch_flash
+        rec = fetch_flash(name, **kw)
+        last_final = infl.index[-1].strftime("%Y-%m")
+        if rec and rec["date"] > last_final:
+            flash = rec
+            print(f"  [{name}] flash {rec['date']} attached ({rec['source']})")
+        elif rec:
+            print(f"  [{name}] flash {rec['date']} superseded by final {last_final}")
     quarterly = name in QUARTERLY
     base = BASELINE_Q if quarterly else dict(BASELINE, W=120)
     infl, weights = infl.round(PANEL_DP), weights.round(PANEL_DP)
@@ -475,6 +496,8 @@ def build_backbone(name):
         out = {"key": c[0], "label": c[1]}
         if len(c) > 2 and c[2]:
             out["group"] = c[2]
+        if aggs and c[0] in aggs:
+            out["agg"] = aggs[c[0]]          # HICP special aggregate (Breakdown toggle)
         return out
     extra = {}
     if quarterly:
@@ -487,6 +510,8 @@ def build_backbone(name):
                       "breakdown": {"window": {"min": 12, "max": 24, "step": 1,
                                                "default": 18},
                                     "contrib_without_residual": True}})
+    if flash:
+        extra["flash"] = flash
     return {
         **extra,
         "panel": panel_payload(infl, weights),
@@ -507,7 +532,8 @@ def build_backbone(name):
     }
 
 
-KNOWN = ("pce", "cpi", "uk", "fr", "de", "jp", "ca", "au", "au_m", "nz", "no", "se")
+KNOWN = ("pce", "cpi", "uk", "fr", "de", "it", "es", "jp", "ca", "au", "au_m", "nz",
+         "no", "se")
 
 
 def main(argv=None):

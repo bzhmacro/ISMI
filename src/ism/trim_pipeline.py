@@ -446,6 +446,11 @@ WEB_SCOPE_NOTES = {
            "headline CPI only",
            "quarterly; half the classes start in 1999, so the early cross-"
            "section is thin"],
+    "it": ["no published trimmed mean exists for Italy; see the note on the "
+           "France scope for the euro-area series"],
+    "es": ["no published trimmed mean exists for Spain (INE's 'core' index is "
+           "an exclusion measure, not a trimmed mean); see the France scope note "
+           "for the euro-area series"],
     "no": ["no published trimmed mean is overlaid: SSB's and Norges Bank's "
            "trimmed-mean CPI is built on the national CPI, not the HICP these "
            "panels come from",

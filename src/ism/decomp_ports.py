@@ -27,6 +27,7 @@ same construction is applied to every country here:
     fr        INSEE quarterly consumption by product (Excel)  ~40 prods   1949Q1
               (t_conso_val/vol; falls back to A17 ~17 if blocked)
     de        Destatis GENESIS 81000-0120 by purpose (COICOP) ~12+ divs   1991Q1
+    it, es    Eurostat namq_10_fcs by durability (SCA)        4 cats      1995Q1
     au        ABS 5206.0 Table 8 HFCE (SA, CP + CVM)          17 cats     1959Q3
     nz        Stats NZ GDP release HFCE by item (SA)          10 divs     1987Q2
     no        SSB 14658 HFCE by COICOP (SA vol; deflator SA'd) 13 divs    1978Q1
@@ -271,6 +272,26 @@ def _port(scope, loader, what, force, spec):
     return panels
 
 
+def build_it_panels(client=None, spec: str = "levels", force: bool = False) -> DecompPanels:
+    """Italy port: Eurostat namq_10_fcs, 4 durability categories, SCA, 1995Q1+.
+
+    Istat publishes household consumption by purpose only annually, so this is
+    the same coarse durability split as Germany's (see build_de_panels)."""
+    from .eurostat import eu_hce_panels
+    return _port("it", lambda force=False: eu_hce_panels(geo="IT", force=force),
+                 "durability categories", force, spec)
+
+
+def build_es_panels(client=None, spec: str = "levels", force: bool = False) -> DecompPanels:
+    """Spain port: Eurostat namq_10_fcs, 4 durability categories, SCA, 1995Q1+.
+
+    INE's quarterly accounts publish no consumption-by-purpose split; same
+    coarse durability cross-section as Germany and Italy."""
+    from .eurostat import eu_hce_panels
+    return _port("es", lambda force=False: eu_hce_panels(geo="ES", force=force),
+                 "durability categories", force, spec)
+
+
 def build_au_panels(client=None, spec: str = "levels", force: bool = False) -> DecompPanels:
     """Australia port: ABS 5206.0 Table 8, 17 HFCE categories, SA, CP + CVM, 1959Q3+."""
     from .abs_au import au_hce_panels
@@ -309,6 +330,8 @@ PORTS = {
     "fr": build_fr_panels,
     "de": build_de_panels,
     "jp": build_jp_panels,
+    "it": build_it_panels,
+    "es": build_es_panels,
     "au": build_au_panels,
     "nz": build_nz_panels,
     "no": build_no_panels,

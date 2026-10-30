@@ -32,8 +32,8 @@ import numpy as np
 import pandas as pd
 
 from .engine import ISMConfig, compute_ism
-from .eurostat import (EurostatClient, hicp_price_panel, hicp_weights,
-                       monthly_weights_from_annual)
+from .eurostat import (EurostatClient, fill_leaf_weights, hicp_price_panel,
+                       hicp_weights, monthly_weights_from_annual)
 from .transforms import monthly_inflation, yoy_inflation, threemonth_inflation
 
 
@@ -70,7 +70,7 @@ def build_hicp_panel(client: EurostatClient, geo: str = "EA20", unit: str = "I15
     leaves = select_coicop_leaves(price, max_digits=max_digits)
     price = price[leaves].dropna(how="all", axis=1)
 
-    annual = hicp_weights(client, geo=geo, force=force)
+    annual = fill_leaf_weights(hicp_weights(client, geo=geo, force=force), list(price.columns))
     wm = monthly_weights_from_annual(annual, price.index)
 
     cols = [c for c in price.columns if c in wm.columns]

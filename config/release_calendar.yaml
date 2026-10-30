@@ -517,6 +517,67 @@ gauges:
     dates: {}
 
   # ---------------------------------------------------------------------
+  # Italy and Spain: the same Eurostat full-HICP release as France/Germany.
+  it:
+    label: Italy HICP (Eurostat, COICOP leaves)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [it]
+      decomp: []
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Same Eurostat full-HICP release as France (see `fr`). Istat publishes the
+      final NIC/HICP a day or two earlier, but the panel here is Eurostat's.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    expect: *eurostat_expect
+    fallback: *eurostat_fallback
+    dates: *eurostat_hicp_full
+
+  es:
+    label: Spain HICP (Eurostat, COICOP leaves)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [es]
+      decomp: []
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Same Eurostat full-HICP release as France (see `fr`). INE publishes the
+      final CPI/HICP around the 12th-15th, but the panel here is Eurostat's.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    expect: *eurostat_expect
+    fallback: *eurostat_fallback
+    dates: *eurostat_hicp_full
+
+  eu_hce:
+    label: Italy & Spain HFCE by durability (Eurostat namq_10_fcs) — decomposition scopes
+    provider: Eurostat
+    frequency: quarterly
+    ci: true
+    targets:
+      ism: []
+      decomp: [it, es]
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Eurostat's quarterly household-consumption breakdown follows the national
+      quarterly accounts, roughly 65-75 days after the quarter. No verified
+      calendar transcribed; conservative fallback only.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    fallback:
+      lag_months: 5                # Q2 (ref 2026-04) -> late September
+      day: 20
+    dates: {}
+
+  # ---------------------------------------------------------------------
   # Norway and Sweden: the same Eurostat full-HICP release as France and
   # Germany, so they reuse its timing blocks verbatim.
   "no":                  # quoted: bare `no` is boolean false in YAML 1.1
@@ -704,4 +765,77 @@ gauges:
     fallback:
       lag_months: 2
       day: 2
+    dates: {}
+
+  # ---------------------------------------------------------------------
+  # Preliminary (flash) prints -- headline marker + provisional Breakdown
+  # month for the euro-area gauges (src/ism/flash.py). The target is
+  # `flash:<geo>`: satisfied by the flash OR by the later final, and refreshed
+  # by the backbone's ordinary export. Reference month = the month the flash
+  # describes; all three publish in the last days of that same month. No
+  # verified calendar transcribed: the fallback (1st of the next month) is a
+  # day or two late on purpose.
+  fr_flash:
+    label: France preliminary CPI/HICP (INSEE)
+    provider: INSEE
+    frequency: monthly
+    ci: true
+    targets:
+      ism: []
+      decomp: []
+      flash: [fr]
+    release_time: "08:45"
+    timezone: Europe/Paris
+    utc_hour_fallback: 7
+    rule: >-
+      INSEE's provisional estimate, last working day of the reference month
+      (October 2026: 30 October), 08:45. Provisional values are loaded into the
+      BDM series with status P.
+    source: https://www.insee.fr/en/information/1405540
+    fallback:
+      lag_months: 1
+      day: 1
+    dates: {}
+
+  de_flash:
+    label: Germany preliminary CPI/HICP (Destatis)
+    provider: Destatis
+    frequency: monthly
+    ci: true
+    targets:
+      ism: []
+      decomp: []
+      flash: [de]
+    release_time: "14:00"
+    timezone: Europe/Berlin
+    utc_hour_fallback: 13
+    rule: >-
+      Destatis flash estimate (press release), one of the last working days of
+      the reference month, 14:00 (September 2026: 30 September). GENESIS is not
+      updated until the final, so the press release is parsed.
+    source: https://www.destatis.de/EN/Service/Calendar/_node.html
+    fallback:
+      lag_months: 1
+      day: 1
+    dates: {}
+
+  es_flash:
+    label: Spain preliminary CPI/HICP (INE)
+    provider: INE
+    frequency: monthly
+    ci: true
+    targets:
+      ism: []
+      decomp: []
+      flash: [es]
+    release_time: "09:00"
+    timezone: Europe/Madrid
+    utc_hour_fallback: 8
+    rule: >-
+      INE flash estimate, last working day or so of the reference month, 09:00
+      (October 2026: 30 October). "Preview" values in the Tempus HICP tables.
+    source: https://www.ine.es/en/daco/daco41/calen_en.htm
+    fallback:
+      lag_months: 1
+      day: 1
     dates: {}

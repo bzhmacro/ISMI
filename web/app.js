@@ -541,6 +541,17 @@ function render() {
   if (STATE.headline && headSeries) {
     traces.push({ x, y: sliceFrom(headSeries), name: shortHeadlineLabel(b), type: "scatter",
                   mode: "lines", line: { color: headColor, width: 1 }, yaxis: "y2" });
+    // Preliminary (flash) print after the last final month: one hollow marker.
+    // Plotted on the line's own scale (log 12-month change); the hover gives
+    // the published rate. It disappears once the final month is exported.
+    const f = b.flash;
+    if (f && f.headline && f.headline.yoy != null && f.date > b.dates[b.dates.length - 1]) {
+      traces.push({ x: [new Date(f.date + "-01")], y: [100 * Math.log1p(f.headline.yoy / 100)],
+                    name: "Preliminary (flash)", type: "scatter", mode: "markers", yaxis: "y2",
+                    marker: { color: PLOT_BG, size: 9, line: { color: headColor, width: 2 } },
+                    hovertemplate: `${f.date} PRELIMINARY: ${f.headline.yoy.toFixed(1)}% published<br>` +
+                                   `${f.source}<extra></extra>` });
+    }
   }
 
   const layout = {

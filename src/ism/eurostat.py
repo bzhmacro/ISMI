@@ -26,6 +26,8 @@ unit-tested on a synthetic payload.
 
 from __future__ import annotations
 
+import re
+
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -181,6 +183,75 @@ def hicp_labels(client: EurostatClient, geo: str = "EA20", force: bool = False) 
     return client.dimension_labels(HICP_INDEX_DATASET, HICP_COICOP_DIM,
                                    {"freq": "M", "geo": geo, "lastTimePeriod": "1"},
                                    force=force)
+
+
+#: The four HICP special aggregates that partition the basket.
+SPECIAL_AGGREGATES = {"FOOD": "Food, alcohol & tobacco", "NRG": "Energy",
+                      "IGD_NNRG": "Non-energy industrial goods", "SERV": "Services"}
+
+
+def special_aggregate(code: str, label: str = "") -> str:
+    """ECOICOP v2 leaf -> HICP special aggregate (FOOD / NRG / IGD_NNRG / SERV).
+
+    Food incl. alcohol & tobacco = divisions 01-02; energy = 04.5 (electricity,
+    gas, liquid and solid fuels, heat) and 07.2.2 (fuels and lubricants);
+    everything else is a service or a good by the product type Eurostat prints
+    in the label -- "(S)" services, "(ND)/(SD)/(D)" goods. 04.3.1 (maintenance
+    materials) carries no type and is a good. Against Eurostat's published
+    aggregates the 2026 weights agree to 0.1 per mille except energy, ~1.5 high
+    because lubricants share 07.2.2 with motor fuel; monthly rates correlate
+    0.97-1.00 for FR/DE/IT/ES/NO/SE (see docs/DECISIONS.md).
+    """
+    if code.startswith(("CP01", "CP02")):
+        return "FOOD"
+    if code.startswith("CP045") or code.startswith("CP0722"):
+        return "NRG"
+    m = re.search(r"\((ND|SD|D|S)\)\s*$", str(label).strip())
+    if m:
+        return "SERV" if m.group(1) == "S" else "IGD_NNRG"
+    return "IGD_NNRG"
+
+
+def fill_leaf_weights(annual: pd.DataFrame, leaves: list) -> pd.DataFrame:
+    """Impute leaf weights a country did not publish for a year, from its parents.
+
+    Some countries publish a year's item weights only at a coarser COICOP level
+    (Norway's 2026 weights stop at 3-4 digits for 62 priced classes). Dropping
+    those classes would leave the year's panel weighting a third of the basket.
+    Instead, for each year and each leaf with no weight: take the nearest
+    ancestor code that has one, subtract the weights its published descendant
+    leaves already carry, and share the remainder among the missing leaves in
+    proportion to their most recent earlier weights (equally if they have
+    none). Published leaf weights are never changed.
+    """
+    out = annual.copy()
+    for lf in leaves:
+        if lf not in out.columns:
+            out[lf] = np.nan
+    for y in out.index:
+        row = out.loc[y]
+        missing = [lf for lf in leaves if not (row.get(lf, np.nan) > 0)]
+        by_parent: dict = {}
+        for lf in missing:
+            for cut in range(len(lf) - 1, 3, -1):            # CP0411 -> CP041 -> CP04
+                anc = lf[:cut]
+                if anc in out.columns and row.get(anc, np.nan) > 0:
+                    by_parent.setdefault(anc, []).append(lf)
+                    break
+        for anc, kids in by_parent.items():
+            known = [lf for lf in leaves if lf.startswith(anc) and lf not in kids
+                     and row.get(lf, np.nan) > 0]
+            mass = row[anc] - sum(row[k] for k in known)
+            if not (mass > 0):
+                continue
+            prev = out.loc[out.index < y, kids].ffill().iloc[-1] if (out.index < y).any() \
+                else pd.Series(np.nan, index=kids)
+            prev = prev.where(prev > 0)
+            share = prev / prev.sum() if prev.notna().all() and prev.sum() > 0 \
+                else pd.Series(1.0 / len(kids), index=kids)
+            for k in kids:
+                out.loc[y, k] = mass * share[k]
+    return out
 
 
 def monthly_weights_from_annual(annual_w: pd.DataFrame, month_index: pd.DatetimeIndex) -> pd.DataFrame:

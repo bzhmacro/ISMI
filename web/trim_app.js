@@ -409,6 +409,14 @@
       traces.push({ x, y: sliceFrom(s.headline.series), name: s.headline.label,
                     type: "scatter", mode: "lines",
                     line: { color: HEAD, width: 1, dash: "dot" } });
+      const f = s.headline.flash;           // preliminary print, if newer than the data
+      if (f && f.headline && f.headline.yoy != null && f.date > s.dates[s.dates.length - 1]) {
+        traces.push({ x: [new Date(f.date + "-01")], y: [100 * Math.log1p(f.headline.yoy / 100)],
+                      name: "Preliminary headline (flash)", type: "scatter", mode: "markers",
+                      marker: { color: PLOT_BG, size: 9, line: { color: HEAD, width: 2 } },
+                      hovertemplate: `${f.date} PRELIMINARY: ${f.headline.yoy.toFixed(1)}% published<br>` +
+                                     `${f.source}<extra></extra>` });
+      }
     }
 
     const layout = {
