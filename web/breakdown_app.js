@@ -175,11 +175,19 @@
     });
     const tot = wg.reduce((a, b) => a + b, 0) || 1;
     const comps = f.components || {};
-    const vals = GROUP_LIST.map((g, gi) => {
-      const v = logp((comps[g[0]] || {})[key]);
-      return v == null ? null : (wg[gi] / tot) * v;
+    // Arithmetic contributions first (weight x published change), then one
+    // rescale of the total onto the chart's log scale. Logging each component
+    // separately would understate the big movers: Italy's energy at +31.4%
+    // would count as +27.3%, and the segments would undershoot the flash.
+    const arith = GROUP_LIST.map((g, gi) => {
+      const r = (comps[g[0]] || {})[key];
+      return r == null || !Number.isFinite(r) ? null : (wg[gi] / tot) * r;
     });
-    if (vals.every((v) => v != null)) return { date: f.date, vals, head, split: true, f };
+    if (arith.every((v) => v != null)) {
+      const sum = arith.reduce((a, v) => a + v, 0);
+      const k = Math.abs(sum) > 1e-12 ? logp(sum) / sum : 1;
+      return { date: f.date, vals: arith.map((v) => v * k), head, split: true, f };
+    }
     return head == null ? null : { date: f.date, vals: null, head, split: false, f };
   }
 
@@ -196,7 +204,7 @@
       (D.grouping === "agg"
         ? `The hatched bar is provisional: ${f.components_basis}; weights are the last final month's. ` +
           (sum != null && hv != null
-            ? `Its segments sum to ${sum.toFixed(2)}pp against a ${hv.toFixed(1)}% HICP flash` +
+            ? `Its segments sum to ${(100 * Math.expm1(sum / 100)).toFixed(2)}% against a ${hv.toFixed(1)}% HICP flash` +
               (/\bCPI\b/.test(f.components_basis || "")
                 ? " — the components come from the national CPI, which can differ from the HICP. "
                 : " (the components are the HICP's own aggregates; the gap is rounding and weights). ")

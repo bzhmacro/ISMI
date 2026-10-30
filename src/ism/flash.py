@@ -270,9 +270,26 @@ def fetch_it() -> Optional[dict]:
     if not rel:
         return None
     month, year = max(rel, key=lambda r: (int(r[1]), _MONTHS[r[0]]))
+    # Istat's listing lags its releases by hours (30 Oct 2026: the October
+    # flash was live at 11:00 while the tag page still led with September), so
+    # also probe the following month's address directly.
+    names = list(_MONTHS)
+    nxt_m = _MONTHS[month] % 12 + 1
+    nxt = (names[nxt_m - 1], str(int(year) + (nxt_m == 1)))
+    page = None
+    for mo, yr in (nxt, (month, year)):
+        url = f"https://www.istat.it/en/press-release/consumer-prices-provisional-data-{mo}-{yr}/"
+        try:
+            page = _request("GET", url, provider="Istat", headers=UA, timeout=60).text
+        except Exception:                             # noqa: BLE001  (404: not out yet)
+            continue
+        if "Page not found" not in page[:5000]:
+            month, year = mo, yr
+            break
+        page = None
+    if page is None:
+        return None
     t = f"{year}-{_MONTHS[month]:02d}"
-    url = f"https://www.istat.it/en/press-release/consumer-prices-provisional-data-{month}-{year}/"
-    page = _request("GET", url, provider="Istat", headers=UA, timeout=60).text
     pdf = re.search(r'href="(https://www\.istat\.it/wp-content/uploads/[^"]+Prov[^"]*\.pdf)"', page)
     rec = {"headline": {}, "components": {}}
     if pdf:
