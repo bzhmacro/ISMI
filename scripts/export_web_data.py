@@ -310,8 +310,8 @@ def panel_payload(infl, weights):
 
 
 QUARTERLY = ("au", "nz")
-#: Gauges with a preliminary print (see ism.flash). Italy is not wired yet.
-FLASH_GAUGES = ("fr", "de", "es")
+#: Gauges with a preliminary print (see ism.flash).
+FLASH_GAUGES = ("fr", "de", "it", "es")
 BREAKDOWN_ONLY = ("au_m",)
 
 

@@ -31,10 +31,12 @@ Sources (all keyless except none needed):
       food; HICP annual and monthly rate from the release text.
   es  INE Tempus API: "Preview" values in the HICP/CPI tables on flash day.
       Headline HICP monthly and annual change.
-  it  not wired: Istat's flash loading could not be verified (see DECISIONS).
+  it  Istat flash press release + PDF (pypdf): HICP headline and Table 5, the
+      HICP special aggregates themselves, monthly and annual -- the only flash
+      whose components are on the HICP basis.
 
-Components are national-CPI aggregates (France, Germany) mapped onto the HICP
-special aggregates; the page says so.
+Components are national-CPI aggregates for France and Germany, mapped onto the
+HICP special aggregates; Italy's are the HICP aggregates; the page says which.
 """
 
 from __future__ import annotations
@@ -230,7 +232,71 @@ def fetch_es() -> Optional[dict]:
             "url": "https://www.ine.es/dyngs/INEbase/en/operacion.htm?c=Estadistica_C&cid=1254736176803"}
 
 
-FETCHERS = {"fr": fetch_fr, "de": fetch_de, "es": fetch_es}
+# ---------------------------------------------------------------------------
+# Italy -- Istat flash press release + PDF
+# ---------------------------------------------------------------------------
+ISTAT_TAG_PAGE = "https://www.istat.it/en/?tag=consumer-prices"
+_SIGNED = r"([+\-\u2212]?\d+[.,]\d|0[.,]0)"
+#: Table 5 of the flash PDF: the HICP special aggregates themselves.
+ISTAT_AGG_ROWS = {"Food, alcohol and tobacco": "FOOD", "Energy": "NRG",
+                  "Non-energy industrial goods": "IGD_NNRG", "Services": "SERV"}
+
+
+def parse_istat_flash_pdf(text: str) -> dict:
+    """HICP headline + Table 5 special aggregates from the flash PDF's text.
+
+    Table rows read: weight, index, m/m (this month), m/m (previous),
+    y/y (this month), y/y (previous)."""
+    out = {"headline": {}, "components": {}}
+    num = lambda v: float(v.replace(",", ".").replace("\u2212", "-"))
+    m = re.search(r"Italian harmoni[sz]ed index of consumer prices \(HICP\)\s+"
+                  r"(\d+[.,]\d)\s+" + _SIGNED + r"\s+" + _SIGNED, text)
+    if m:
+        out["headline"] = {"mom": num(m.group(2)), "yoy": num(m.group(3))}
+    i = text.find("BY SPECIAL AGGREGATES")
+    seg = text[i:i + 4000] if i >= 0 else ""
+    for label, agg in ISTAT_AGG_ROWS.items():
+        r = re.search(r"^\s*" + re.escape(label) + r":?\s+[\d,.]+\s+\d+[.,]\d\s+"
+                      + _SIGNED + r"\s+" + _SIGNED + r"\s+" + _SIGNED, seg, re.M)
+        if r:
+            out["components"][agg] = {"mom": num(r.group(1)), "yoy": num(r.group(3))}
+    return out
+
+
+def fetch_it() -> Optional[dict]:
+    tag = _request("GET", ISTAT_TAG_PAGE, provider="Istat", headers=UA, timeout=60).text
+    rel = set(re.findall(r'https://www\.istat\.it/en/press-release/'
+                         r'consumer-prices-provisional-data-([a-z]+)-(\d{4})/', tag))
+    if not rel:
+        return None
+    month, year = max(rel, key=lambda r: (int(r[1]), _MONTHS[r[0]]))
+    t = f"{year}-{_MONTHS[month]:02d}"
+    url = f"https://www.istat.it/en/press-release/consumer-prices-provisional-data-{month}-{year}/"
+    page = _request("GET", url, provider="Istat", headers=UA, timeout=60).text
+    pdf = re.search(r'href="(https://www\.istat\.it/wp-content/uploads/[^"]+Prov[^"]*\.pdf)"', page)
+    rec = {"headline": {}, "components": {}}
+    if pdf:
+        import io
+        from pypdf import PdfReader
+        raw = _request("GET", pdf.group(1), provider="Istat", headers=UA, timeout=90).content
+        text = "\n".join(pg.extract_text(extraction_mode="layout")
+                         for pg in PdfReader(io.BytesIO(raw)).pages)
+        rec = parse_istat_flash_pdf(text)
+    if not rec["headline"]:                       # fall back on the release text
+        txt = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", page)))
+        m = re.search(r"\(HICP\) recorded a month-on-month change of " + _SIGNED +
+                      r"%.*?year-on-year (?:increase|decrease|change) of " + _SIGNED, txt)
+        if m:
+            rec["headline"] = {"mom": float(m.group(1)), "yoy": float(m.group(2))}
+    if not rec["headline"]:
+        return None
+    return {"date": t, **rec,
+            "components_basis": "Istat HICP special aggregates (flash Table 5) -- "
+                                "same basis as the final HICP",
+            "source": "Istat, preliminary estimate (press release)", "url": url}
+
+
+FETCHERS = {"fr": fetch_fr, "de": fetch_de, "es": fetch_es, "it": fetch_it}
 
 
 def fetch_flash(geo: str, **kw) -> Optional[dict]:

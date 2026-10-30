@@ -839,3 +839,25 @@ gauges:
       lag_months: 1
       day: 1
     dates: {}
+
+  it_flash:
+    label: Italy preliminary NIC/HICP (Istat)
+    provider: Istat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: []
+      decomp: []
+      flash: [it]
+    release_time: "11:00"
+    timezone: Europe/Rome
+    utc_hour_fallback: 10
+    rule: >-
+      Istat's preliminary estimate, last working day of the reference month
+      (October 2026: Friday 30 October), 11:00. Press release + PDF; Table 5
+      carries the HICP special aggregates.
+    source: https://www.istat.it/en/calendar/
+    fallback:
+      lag_months: 1
+      day: 1
+    dates: {}

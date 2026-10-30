@@ -196,8 +196,10 @@
       (D.grouping === "agg"
         ? `The hatched bar is provisional: ${f.components_basis}; weights are the last final month's. ` +
           (sum != null && hv != null
-            ? `Its segments sum to ${sum.toFixed(2)}pp against a ${hv.toFixed(1)}% HICP flash — ` +
-              "the components come from the national CPI, which can differ from the HICP. "
+            ? `Its segments sum to ${sum.toFixed(2)}pp against a ${hv.toFixed(1)}% HICP flash` +
+              (/\bCPI\b/.test(f.components_basis || "")
+                ? " — the components come from the national CPI, which can differ from the HICP. "
+                : " (the components are the HICP's own aggregates; the gap is rounding and weights). ")
             : "")
         : `Switch "Group by" to food / energy / goods / services to see it as a hatched bar. `) +
       "It is replaced by the full category detail when the final HICP is published.";
