@@ -643,7 +643,9 @@ gauges:
     fallback:
       lag_months: 3                # Q3 (ref 2026-07) -> October
       day: 30                      # ABS: last Wednesday of the month after the quarter
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-07": "2026-10-28"
+      "2026-10": "2027-01-27"
 
   au_hce:
     label: Australia HFCE quarterly (ABS 5206.0 Table 8) — decomposition scope
@@ -664,7 +666,9 @@ gauges:
     fallback:
       lag_months: 5
       day: 12
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-07": "2026-12-02"
+      "2026-10": "2027-03-03"
 
   nz:
     label: New Zealand CPI quarterly (Stats NZ, CPI classes)
@@ -683,8 +687,10 @@ gauges:
     source: https://www.stats.govt.nz/release-calendar/
     fallback:
       lag_months: 3
-      day: 26
-    dates: {}
+      day: 28                      # Dec-quarter 2026 CPI is 27 January
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-07": "2026-10-22"
+      "2026-10": "2027-01-27"
 
   nz_hce:
     label: New Zealand HFCE quarterly (Stats NZ GDP release) — decomposition scope
@@ -704,7 +710,9 @@ gauges:
     fallback:
       lag_months: 5
       day: 28
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-04": "2026-09-16"
+      "2026-07": "2026-12-17"
 
   no_hce:
     label: Norway HFCE quarterly (SSB table 14658) — decomposition scope
@@ -724,7 +732,9 @@ gauges:
     fallback:
       lag_months: 5
       day: 1
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-04": "2026-08-27"
+      "2026-07": "2026-11-26"
 
   se_hce:
     label: Sweden HFCE quarterly (SCB NR0103) — decomposition scope
@@ -744,7 +754,8 @@ gauges:
     fallback:
       lag_months: 5
       day: 8
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-07": "2026-11-27"
 
   au_m:
     label: Australia CPI monthly (ABS) — Breakdown page only
@@ -760,12 +771,19 @@ gauges:
     rule: >-
       The complete monthly CPI is released on the last Wednesday of the month
       after the reference month (September 2026: 28 October 2026). No verified
-      calendar transcribed; the fallback below runs a few days late on purpose.
+      calendar is transcribed below (note the holiday slip: November 2026 is out
+      on 6 January 2027); the fallback runs late on purpose.
     source: https://www.abs.gov.au/release-calendar/future-releases
     fallback:
       lag_months: 2
-      day: 2
-    dates: {}
+      day: 8
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-09": "2026-10-28"
+      "2026-10": "2026-11-25"
+      "2026-11": "2027-01-06"
+      "2026-12": "2027-01-27"
+      "2027-01": "2027-02-24"
+      "2027-02": "2027-03-24"
 
   # ---------------------------------------------------------------------
   # Preliminary (flash) prints -- headline marker + provisional Breakdown
@@ -773,8 +791,9 @@ gauges:
   # `flash:<geo>`: satisfied by the flash OR by the later final, and refreshed
   # by the backbone's ordinary export. Reference month = the month the flash
   # describes; all three publish in the last days of that same month. No
-  # verified calendar transcribed: the fallback (1st of the next month) is a
-  # day or two late on purpose.
+  # published dates are transcribed per gauge below; past that horizon the
+  # fallback (1st of the next month; Italy's December/January prints slip to
+  # early in the following month) is late on purpose.
   fr_flash:
     label: France preliminary CPI/HICP (INSEE)
     provider: INSEE
@@ -795,7 +814,10 @@ gauges:
     fallback:
       lag_months: 1
       day: 1
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-08": "2026-08-28"
+      "2026-10": "2026-10-30"
+      "2026-11": "2026-11-27"
 
   de_flash:
     label: Germany preliminary CPI/HICP (Destatis)
@@ -817,7 +839,12 @@ gauges:
     fallback:
       lag_months: 1
       day: 1
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-07": "2026-07-30"
+      "2026-08": "2026-08-31"
+      "2026-09": "2026-09-30"
+      "2026-10": "2026-10-30"
+      "2026-11": "2026-11-30"
 
   es_flash:
     label: Spain preliminary CPI/HICP (INE)
@@ -838,7 +865,19 @@ gauges:
     fallback:
       lag_months: 1
       day: 1
-    dates: {}
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2026-01": "2026-01-30"
+      "2026-02": "2026-02-27"
+      "2026-03": "2026-03-27"
+      "2026-04": "2026-04-29"
+      "2026-05": "2026-05-29"
+      "2026-06": "2026-06-29"
+      "2026-07": "2026-07-30"
+      "2026-08": "2026-08-28"
+      "2026-09": "2026-09-29"
+      "2026-10": "2026-10-30"
+      "2026-11": "2026-11-27"
+      "2026-12": "2026-12-30"
 
   it_flash:
     label: Italy preliminary NIC/HICP (Istat)
@@ -860,4 +899,10 @@ gauges:
     fallback:
       lag_months: 1
       day: 1
-    dates: {}
+      month_overrides:
+        12: 8                      # December flash: 7 January 2026
+        1: 8                       # January flash can slip into February
+    dates:                         # transcribed 2026-10-30 from the agency calendar
+      "2025-12": "2026-01-07"
+      "2026-10": "2026-10-30"
+      "2026-11": "2026-11-30"

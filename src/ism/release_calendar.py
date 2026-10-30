@@ -589,13 +589,17 @@ def cmd_check(args) -> int:
             notes.append(f"could not read cron hours from the workflow ({e})")
     if polls:
         ci = [n for n, g in cal.items() if g.ci]
+        day, end = dt.date(2026, 9, 1), dt.date(2027, 7, 1)
+        # Start every gauge at the vintage it should already hold when the
+        # simulation opens — a fixed "2026-07" would count a release published
+        # before day one (end-of-month flashes) as hours late.
+        start = dt.datetime.combine(day, dt.time(0), tzinfo=UTC)
         committed = {}
         for n in ci:
             for k in cal[n].target_keys():
-                committed[k] = "2026-07"
+                committed[k] = cal[n].expected_vintage(start) or "2026-07"
         worst = {n: 0.0 for n in ci}
         seen = {n: 0 for n in ci}
-        day, end = dt.date(2026, 9, 1), dt.date(2027, 7, 1)
         while day < end:
             for hh in polls:
                 now = dt.datetime.combine(day, dt.time(hh), tzinfo=UTC)
