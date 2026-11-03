@@ -77,6 +77,10 @@ const ModelBar = (() => {
     /* chart_export.js attaches its toolbar to whichever charts exist; views are
        built lazily, so tell it a new one just appeared. */
     document.dispatchEvent(new CustomEvent("modelshown", { detail: { key } }));
+
+    /* A chart drawn while its view was hidden was sized to Plotly's 700px
+       default; once the view is visible, let the responsive charts re-measure. */
+    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   }
 
   function mount() {

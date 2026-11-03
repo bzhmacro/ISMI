@@ -115,11 +115,9 @@
 
   /* Open on the span where the published series exists, so the first thing you
      see is the comparison rather than sixty years of our own line. */
-  function defaultStart(s) {
-    const off = firstOfficial(s);
-    if (off < 0) return Math.max(0, s.dates.length - 12 * 40);
-    return Math.max(0, off - 12);
-  }
+  /* The chart now opens on the last two years (chart_window.js), so the full
+     history is kept for zooming out. */
+  function defaultStart(s) { return 0; }
   function firstOfficial(s) {
     const o = s.official || {};
     let best = -1;
@@ -198,6 +196,7 @@
     values.forEach(v => {
       const b = document.createElement("button");
       b.textContent = label(v);
+      b.dataset.key = String(v);
       b.setAttribute("aria-pressed", String(v === current));
       b.onclick = () => {
         [...host.children].forEach(c => c.setAttribute("aria-pressed", "false"));
@@ -510,13 +509,20 @@
 
     Plotly.react(host, [{
       type: "bar", orientation: "h",
-      y: rows.map(r => r.label), x: rows.map(r => r.v),
+      // Long BLS labels would run past the 190px margin; the full name stays
+      // in the hover.
+      // Positions, not labels: long BLS labels are shortened for the axis, and
+      // two shortened labels could otherwise collide into one bar. The full
+      // name stays in the hover.
+      y: rows.map((r, i) => i),
+      x: rows.map(r => r.v),
       marker: { color: rows.map(r => colour(r.m)) },
       customdata: rows.map(r => [r.w, r.kept == null ? r.w : r.kept,
                                  r.m === 2 ? "partly counted (trim point)"
                                  : (r.m === 0 ? "counted"
                                  : (r.m === -1 ? "cut from the bottom" : "cut from the top"))]),
-      hovertemplate: "%{y}<br>%{x:.1f}% annualised"
+      text: rows.map(r => r.label), textposition: "none",
+      hovertemplate: "%{text}<br>%{x:.1f}% annualised"
         + "<br>weight %{customdata[0]:.2f}%, of which %{customdata[1]:.2f}% counted"
         + "<br>%{customdata[2]}<extra></extra>",
     }], {
@@ -524,7 +530,10 @@
       font: { color: INK, size: 10 },
       margin: { l: 190, r: 10, t: 6, b: 30 },
       xaxis: { title: "annualised %", gridcolor: GRID, zeroline: true, zerolinecolor: "#3a4b5c" },
-      yaxis: { automargin: false, tickfont: { size: 9 } },
+      yaxis: { automargin: false, tickfont: { size: 9 },
+               tickmode: "array", tickvals: rows.map((r, i) => i),
+               ticktext: rows.map(r => r.label.length > 34 ? r.label.slice(0, 32) + "…" : r.label),
+               range: [-0.6, rows.length - 0.4] },
       height: Math.max(320, 15 * rows.length),
     }, { responsive: true, displayModeBar: false });
   }
