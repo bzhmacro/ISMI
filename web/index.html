@@ -26,6 +26,8 @@
        which no longer exists. */
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <!-- Must load right after Plotly: wraps Plotly.react for the main charts. -->
+  <script src="chart_window.js"></script>
 </head>
 <body>
   <!-- House banner. First element in <body>, on every page, unmodified. -->
@@ -52,442 +54,447 @@
   <nav class="section-nav" id="model" aria-label="Model"></nav>
 
   <div class="wrap wide">
-  <header class="page-head">
-    <div class="eyebrow"><span class="dot"></span> Inflation breakdown</div>
-    <h1>Every print is an aggregate — <em>this is what's inside.</em></h1>
-    <p class="sub" id="model-sub">
-      Replication of Lansing &amp; Shapiro (2026): the share of categories with
-      sustained inflation surprises, recomputed live in your browser.
-    </p>
-    <!-- Lives in the page head, not inside a model view: it reports freshness
-         for every gauge, and refresh.js anchors its panel here. Inside
-         #ism-view it would disappear whenever another model was selected. -->
+  <!-- The big page title and the per-section numbering are gone: the nav names
+       the model, and the space goes to the charts. #asof stays — refresh.js
+       anchors the freshness panel here for every gauge. -->
+  <header class="page-head slim">
+    <p class="sub" id="model-sub" hidden></p>
     <p id="asof" class="asof"></p>
   </header>
 
   <main>
+    <!-- Layout shared by the first four views:
+           .viewbar   one country picker (flags, country_bar.js) + a Settings
+                      button that opens every other lever, closed by default
+           .view-body main column (readout, main chart, two side-by-side
+                      charts) and a sidebar with the explanation, so all three
+                      charts fit on one screen.
+         Each app's own gauge segment (b-gauge, backbone, d-scope, t-scope) is
+         kept, hidden, as the source of truth the country bar drives.
+         The main chart opens on the last two years (chart_window.js); zoom out
+         in the chart for the full history — there is no time slider. -->
+
     <!-- ================ BREAKDOWN (default view) ================ -->
     <div id="breakdown-view" class="model-view">
 
-    <section class="paramgrid">
-      <div class="control">
-        <label>Index</label>
-        <div class="seg" id="b-gauge"></div>
-        <small id="b-gauge-note" style="color:var(--c4,#BE8A31)" hidden></small>
-        <small>US CPI uses the BLS major expenditure groups; UK, France, Germany, Italy, Spain, Norway and Sweden use COICOP divisions (the HICP gauges can also be grouped by food / energy / goods / services); Australia and New Zealand use their statistics offices' own CPI groups and are <em>quarterly</em>; <em>Australia (monthly)</em> is the ABS complete monthly CPI from April 2024, on this page only — the other models use the quarterly prints. US PCE, Japan and Canada have flat category codes with no parent in the data yet — see the note below.</small>
-      </div>
-      <div class="control" id="b-grouping-ctl" hidden>
-        <label>Group by</label>
-        <div class="seg" id="b-grouping"></div>
-        <small>Food / energy / goods / services are the HICP special aggregates — the only split a preliminary (flash) print comes with.</small>
-      </div>
-      <div class="control">
-        <label>Horizon</label>
-        <div class="seg" id="b-horizon"></div>
-        <small>12-month contributions sum the last twelve monthly contributions — the standard linear approximation to a compounding y/y rate.</small>
-      </div>
-      <div class="control">
-        <label>Benchmark</label>
-        <div class="seg" id="b-ar"></div>
-        <div class="subctl">
-          <label class="mini">rolling window <b id="b-W-label">120</b> <span id="b-W-unit">months</span></label>
-          <input type="range" id="b-W" min="60" max="240" step="6" value="120" />
-        </div>
-        <small>The AR(p) forecast each category is measured against. Its residual is the "surprise"; everything else is expected.</small>
-      </div>
-      <div class="control range">
-        <label>Show last <b id="b-span-label">10y</b></label>
-        <input type="range" id="b-span" min="24" max="360" step="12" value="120" />
-        <small>Length of the stacked history. Click any bar to inspect that month below.</small>
-      </div>
-    </section>
+    <div class="viewbar">
+      <div id="b-country"></div>
+      <button type="button" class="settings-toggle" aria-expanded="false" aria-controls="b-settings">Settings</button>
+      <section class="paramgrid settings-panel" id="b-settings" hidden>
+          <div class="control" id="b-grouping-ctl" hidden>
+            <label>Group by</label>
+            <div class="seg" id="b-grouping"></div>
+            <small>Food / energy / goods / services are the HICP special aggregates — the only split a preliminary (flash) print comes with.</small>
+          </div>
+          <div class="control">
+            <label>Horizon</label>
+            <div class="seg" id="b-horizon"></div>
+            <small>12-month contributions sum the last twelve monthly contributions — the standard linear approximation to a compounding y/y rate.</small>
+          </div>
+          <div class="control">
+            <label>Benchmark</label>
+            <div class="seg" id="b-ar"></div>
+            <div class="subctl">
+              <label class="mini">rolling window <b id="b-W-label">120</b> <span id="b-W-unit">months</span></label>
+              <input type="range" id="b-W" min="60" max="240" step="6" value="120" />
+            </div>
+            <small>The AR(p) forecast each category is measured against. Its residual is the "surprise"; everything else is expected.</small>
+          </div>
+        </section>
+    </div>
+    <div class="control" hidden><div class="seg" id="b-gauge"></div></div>
+    <small id="b-gauge-note" class="viewbar-note" hidden></small>
 
-    <section>
-      <h2>What the headline is made of</h2>
-      <p id="b-status" class="status"></p>
-      <div class="statrow readout-compact" id="b-readout"></div>
-      <div id="b-chart" class="chart"></div>
-      <p id="b-flash-note" class="muted" style="font-size:12px;margin:4px 0 0" hidden></p>
-      <p class="note">
-        Contributions are expenditure-weighted category inflation, with weights
-        renormalised monthly over the valid basket — the same convention the
-        momentum model uses. They sum to the <em>sum of contributions</em>, not
-        to the published headline: a 12-month rate compounds while summed
-        monthly contributions are linear. The readout reports both and the gap.
-      </p>
-    </section>
-
-    <section class="grid2">
-      <div>
-        <h2>By group <span id="b-sel-date" class="muted"></span></h2>
-        <div id="b-groups" class="chart small"></div>
+    <div class="view-body">
+      <div class="view-main">
+        <div class="statrow readout-compact" id="b-readout"></div>
+        <section>
+          <h2 class="chart-title">What the headline is made of <span class="muted">· click a bar to inspect it below</span><span id="b-status" class="status"></span></h2>
+          <div id="b-chart" class="chart"></div>
+          <p id="b-flash-note" class="muted" style="font-size:12px;margin:4px 0 0" hidden></p>
+        </section>
+        <section class="grid2">
+          <div>
+            <h2 class="chart-title">By group <span id="b-sel-date" class="muted"></span></h2>
+            <div id="b-groups" class="chart small"></div>
+          </div>
+          <div>
+            <h2 class="chart-title">Biggest surprises <span class="muted">vs AR benchmark</span></h2>
+            <div id="b-surprises" class="chart small"></div>
+          </div>
+        </section>
       </div>
-      <div>
-        <h2>Biggest surprises <span class="muted">vs AR benchmark</span></h2>
-        <div id="b-surprises" class="chart small"></div>
-      </div>
-    </section>
 
-    <section class="explain">
-      <h2>What am I looking at?</h2>
-      <p>
-        Each month, every category contributes
-        <strong>weight × its own inflation</strong> to the headline. Stacking
-        those by <strong>major group</strong> shows what the print is actually
-        made of, and how the mix changes.
-      </p>
-      <p>
-        A rolling <strong>AR(<em>p</em>)</strong> benchmark then says what each
-        category's inflation <em>should</em> have been, given its own history.
-        The residual is the part nobody could have read off the past — the
-        <strong>surprise</strong>. Because inflation splits exactly into
-        forecast plus residual, each contribution splits exactly into
-        <strong>expected</strong> and <strong>surprise</strong>, and the two
-        always add back to the bar.
-      </p>
-      <p class="muted">
-        "Surprise" here means deviation from the category's own rolling
-        AR(<em>p</em>) forecast — the working paper's definition of a shock. It
-        is <em>not</em> a deviation from a published consensus or a nowcast;
-        nothing on this site carries those.
-      </p>
-      <p class="muted">
-        <strong>Coverage.</strong> <strong>Australia</strong> and
-        <strong>New Zealand</strong> ship their official CPI group with every
-        category (the ABS's eleven groups; Stats NZ's eleven), and are quarterly —
-        neither country has a long monthly CPI — so horizons and windows on this
-        page switch to quarters for them. Six more gauges carry their official taxonomy in
-        the category code itself, so the grouping is a property of the data and
-        not a mapping anyone maintains by hand: <strong>US CPI</strong> (the
-        BLS major group is the third character of the stratum code, <code>SEF*</code>
-        → food &amp; beverages) and <strong>UK</strong>, <strong>France</strong>,
-        <strong>Germany</strong>, <strong>Norway</strong> and <strong>Sweden</strong>
-        (COICOP divisions, from <code>04.1</code> and <code>CP0116</code> respectively).
-        <strong>US PCE</strong>, <strong>Japan</strong> and <strong>Canada</strong>
-        use flat codes — <code>DNEAR</code>, <code>0021</code>, <code>P40</code> —
-        that encode no parent. Their hierarchies do exist, but in the pipelines:
-        Japan's is walked from the e-Stat cat01 parent tree, Canada's is the
-        <code>parent_id</code> column of its category config, and PCE's is the
-        BEA line/level structure. None of it reaches <code>ism.json</code>, which
-        ships only <code>key</code> and <code>label</code>. Adding a
-        <code>group</code> field to the exporter switches those three on with no
-        change to this page. Until then they are shown ungrouped rather than
-        bucketed by guesswork.
-      </p>
-    </section>
+      <aside class="view-side explain">
+        <h3>What am I looking at?</h3>
+        <p>
+          Each month, every category contributes
+          <strong>weight × its own inflation</strong> to the headline. Stacking
+          those by <strong>major group</strong> shows what the print is actually
+          made of, and how the mix changes.
+        </p>
+        <p>
+          A rolling <strong>AR(<em>p</em>)</strong> benchmark then says what each
+          category's inflation <em>should</em> have been, given its own history.
+          The residual is the part nobody could have read off the past — the
+          <strong>surprise</strong>. Because inflation splits exactly into
+          forecast plus residual, each contribution splits exactly into
+          <strong>expected</strong> and <strong>surprise</strong>, and the two
+          always add back to the bar.
+        </p>
+        <p class="muted">
+          Contributions are expenditure-weighted category inflation, with weights
+          renormalised monthly over the valid basket — the same convention the
+          momentum model uses. They sum to the <em>sum of contributions</em>, not
+          to the published headline: a 12-month rate compounds while summed
+          monthly contributions are linear. The readout reports both and the gap.
+        </p>
+        <p class="muted">
+          "Surprise" here means deviation from the category's own rolling
+          AR(<em>p</em>) forecast — the working paper's definition of a shock. It
+          is <em>not</em> a deviation from a published consensus or a nowcast;
+          nothing on this site carries those.
+        </p>
+        <p class="muted">
+          <strong>Coverage.</strong> US CPI uses the BLS major expenditure groups;
+          UK, France, Germany, Italy, Spain, Norway and Sweden use COICOP divisions
+          (the HICP gauges can also be grouped by food / energy / goods / services).
+          <strong>Australia</strong> and <strong>New Zealand</strong> ship their
+          official CPI group with every category and are quarterly, so horizons and
+          windows switch to quarters for them; Australia's <em>monthly</em> variant
+          is the ABS complete monthly CPI from April 2024, on this page only.
+          The grouping is a property of the data, not a hand-kept mapping: the BLS
+          major group is the third character of the stratum code
+          (<code>SEF*</code> → food &amp; beverages) and COICOP divisions come from
+          <code>04.1</code> / <code>CP0116</code>.
+          <strong>US PCE</strong>, <strong>Japan</strong> and <strong>Canada</strong>
+          use flat codes — <code>DNEAR</code>, <code>0021</code>, <code>P40</code> —
+          that encode no parent. Their hierarchies exist in the pipelines (e-Stat's
+          cat01 tree, Canada's <code>parent_id</code>, BEA's line/level structure)
+          but none of it reaches <code>ism.json</code>, which ships only
+          <code>key</code> and <code>label</code>; adding a <code>group</code> field
+          to the exporter switches them on with no change to this page. Until then
+          they are shown ungrouped rather than bucketed by guesswork.
+        </p>
+      </aside>
+    </div>
     </div>
 
     <!-- ===================== MODEL 1: ISM ===================== -->
     <div id="ism-view" class="model-view">
     <p id="demo-banner" class="banner" hidden></p>
 
-    <section class="paramgrid">
-      <div class="control">
-        <label>Price gauge</label>
-        <div class="seg" id="backbone"></div>
-        <small>PCE = BEA underlying detail (the paper's gauge); CPI = BLS item strata; UK = ONS; FR/DE/NO/SE = Eurostat HICP; JP = e-Stat; CA = Statistics Canada; AU = ABS and NZ = Stats NZ, both <em>quarterly</em> (window in quarters, run length k = 2 quarters by default).</small>
-      </div>
-      <div class="control">
-        <label>Benchmark model</label>
-        <div class="seg" id="ar"></div>
-        <div class="subctl" id="W-ctl">
-          <label class="mini">rolling window <b id="W-label">120</b> <span id="W-unit">months</span></label>
-          <input type="range" id="W" min="60" max="240" step="6" value="120" />
-        </div>
-        <small>AR(p) estimated on a rolling W-month window (Eq. 3).</small>
-      </div>
-      <div class="control">
-        <label>Run length <em>k</em> = <span id="k-label">3</span></label>
-        <div class="seg" id="k" hidden></div>
-        <input type="range" id="k-slider" min="2" max="8" step="1" value="3" />
-        <small>Consecutive same-signed residuals to flag momentum (Eqs. 4-5).</small>
-      </div>
-      <div class="control">
-        <label>Weighting</label>
-        <div class="seg" id="scheme"></div>
-        <div class="subctl" id="rho-ctl" hidden>
-          <label class="mini">ρ̂ cap <b id="rho-label">0.90</b></label>
-          <input type="range" id="rho" min="0.5" max="0.99" step="0.01" value="0.9" />
-        </div>
-        <small>extensive = sign only; size = ×|Σ residuals|; stickiness = ×1/(1−ρ̂). <span id="weight-note" class="muted"></span></small>
-      </div>
-      <div class="control toggles">
-        <label class="chk"><input type="checkbox" id="t-author" checked /> Author series</label>
-        <label class="chk"><input type="checkbox" id="t-components" /> Components S⁺ / S⁻</label>
-        <label class="chk"><input type="checkbox" id="t-pce" checked /> <span id="t-headline-text">PCE inflation (12m)</span></label>
-      </div>
-      <div class="control range">
-        <label>Sample start: <span id="start-label"></span></label>
-        <input type="range" id="start" min="0" max="0" value="0" />
-      </div>
-      <div class="control cats" id="cats-ctl">
-        <label>Categories <span class="muted" id="cat-summary"></span></label>
-        <details id="cat-details">
-          <summary>choose categories…</summary>
-          <input type="search" id="cat-search" placeholder="filter, e.g. gasoline" autocomplete="off" />
-          <div class="catlist" id="catlist"></div>
-          <div class="catbtns">
-            <button type="button" id="cat-all">include all</button>
-            <button type="button" id="cat-none">exclude shown</button>
+    <div class="viewbar">
+      <div id="ism-country"></div>
+      <button type="button" class="settings-toggle" aria-expanded="false" aria-controls="ism-settings">Settings</button>
+      <section class="paramgrid settings-panel" id="ism-settings" hidden>
+          <div class="control">
+            <label>Benchmark model</label>
+            <div class="seg" id="ar"></div>
+            <div class="subctl" id="W-ctl">
+              <label class="mini">rolling window <b id="W-label">120</b> <span id="W-unit">months</span></label>
+              <input type="range" id="W" min="60" max="240" step="6" value="120" />
+            </div>
+            <small>AR(p) estimated on a rolling W-month window (Eq. 3).</small>
           </div>
-        </details>
-        <small>Untick to drop a category; weights renormalise over the rest.</small>
+          <div class="control">
+            <label>Run length <em>k</em> = <span id="k-label">3</span></label>
+            <div class="seg" id="k" hidden></div>
+            <input type="range" id="k-slider" min="2" max="8" step="1" value="3" />
+            <small>Consecutive same-signed residuals to flag momentum (Eqs. 4-5).</small>
+          </div>
+          <div class="control">
+            <label>Weighting</label>
+            <div class="seg" id="scheme"></div>
+            <div class="subctl" id="rho-ctl" hidden>
+              <label class="mini">ρ̂ cap <b id="rho-label">0.90</b></label>
+              <input type="range" id="rho" min="0.5" max="0.99" step="0.01" value="0.9" />
+            </div>
+            <small>extensive = sign only; size = ×|Σ residuals|; stickiness = ×1/(1−ρ̂). <span id="weight-note" class="muted"></span></small>
+          </div>
+          <div class="control toggles">
+            <label class="chk"><input type="checkbox" id="t-author" checked /> Author series</label>
+            <label class="chk"><input type="checkbox" id="t-components" /> Components S⁺ / S⁻</label>
+            <label class="chk"><input type="checkbox" id="t-pce" checked /> <span id="t-headline-text">PCE inflation (12m)</span></label>
+          </div>
+          <div class="control cats" id="cats-ctl">
+            <label>Categories <span class="muted" id="cat-summary"></span></label>
+            <details id="cat-details">
+              <summary>choose categories…</summary>
+              <input type="search" id="cat-search" placeholder="filter, e.g. gasoline" autocomplete="off" />
+              <div class="catlist" id="catlist"></div>
+              <div class="catbtns">
+                <button type="button" id="cat-all">include all</button>
+                <button type="button" id="cat-none">exclude shown</button>
+              </div>
+            </details>
+            <small>Untick to drop a category; weights renormalise over the rest.</small>
+          </div>
+        </section>
+    </div>
+    <div class="control" hidden><div class="seg" id="backbone"></div></div>
+
+    <div class="view-body">
+      <div class="view-main">
+        <div class="statrow readout-compact" id="readout"></div>
+        <section>
+          <h2 class="chart-title">Momentum index<span id="status" class="status"></span></h2>
+          <div id="chart" class="chart"></div>
+        </section>
+        <section class="grid2">
+          <div>
+            <h2 class="chart-title">Last 22 ISM prints</h2>
+            <div id="bars" class="chart small"></div>
+          </div>
+          <div>
+            <h2 class="chart-title">Top drivers <span id="drivers-date" class="muted"></span></h2>
+            <div id="drivers" class="chart small"></div>
+          </div>
+        </section>
       </div>
-    </section>
 
-    <section>
-      <h2>Momentum index</h2>
-      <p id="status" class="status"></p>
-      <div class="statrow readout-compact" id="readout"></div>
-      <div id="chart" class="chart"></div>
-    </section>
-
-    <section class="grid2">
-      <div>
-        <h2>Last 22 ISM prints</h2>
-        <div id="bars" class="chart small"></div>
-      </div>
-      <div>
-        <h2>Top drivers <span id="drivers-date" class="muted"></span></h2>
-        <div id="drivers" class="chart small"></div>
-      </div>
-    </section>
-
-    <!-- Per-view CSV replaced by per-chart export (chart_export.js). -->
-    <p class="note" id="meta"></p>
-
-    <section class="explain">
-      <h2>What am I looking at?</h2>
-      <p>
-        For each of <span id="cat-count">~130 disaggregated PCE categories</span> we fit a rolling AR(p)
-        benchmark for monthly inflation and keep the latest residual. A category
-        has <strong>positive momentum</strong> when its last <em>k</em> residuals
-        are all positive, <strong>negative</strong> when all negative. The
-        <strong>ISM index</strong> is the expenditure-weighted positive share
-        (S⁺) minus the negative share (S⁻).
-      </p>
-      <p class="muted">
-        Everything is computed <strong>client-side</strong>: the site ships the raw
-        category panels, and a Web Worker re-runs the rolling-regression pipeline
-        (a parity-tested port of the Python engine) whenever you move a control.
-      </p>
-    </section>
+      <aside class="view-side explain">
+        <h3>What am I looking at?</h3>
+        <p>
+          For each of <span id="cat-count">~130 disaggregated PCE categories</span> we fit a rolling AR(p)
+          benchmark for monthly inflation and keep the latest residual. A category
+          has <strong>positive momentum</strong> when its last <em>k</em> residuals
+          are all positive, <strong>negative</strong> when all negative. The
+          <strong>ISM index</strong> is the expenditure-weighted positive share
+          (S⁺) minus the negative share (S⁻).
+        </p>
+        <p class="muted">
+          Everything is computed <strong>client-side</strong>: the site ships the raw
+          category panels, and a Web Worker re-runs the rolling-regression pipeline
+          (a parity-tested port of the Python engine) whenever you move a control.
+        </p>
+        <p class="muted">
+          <strong>Coverage.</strong> US PCE = BEA underlying detail (the paper's
+          gauge); US CPI = BLS item strata; UK = ONS; European countries = Eurostat
+          HICP; Japan = e-Stat; Canada = Statistics Canada; Australia = ABS and New
+          Zealand = Stats NZ, both <em>quarterly</em> (window in quarters, run length
+          k = 2 quarters by default).
+        </p>
+        <p class="note" id="meta"></p>
+      </aside>
+    </div>
     </div>
 
     <!-- ================ MODEL 2: SUPPLY/DEMAND DECOMPOSITION ================ -->
     <div id="decomp-view" class="model-view" hidden>
     <p id="d-demo-banner" class="banner" hidden></p>
 
-    <section class="paramgrid">
-      <div class="control">
-        <label>Scope</label>
-        <div class="seg" id="d-scope"></div>
-        <small>US = monthly BEA PCE (headline / core, ex food &amp; energy). Quarterly national-accounts ports: Canada (StatCan HCE, total / goods / services, Bank of Canada SAP 2026-33), UK (ONS Consumer Trends), France (INSEE), Germany (Eurostat, by durability), Japan (Cabinet Office SNA, by type), Australia (ABS 5206.0, 17 categories), New Zealand (Stats NZ, 10 COICOP divisions), Norway (SSB, 13) and Sweden (SCB, 13).</small>
-      </div>
-      <div class="control">
-        <label>VAR lags <em>J</em></label>
-        <div class="seg" id="d-lags"></div>
-        <div class="subctl">
-          <label class="mini">rolling window <b id="d-W-label">120</b> <span id="d-W-unit">months</span></label>
-          <input type="range" id="d-W" min="60" max="240" step="6" value="120" />
-        </div>
-        <small>Reduced-form VAR of log price &amp; log quantity on J lags of both, rolling W periods (Eqs. 12-13).</small>
-      </div>
-      <div class="control">
-        <label>Precision cut <span id="d-cut-label">0 (binary)</span></label>
-        <input type="range" id="d-cut" min="0" max="0.3" step="0.05" value="0" />
-        <small>0 = binary labels (working-paper baseline). 0.10 marks near-zero residuals "ambiguous" — the FRBSF published variant (Fig. 5).</small>
-      </div>
-      <div class="control">
-        <label>View</label>
-        <div class="seg" id="d-view"></div>
-        <small>Contributions to inflation (pp, stacked, summing to the total) or the share of the basket under each shock type (Eq. 14).</small>
-      </div>
-      <div class="control toggles">
-        <label class="chk"><input type="checkbox" id="d-t-author" checked /> FRBSF series</label>
-        <label class="chk"><input type="checkbox" id="d-t-headline" checked /> Total &amp; published inflation</label>
-      </div>
-      <div class="control range">
-        <label>Sample start: <span id="d-start-label"></span></label>
-        <input type="range" id="d-start" min="0" max="0" value="0" />
-      </div>
-      <div class="control cats">
-        <label>Categories <span class="muted" id="d-cat-summary"></span></label>
-        <details>
-          <summary>choose categories…</summary>
-          <input type="search" id="d-cat-search" placeholder="filter, e.g. gasoline" autocomplete="off" />
-          <div class="catlist" id="d-catlist"></div>
-        </details>
-        <small>Untick to drop a category; weights renormalise over the rest.</small>
-      </div>
-    </section>
+    <div class="viewbar">
+      <div id="d-country"></div>
+      <button type="button" class="settings-toggle" aria-expanded="false" aria-controls="d-settings">Settings</button>
+      <section class="paramgrid settings-panel" id="d-settings" hidden>
+          <div class="control">
+            <label>View</label>
+            <div class="seg" id="d-view"></div>
+            <small>Contributions to inflation (pp, stacked, summing to the total) or the share of the basket under each shock type (Eq. 14).</small>
+          </div>
+          <div class="control">
+            <label>VAR lags <em>J</em></label>
+            <div class="seg" id="d-lags"></div>
+            <div class="subctl">
+              <label class="mini">rolling window <b id="d-W-label">120</b> <span id="d-W-unit">months</span></label>
+              <input type="range" id="d-W" min="60" max="240" step="6" value="120" />
+            </div>
+            <small>Reduced-form VAR of log price &amp; log quantity on J lags of both, rolling W periods (Eqs. 12-13).</small>
+          </div>
+          <div class="control">
+            <label>Precision cut <span id="d-cut-label">0 (binary)</span></label>
+            <input type="range" id="d-cut" min="0" max="0.3" step="0.05" value="0" />
+            <small>0 = binary labels (working-paper baseline). 0.10 marks near-zero residuals "ambiguous" — the FRBSF published variant (Fig. 5).</small>
+          </div>
+          <div class="control toggles">
+            <label class="chk"><input type="checkbox" id="d-t-author" checked /> FRBSF series</label>
+            <label class="chk"><input type="checkbox" id="d-t-headline" checked /> Total &amp; published inflation</label>
+          </div>
+          <div class="control cats">
+            <label>Categories <span class="muted" id="d-cat-summary"></span></label>
+            <details>
+              <summary>choose categories…</summary>
+              <input type="search" id="d-cat-search" placeholder="filter, e.g. gasoline" autocomplete="off" />
+              <div class="catlist" id="d-catlist"></div>
+            </details>
+            <small>Untick to drop a category; weights renormalise over the rest.</small>
+          </div>
+        </section>
+    </div>
+    <div class="control" hidden><div class="seg" id="d-scope"></div></div>
 
-    <section>
-      <h2>Supply vs demand contributions</h2>
-      <p id="d-status" class="status"></p>
-      <div class="statrow readout-compact" id="d-readout"></div>
-      <div id="d-chart" class="chart"></div>
-    </section>
-
-    <section class="grid2">
-      <div>
-        <h2>Last 22 periods (supply vs demand)</h2>
-        <div id="d-bars" class="chart small"></div>
+    <div class="view-body">
+      <div class="view-main">
+        <div class="statrow readout-compact" id="d-readout"></div>
+        <section>
+          <h2 class="chart-title">Supply vs demand contributions<span id="d-status" class="status"></span></h2>
+          <div id="d-chart" class="chart"></div>
+        </section>
+        <section class="grid2">
+          <div>
+            <h2 class="chart-title">Last 22 periods (supply vs demand)</h2>
+            <div id="d-bars" class="chart small"></div>
+          </div>
+          <div>
+            <h2 class="chart-title">Top category drivers <span id="d-drivers-date" class="muted"></span></h2>
+            <div id="d-drivers" class="chart small"></div>
+          </div>
+        </section>
       </div>
-      <div>
-        <h2>Top category drivers <span id="d-drivers-date" class="muted"></span></h2>
-        <div id="d-drivers" class="chart small"></div>
-      </div>
-    </section>
 
-    <p class="note" id="d-meta"></p>
-
-    <section class="explain">
-      <h2>What am I looking at?</h2>
-      <p>
-        For each PCE category we estimate a rolling reduced-form VAR of its log
-        price and log quantity on <em>J</em> lags of both (Eqs. 12-13), and keep
-        the one-step residuals. A category-month is <strong>demand-driven</strong>
-        when the price and quantity surprises move the <em>same</em> way
-        (both up or both down), and <strong>supply-driven</strong> when they move
-        <em>opposite</em> ways. The <strong>supply/demand contributions</strong>
-        to inflation are the expenditure-weighted (Laspeyres) sums of those
-        categories' inflation (Eq. 15); the year-over-year version is the running
-        12-month product. Raising the <em>precision cut</em> moves near-zero
-        residuals into an <strong>ambiguous</strong> bucket — the variant FRBSF
-        publishes.
-      </p>
-      <p class="muted">
-        The decomposition needs category <em>quantity</em> as well as price. For
-        the US, only the BEA PCE underlying detail provides this monthly (headline
-        and core). Other countries publish it in their <em>quarterly</em>
-        national accounts, so the same estimator (4 lags, 40-quarter window) runs
-        on those via the Scope selector: <strong>Canada</strong> (Bank of Canada
-        variant, Kang–Sekkel–Taskin–Yang SAP 2026-33; total / goods / services),
-        <strong>UK</strong> (ONS Consumer Trends), <strong>France</strong> (INSEE),
-        <strong>Germany</strong> (Eurostat, by durability),
-        <strong>Japan</strong> (Cabinet Office SNA, by type),
-        <strong>Australia</strong> (ABS national accounts, 17 categories),
-        <strong>New Zealand</strong> (Stats NZ, 10 COICOP divisions — health and
-        education are confidential in the seasonally adjusted series),
-        <strong>Norway</strong> (SSB, 13 divisions; SSB adjusts only the volumes,
-        so the deflator's seasonal is removed here) and
-        <strong>Sweden</strong> (SCB, 13 divisions). Everything is
-        recomputed
-        <strong>client-side</strong> by a parity-tested port of the Python engine;
-        drag <em>J</em>, the window, the precision cut or the category set and
-        watch it update. <span id="d-note" class="muted"></span>
-      </p>
-    </section>
+      <aside class="view-side explain">
+        <h3>What am I looking at?</h3>
+        <p>
+          For each PCE category we estimate a rolling reduced-form VAR of its log
+          price and log quantity on <em>J</em> lags of both (Eqs. 12-13), and keep
+          the one-step residuals. A category-month is <strong>demand-driven</strong>
+          when the price and quantity surprises move the <em>same</em> way
+          (both up or both down), and <strong>supply-driven</strong> when they move
+          <em>opposite</em> ways. The <strong>supply/demand contributions</strong>
+          to inflation are the expenditure-weighted (Laspeyres) sums of those
+          categories' inflation (Eq. 15); the year-over-year version is the running
+          12-month product. Raising the <em>precision cut</em> moves near-zero
+          residuals into an <strong>ambiguous</strong> bucket — the variant FRBSF
+          publishes.
+        </p>
+        <p class="muted">
+          The decomposition needs category <em>quantity</em> as well as price. For
+          the US, only the BEA PCE underlying detail provides this monthly (headline,
+          core, goods, services). Other countries publish it in their
+          <em>quarterly</em> national accounts, so the same estimator (4 lags,
+          40-quarter window) runs on those: <strong>Canada</strong> (Bank of Canada
+          variant, Kang–Sekkel–Taskin–Yang SAP 2026-33; total / goods / services),
+          <strong>Italy</strong> and <strong>Spain</strong> (Eurostat, by durability
+          — coarse, flagged with a dashed outline),
+          <strong>Australia</strong> (ABS national accounts, 17 categories),
+          <strong>New Zealand</strong> (Stats NZ, 10 COICOP divisions — health and
+          education are confidential in the seasonally adjusted series),
+          <strong>Norway</strong> (SSB, 13 divisions; SSB adjusts only the volumes,
+          so the deflator's seasonal is removed here) and
+          <strong>Sweden</strong> (SCB, 13 divisions). Everything is recomputed
+          <strong>client-side</strong> by a parity-tested port of the Python engine.
+          <span id="d-note" class="muted"></span>
+        </p>
+        <p class="note" id="d-meta"></p>
+      </aside>
+    </div>
     </div>
 
     <!-- ================ MODEL 3: TRIMMED MEAN & MEDIAN ================ -->
     <div id="trim-view" class="model-view" hidden>
 
-    <section class="paramgrid">
-      <div class="control">
-        <label>Cross-section</label>
-        <div class="seg" id="t-scope"></div>
-        <small>The Cleveland cut is the 45-component cross-section behind the published median CPI (owners' equivalent rent split by census region); the 70-strata cut is this repo's finer CPI partition; PCE is the BEA underlying detail the Dallas Fed trims. The foreign gauges reuse the other models' category panels — only Canada, Japan and Australia have a published measure to check against (Australia's ABS trimmed mean and weighted median are quarterly, like its panel).</small>
-      </div>
-      <div class="control">
-        <label>Preset</label>
-        <div class="seg" id="t-preset"></div>
-        <small>Or move the two sliders — the asymmetry is the point.</small>
-      </div>
-      <div class="control">
-        <label>Trim from the bottom <b id="t-lower-label">8%</b></label>
-        <input type="range" id="t-lower" min="0" max="50" step="1" value="8" />
-        <label style="margin-top:8px">Trim from the top <b id="t-upper-label">8%</b></label>
-        <input type="range" id="t-upper" min="0" max="50" step="1" value="8" />
-        <small><span id="t-keep-label">84% of the basket kept</span>. Fractions of <em>weight</em>, not of categories; the categories straddling each cut enter partially.</small>
-      </div>
-      <div class="control">
-        <label>Weight vintage</label>
-        <div class="seg" id="t-weights"></div>
-        <small>Versioned = the relative importances that actually applied that month. Freeze them and you are using today's shelter weight in 1998.</small>
-      </div>
-      <div class="control">
-        <label>Seasonal adjustment</label>
-        <div class="seg" id="t-sa"></div>
-        <small id="t-sa-note"></small>
-      </div>
-      <div class="control">
-        <label>Horizon</label>
-        <div class="seg" id="t-view"></div>
-        <small>The 12-month rate is the 12-month change of the chained index, not a trim of the cross-section of 12-month changes.</small>
-      </div>
-      <div class="control toggles">
-        <label class="chk"><input type="checkbox" id="t-t-official" checked /> Published series</label>
-        <label class="chk"><input type="checkbox" id="t-t-headline" checked /> Headline inflation</label>
-      </div>
-      <div class="control range">
-        <label>Sample start: <span id="t-start-label"></span></label>
-        <input type="range" id="t-start" min="0" max="0" value="0" />
-      </div>
-      <div class="control cats">
-        <label>Categories <span class="muted" id="t-cat-summary"></span></label>
-        <details>
-          <summary>choose categories…</summary>
-          <input type="search" id="t-cat-search" placeholder="filter, e.g. shelter" autocomplete="off" />
-          <div class="catlist" id="t-catlist"></div>
-        </details>
-        <small>Untick a line and the trim points move — the trim is a share of the weight that remains.</small>
-      </div>
-    </section>
+    <div class="viewbar">
+      <div id="t-country"></div>
+      <button type="button" class="settings-toggle" aria-expanded="false" aria-controls="t-settings">Settings</button>
+      <section class="paramgrid settings-panel" id="t-settings" hidden>
+          <div class="control">
+            <label>Preset</label>
+            <div class="seg" id="t-preset"></div>
+            <small>Or move the two sliders — the asymmetry is the point.</small>
+          </div>
+          <div class="control">
+            <label>Trim from the bottom <b id="t-lower-label">8%</b></label>
+            <input type="range" id="t-lower" min="0" max="50" step="1" value="8" />
+            <label style="margin-top:8px">Trim from the top <b id="t-upper-label">8%</b></label>
+            <input type="range" id="t-upper" min="0" max="50" step="1" value="8" />
+            <small><span id="t-keep-label">84% of the basket kept</span>. Fractions of <em>weight</em>, not of categories; the categories straddling each cut enter partially.</small>
+          </div>
+          <div class="control">
+            <label>Horizon</label>
+            <div class="seg" id="t-view"></div>
+            <small>The 12-month rate is the 12-month change of the chained index, not a trim of the cross-section of 12-month changes.</small>
+          </div>
+          <div class="control">
+            <label>Weight vintage</label>
+            <div class="seg" id="t-weights"></div>
+            <small>Versioned = the relative importances that actually applied that month. Freeze them and you are using today's shelter weight in 1998.</small>
+          </div>
+          <div class="control">
+            <label>Seasonal adjustment</label>
+            <div class="seg" id="t-sa"></div>
+            <small id="t-sa-note"></small>
+          </div>
+          <div class="control toggles">
+            <label class="chk"><input type="checkbox" id="t-t-official" checked /> Published series</label>
+            <label class="chk"><input type="checkbox" id="t-t-headline" checked /> Headline inflation</label>
+          </div>
+          <div class="control cats">
+            <label>Categories <span class="muted" id="t-cat-summary"></span></label>
+            <details>
+              <summary>choose categories…</summary>
+              <input type="search" id="t-cat-search" placeholder="filter, e.g. shelter" autocomplete="off" />
+              <div class="catlist" id="t-catlist"></div>
+            </details>
+            <small>Untick a line and the trim points move — the trim is a share of the weight that remains.</small>
+          </div>
+        </section>
+    </div>
+    <div class="control" hidden><div class="seg" id="t-scope"></div></div>
 
-    <section>
-      <h2>Trimmed mean &amp; median</h2>
-      <p id="t-status" class="status"></p>
-      <div class="statrow readout-compact" id="t-readout"></div>
-      <p class="notes" id="t-spec"></p>
-      <p class="notes" id="t-cond"></p>
-      <div id="t-chart" class="chart"></div>
-      <div class="notes" id="t-notes"></div>
-    </section>
-
-    <section class="grid2">
-      <div>
-        <h2>This month's cross-section <span id="t-cross-date" class="muted"></span></h2>
-        <div id="t-cross" class="chart small"></div>
+    <div class="view-body">
+      <div class="view-main">
+        <div class="statrow readout-compact" id="t-readout"></div>
+        <section>
+          <h2 class="chart-title">Trimmed mean &amp; median<span id="t-status" class="status"></span></h2>
+          <div id="t-chart" class="chart"></div>
+        </section>
+        <section class="grid2">
+          <div>
+            <h2 class="chart-title">This month's cross-section <span id="t-cross-date" class="muted"></span></h2>
+            <div id="t-cross" class="chart small scroll-y"></div>
+          </div>
+          <div>
+            <h2 class="chart-title">Weights that moved most</h2>
+            <div id="t-weights-chart" class="chart small"></div>
+          </div>
+        </section>
       </div>
-      <div>
-        <h2>Weights that moved most</h2>
-        <div id="t-weights-chart" class="chart small"></div>
+
+      <aside class="view-side explain">
+        <h3>What am I looking at?</h3>
+        <p class="notes" id="t-spec"></p>
+        <p class="notes" id="t-cond"></p>
+        <p>
+          Each month the categories are sorted by their seasonally adjusted,
+          annualised price change and lined up along their <strong>expenditure
+          weight</strong>. Throw away the lowest <em>α</em> and the highest
+          <em>β</em> of that weight and average what is left: that is a
+          <strong>trimmed mean</strong>. Push both cuts to 50% and you are left
+          with the single category holding the middle of the basket — the
+          <strong>weighted median</strong>, which is why the Cleveland Fed can
+          name it each month.
+        </p>
+        <p>
+          Trimming is not cosmetic. Cross-sectional price changes are fat-tailed,
+          so the plain mean — headline inflation — is a noisy estimate of its own
+          centre. The trim buys a large variance reduction for a small bias, and
+          the bias is removed by choosing the cuts to track a smooth trend, which
+          is how the Dallas Fed arrived at cutting <strong>24% off the bottom and
+          31% off the top</strong>: the PCE cross-section is right-skewed, so
+          symmetric trimming inherits a downward bias.
+        </p>
+        <p class="muted">
+          <strong>Coverage.</strong> The Cleveland cut is the 45-component
+          cross-section behind the published median CPI (owners' equivalent rent
+          split by census region); the 70-strata cut is this repo's finer CPI
+          partition; PCE is the BEA underlying detail the Dallas Fed trims. The
+          other countries reuse the other models' category panels — only Canada,
+          Japan and Australia have a published measure to check against
+          (Australia's ABS trimmed mean and weighted median are quarterly, like its
+          panel).
+        </p>
+        <p class="muted">
+          Everything is recomputed <strong>client-side</strong> by a
+          parity-tested port of the Python engine. Our Cleveland-cut median
+          reproduces the published median CPI at a 12-month correlation of 0.997
+          and the 16% trimmed mean at 0.998; the PCE trim reproduces the Dallas
+          Fed series at 0.990 since 1998 (0.997 on the full sample).
+        </p>
+        <div class="notes" id="t-notes"></div>
         <p class="notes" id="t-weights-note"></p>
-      </div>
-    </section>
-
-
-    <section class="explain">
-      <h2>What am I looking at?</h2>
-      <p>
-        Each month the categories are sorted by their seasonally adjusted,
-        annualised price change and lined up along their <strong>expenditure
-        weight</strong>. Throw away the lowest <em>α</em> and the highest
-        <em>β</em> of that weight and average what is left: that is a
-        <strong>trimmed mean</strong>. Push both cuts to 50% and you are left
-        with the single category holding the middle of the basket — the
-        <strong>weighted median</strong>, which is why the Cleveland Fed can
-        name it each month.
-      </p>
-      <p>
-        Trimming is not cosmetic. Cross-sectional price changes are fat-tailed,
-        so the plain mean — headline inflation — is a noisy estimate of its own
-        centre. The trim buys a large variance reduction for a small bias, and
-        the bias is removed by choosing the cuts to track a smooth trend, which
-        is how the Dallas Fed arrived at cutting <strong>24% off the bottom and
-        31% off the top</strong>: the PCE cross-section is right-skewed, so
-        symmetric trimming inherits a downward bias.
-      </p>
-      <p class="muted">
-        Everything is recomputed <strong>client-side</strong> by a
-        parity-tested port of the Python engine. Our Cleveland-cut median
-        reproduces the published median CPI at a 12-month correlation of 0.997
-        and the 16% trimmed mean at 0.998; the PCE trim reproduces the Dallas
-        Fed series at 0.990 since 1998 (0.997 on the full sample).
-      </p>
-    </section>
+      </aside>
+    </div>
     </div>
 
     <!-- ================ MODEL 4: CPI -> PCE ================ -->
@@ -695,6 +702,8 @@
        its own markup under #asof and its own styles, reads
        data/release_calendar.json, and hides itself if that file is absent. -->
   <script src="refresh.js"></script>
+  <!-- One flag picker per model page; drives the apps' hidden gauge segments. -->
+  <script src="country_bar.js"></script>
   <!-- Per-chart PNG / paper-PNG / CSV export. Reads the figure straight off the
        Plotly div, so the four view apps need no knowledge of it. -->
   <script src="chart_export.js"></script>

@@ -311,6 +311,7 @@ function segment(id, values, current, label, onPick) {
   values.forEach(v => {
     const btn = document.createElement("button");
     btn.textContent = label(v);
+    btn.dataset.key = String(v);
     btn.setAttribute("aria-pressed", String(v === current));
     btn.onclick = () => {
       [...host.children].forEach(c => c.setAttribute("aria-pressed", "false"));
@@ -458,13 +459,12 @@ function applyBackbone() {
   if (span) span.textContent = shortHeadlineLabel(b);
 
   // Range slider: default to the first month with a computed baseline index.
-  const r = $("start");
-  r.min = 0; r.max = b.dates.length - 1;
+  // No sample-start slider: the chart opens on the last two years and the
+  // reader zooms out in the chart (chart_window.js).
   const base = (b.combos && (b.combos[baseKey()] || Object.values(b.combos)[0])) || null;
   let first = base ? base.ISM.findIndex(v => v != null) : 0;
   if (first < 0) first = 0;
-  STATE.startIdx = first; r.value = first;
-  r.oninput = () => { STATE.startIdx = +r.value; render(); };
+  STATE.startIdx = first;
 
   const lastMonth = b.dates[b.dates.length - 1];
   $("meta").textContent = `${b.n_categories} categories · ${b.dates[0]}–${lastMonth}`;
@@ -515,7 +515,6 @@ function pearson(a, b) {
 /* -------------------------------- render -------------------------------- */
 function render() {
   const b = backbone();
-  $("start-label").textContent = b.dates[STATE.startIdx];
   const { res, fresh } = currentResult();
   if (!res) return;
   if (!fresh && liveReady()) setStatus("computing…");

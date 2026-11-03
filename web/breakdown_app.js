@@ -219,7 +219,9 @@
     const bw = B && B.breakdown && B.breakdown.window;   // short gauges ship their own
     D.horizon = D.annual ? P : 1;
     D.W = bw ? bw.default : 10 * P;
-    D.nTail = Math.min(10 * P, Math.max(2 * P, (B && B.dates ? B.dates.length : 10 * P)));
+    // Full history: the chart opens on the last two years (chart_window.js)
+    // and the reader zooms out from there.
+    D.nTail = (B && B.dates ? B.dates.length : 30 * P);
     seg("b-horizon",
       [[true, P === 4 ? "4-quarter" : "12-month"], [false, P === 4 ? "1-quarter" : "1-month"]],
       () => D.annual, (v) => { D.annual = v; D.horizon = v ? ppy() : 1; D.sel = null; compute(); });
@@ -432,6 +434,7 @@
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
+      b.dataset.key = String(val);
       b.setAttribute("aria-pressed", String(get() === val));
       b.onclick = () => {
         set(val);

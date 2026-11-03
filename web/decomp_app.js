@@ -133,6 +133,7 @@
     values.forEach(v => {
       const b = document.createElement("button");
       b.textContent = label(v);
+      b.dataset.key = String(v);
       b.setAttribute("aria-pressed", String(v === current));
       b.onclick = () => { [...host.children].forEach(c => c.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true"); onPick(v); };
       if (decorate) decorate(b, v);   // optional per-button styling / tooltip
@@ -219,11 +220,9 @@
     X = s.dates.map(d => new Date(d + "-01"));
     const a = $("d-t-author"), hasA = !!s.author;
     if (a) { a.disabled = !hasA; const lab = a.closest(".chk"); if (lab) { lab.style.opacity = hasA ? "" : ".4"; lab.title = hasA ? "" : "No FRBSF author overlay in this data file"; } if (!hasA) a.checked = false; D.author = a.checked; }
-    const r = $("d-start"); r.min = 0; r.max = s.dates.length - 1;
     const base = s.baseline ? s.baseline.contrib_yoy.total : null;
     let first = base ? base.findIndex(v => v != null) : 0; if (first < 0) first = 0;
-    D.startIdx = first; r.value = first;
-    r.oninput = () => { D.startIdx = +r.value; render(); };
+    D.startIdx = first;
     $("d-meta").textContent = `${s.n_categories} categories · ${s.dates[0]}–${s.dates[s.dates.length - 1]}`;
     const note = $("d-note"); if (note) note.textContent = s.note || "";
     buildCatList();
@@ -266,7 +265,6 @@
   function render() {
     if (!DATA) return;
     const s = scope();
-    $("d-start-label").textContent = s.dates[D.startIdx];
     const res = currentResult(); if (!res) return;
     const x = sliceFrom(X);
 
