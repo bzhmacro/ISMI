@@ -46,6 +46,7 @@
       const res = await fetch("data/trim.json", { cache: "no-cache" });
       if (!res.ok) throw new Error(res.status);
       DATA = await res.json();
+      if (window.ChartWindow) ChartWindow.span(["t-chart", "t-weights-chart"], DATA.scopes);
     } catch (e) {
       $("t-chart").innerHTML =
         `<div style="padding:24px;color:#f0d28a">Could not load <code>data/trim.json</code>.

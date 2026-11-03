@@ -6,8 +6,14 @@
    to) and fits each y axis to the data inside that window, so the default view
    is not squashed by the full history's extremes. A range selector
    (2y / 5y / 10y / All) sits on the x axis; drag to zoom, double-click for the
-   full history. The view resets to two years when the series' date span
-   changes (another country or measure). */
+   full history.
+
+   One timeline for every country. Each app calls ChartWindow.span(id, gauges)
+   once its payload has loaded; the window then ends at the latest month held
+   by ANY gauge on that page, not the selected one, and "All" (or a
+   double-click) spans the earliest-to-latest month across all of them. A
+   country whose data stops earlier shows the gap instead of silently ending
+   its axis sooner, and a zoom is kept when switching country. */
 "use strict";
 
 (() => {
@@ -19,6 +25,7 @@
   const YEARS = 2;
   const DAY = 864e5;
   const state = {};          // id -> { domain, range: null | "all" | [a, b] }
+  const SPAN = {};           // id -> [t0, t1] shared across every gauge on the page
 
   const ms = v => {
     if (v == null) return NaN;
@@ -79,8 +86,22 @@
     return out;
   }
 
+  /* `gauges` is the payload's map of series, each with a `dates` array of
+     "YYYY-MM" (DATA.backbones on the ISM pages, DATA.scopes elsewhere). */
+  function span(ids, gauges) {
+    let lo = Infinity, hi = -Infinity;
+    Object.values(gauges || {}).forEach(g => {
+      const d = g && g.dates;
+      if (!d || !d.length) return;
+      const a = ms(d[0]), b = ms(d[d.length - 1]);
+      if (a < lo) lo = a; if (b > hi) hi = b;
+    });
+    if (!Number.isFinite(lo)) return;
+    [].concat(ids).forEach(id => { SPAN[id] = [lo, hi]; });
+  }
+
   function windowFor(id, data) {
-    const dom = domainOf(data);
+    const dom = SPAN[id] || domainOf(data);
     if (!dom) return null;
     const st = state[id] || (state[id] = { domain: null, range: null });
     const key = dom.join("|");
@@ -111,6 +132,9 @@
     L.xaxis = Object.assign({}, layout.xaxis, { type: "date" },
       NO_BUTTONS.has(id) ? {} : { rangeselector: SELECTOR });
     L.dragmode = L.dragmode || "zoom";
+    // Autorange ("All", double-click) always reaches both ends of the page's
+    // shared span, whichever country is drawn.
+    if (SPAN[id]) L.xaxis.autorangeoptions = { include: SPAN[id].map(iso) };
     if (w.all) {
       L.xaxis.autorange = true; delete L.xaxis.range;
       return L;
@@ -170,6 +194,8 @@
     gd._cwBusy = true;
     Promise.resolve(Plotly.relayout(gd, upd)).finally(() => { gd._cwBusy = false; });
   }
+
+  window.ChartWindow = { span };
 
   const orig = Plotly.react;
   Plotly.react = function (gd, data, layout, config) {

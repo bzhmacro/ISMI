@@ -286,7 +286,10 @@ header.page-head.slim{
   padding:6px var(--sec-pad-x) 0;border-bottom:none;
   display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px;
 }
-header.page-head.slim .asof{margin:0;}
+/* One freshness line: the refresh summary (refresh.js) carries the generated
+   date. #asof is kept but hidden — chart exports read "Data through" from it,
+   and refresh.js anchors its panel next to it. */
+header.page-head.slim .asof{display:none;}
 header.page-head.slim > .freshbar{margin:0;}
 header.page-head.slim > .freshbar[open]{flex-basis:100%;}
 
@@ -299,9 +302,12 @@ header.page-head.slim > .freshbar[open]{flex-basis:100%;}
 }
 .countrybar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-width:0;}
 .cb-flags{display:flex;flex-wrap:wrap;gap:4px;}
+/* Every flag button is the same fixed size, selected or not: the selection
+   shows as colour and border only, never a bolder (wider) label. */
 .cb-flag{
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  min-width:62px;padding:4px 6px 5px;cursor:pointer;
+  width:66px;flex:0 0 66px;box-sizing:border-box;padding:4px 4px 5px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;
   background:var(--panel-2);border:var(--bw) solid var(--line);
   border-radius:var(--radius-sm);color:var(--paper-dim);
   font-family:var(--font-sans);font-size:.72rem;line-height:1.1;transition:.12s;
@@ -312,11 +318,17 @@ header.page-head.slim > .freshbar[open]{flex-basis:100%;}
 .cb-flag:hover img{opacity:1;}
 .cb-flag[aria-pressed="true"]{
   background:color-mix(in srgb,var(--seal) 16%,transparent);
-  border-color:var(--seal);color:var(--paper);font-weight:600;
+  border-color:var(--seal);color:var(--paper);
 }
 .cb-flag[aria-pressed="true"] img{opacity:1;}
+.cb-flag .cb-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .cb-flag.caution{border-style:dashed;opacity:.6;}
 .cb-flag.caution[aria-pressed="true"]{opacity:1;}
+/* No data for this country on this page. */
+.cb-flag.na,.cb-flag.na:hover{opacity:.32;cursor:not-allowed;filter:grayscale(1);
+  border-color:var(--line);color:var(--paper-dim);}
+.cb-flag.na img{opacity:.6;}
+.cb-variants button.caution{border-style:dashed;opacity:.7;}
 .cb-variants button{padding:4px 9px;font-size:.76rem;}
 
 .settings-toggle{
@@ -352,6 +364,12 @@ h2.chart-title .status{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%;
 }
 h2.chart-title .status.warn{color:var(--gold);white-space:normal;}
+/* The hover export toolbar would sit on the range buttons (both top-right),
+   so on these pages it moves up into the chart's title row, and the title
+   keeps room for it. */
+.view-main section > h2.chart-title{padding-right:150px;}
+.view-main section > .chart-wrap > .chart-tools{top:-24px;right:0;}
+.view-main .grid2 h2.chart-title{padding-right:0;}
 /* Charts that are taller than their box by design (one row per category)
    scroll inside it rather than being cut off. */
 .view-main .chart.scroll-y{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;}
@@ -378,7 +396,7 @@ h2.chart-title .status.warn{color:var(--gold);white-space:normal;}
 }
 @media(max-width:700px){
   .viewbar{position:static;}
-  .cb-flag{min-width:52px;font-size:.66rem;}
+  .cb-flag{width:56px;flex-basis:56px;font-size:.66rem;}
   .view-main .grid2{grid-template-columns:1fr;}
   /* One column on a phone: the charts stack, so give each a usable height. */
   .view-main .chart{height:420px;}

@@ -45,6 +45,7 @@ async function init() {
         return r.json();
       });
     DATA = await window.__ismJsonPromise;
+    if (window.ChartWindow && DATA.backbones) ChartWindow.span("chart", DATA.backbones);
   } catch (e) {
     $("chart").innerHTML =
       `<div style="padding:24px;color:#f0d28a">Could not load <code>data/ism.json</code>.

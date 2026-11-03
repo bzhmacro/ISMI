@@ -26,6 +26,7 @@
       const res = await fetch("data/decomp.json", { cache: "no-cache" });
       if (!res.ok) throw new Error(res.status);
       DATA = await res.json();
+      if (window.ChartWindow) ChartWindow.span("d-chart", DATA.scopes);
     } catch (e) {
       $("d-chart").innerHTML =
         `<div style="padding:24px;color:#f0d28a">Could not load <code>data/decomp.json</code>.

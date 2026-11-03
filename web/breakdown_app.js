@@ -299,6 +299,7 @@
           return r.json();
         });
       DATA = await window.__ismJsonPromise;
+      if (window.ChartWindow) ChartWindow.span("b-chart", DATA.backbones);
     } catch (err) {
       status(`could not load data/ism.json (${err})`);
       return;
@@ -344,11 +345,11 @@
     const g = buildGroups(spec, B);
     if (!g) {
       ungrouped(
-        `${spec.label} has no component taxonomy in the data yet. Its categories ` +
-        `are flat codes (e.g. ${String((B.categories[0] || {}).key || "?")}), and the ` +
-        `parent hierarchy lives in the Python pipeline rather than in ism.json. ` +
-        `Emitting a "group" field from the exporter switches this on with no ` +
-        `change here — until then it is not grouped, rather than grouped by guesswork.`);
+        `No breakdown for ${spec.label} yet`,
+        `Its categories are flat codes (e.g. ${String((B.categories[0] || {}).key || "?")})<br>` +
+        `with no parent group in the data file, so there is nothing to stack them by.<br>` +
+        `It is left ungrouped rather than grouped by guesswork;<br>the other models ` +
+        `on this site do cover it.`);
       return;
     }
     GROUP_LIST = g.list;
@@ -356,14 +357,20 @@
     startWorker();
   }
 
-  /* Gauge present but not groupable: say so plainly and blank the charts
-     rather than leaving the previous gauge's bars on screen. */
-  function ungrouped(msg) {
-    status(msg);
-    const blank = { paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG, margin: { t: 10 },
-      font: { color: MUTED, size: 11 }, xaxis: { visible: false }, yaxis: { visible: false } };
-    ["b-chart", "b-groups", "b-surprises"].forEach((id) => {
-      if ($(id) && window.Plotly) Plotly.react(id, [], blank, { displayModeBar: false });
+  /* Gauge present but not groupable: say so plainly — inside the main chart,
+     where there is room, rather than in the one-line status — and blank the
+     charts rather than leaving the previous gauge's bars on screen. */
+  function ungrouped(title, detail) {
+    status("");
+    const blank = (text, size) => ({
+      paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG, margin: { t: 10, l: 10, r: 10, b: 10 },
+      font: { color: MUTED, size: 11 }, xaxis: { visible: false }, yaxis: { visible: false },
+      annotations: [{ text, showarrow: false, xref: "paper", yref: "paper", x: 0.5, y: 0.5,
+                      align: "center", font: { color: MUTED, size } }],
+    });
+    const main = `<b>${title}</b>` + (detail ? `<br><br>${detail}` : "");
+    [["b-chart", main, 13], ["b-groups", title, 11], ["b-surprises", title, 11]].forEach(([id, t, sz]) => {
+      if ($(id) && window.Plotly) Plotly.react(id, [], blank(t, sz), { displayModeBar: false });
     });
     const r = $("b-readout");
     if (r) r.innerHTML = "";
@@ -449,6 +456,15 @@
     const avail = GAUGES.filter((g) => DATA.backbones && DATA.backbones[g.key]);
     seg("b-gauge", avail.map((g) => [g.key, g.label]),
       () => D.gauge, (v) => selectGauge(v));
+    // Gauges with data but no category hierarchy yet stay clickable but are
+    // marked partial (dashed) in the country bar, which copies this class.
+    [...$("b-gauge").children].forEach((b) => {
+      const k = b.dataset.key, spec = gaugeSpec(k);
+      if (spec && DATA.backbones[k] && buildGroups(spec, DATA.backbones[k]) == null) {
+        b.classList.add("caution");
+        b.title = "No category breakdown for this gauge yet";
+      }
+    });
 
     seg("b-ar", [[1, "AR(1)"], [2, "AR(2)"], [3, "AR(3)"]],
       () => D.p, (v) => { D.p = v; compute(); });

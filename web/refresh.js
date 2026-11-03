@@ -154,6 +154,10 @@
       ? `${due.map((g) => `${g.label.split(" (")[0]} ${g.expected}`).join(", ")} available`
       : "every gauge holds the newest published vintage";
     sum.appendChild(el("span", "muted", headline));
+    // The only thing kept from the old "Data through … · generated …" line,
+    // which is now hidden (#asof stays in the DOM: chart exports read it).
+    const built = (CAL.generated_utc || "").slice(0, 10);
+    if (built) sum.appendChild(el("span", "muted", `· generated ${built}`));
 
     /* ---- the button: always shown, always usable unless a run is live ----
        Nothing due → it forces a full rebuild. Something due and no cooldown →

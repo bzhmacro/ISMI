@@ -14,11 +14,12 @@
 "use strict";
 
 const CountryBar = (() => {
-  // Display order is the same on every page.
+  // The same twelve countries, in the same order, on every page. A country
+  // with no data on a page is still shown, greyed out and disabled.
   const COUNTRIES = [
     ["us", "US"], ["ca", "Canada"], ["gb", "UK"], ["fr", "France"],
     ["de", "Germany"], ["it", "Italy"], ["es", "Spain"], ["no", "Norway"],
-    ["se", "Sweden"], ["jp", "Japan"], ["au", "Australia"], ["nz", "New Zealand"],
+    ["se", "Sweden"], ["jp", "Japan"], ["au", "Australia"], ["nz", "NZ"],
   ];
 
   // Data key -> [country, variant label]. Keys not listed map to themselves
@@ -73,18 +74,25 @@ const CountryBar = (() => {
       flags.innerHTML = "";
       COUNTRIES.forEach(([code, name]) => {
         const opts = byCountry.get(code);
-        if (!opts) return;
         const b = document.createElement("button");
         b.type = "button";
         b.className = "cb-flag";
+        b.innerHTML = `<span class="cb-name">${name}</span>` +
+          `<img src="assets/flags/${code}.svg" alt="" width="24" height="18" loading="lazy">`;
+        if (!opts) {
+          b.disabled = true;
+          b.classList.add("na");
+          b.title = "No data for this country on this page";
+          b.setAttribute("aria-pressed", "false");
+          flags.appendChild(b);
+          return;
+        }
         b.setAttribute("aria-pressed", String(code === cur));
         // Japan/Germany/... on the supply-demand page are flagged "caution".
         if (opts.every(o => o.btn.classList.contains("caution"))) {
           b.classList.add("caution");
           b.title = opts[0].btn.title || "";
         }
-        b.innerHTML = `<span class="cb-name">${name}</span>` +
-          `<img src="assets/flags/${code}.svg" alt="" width="24" height="18" loading="lazy">`;
         b.onclick = () => {
           if (code === cur) return;
           opts[0].btn.click();
@@ -102,6 +110,7 @@ const CountryBar = (() => {
           b.textContent = o.variant || BASE[cur] || o.btn.textContent;
           b.setAttribute("aria-pressed", o.btn.getAttribute("aria-pressed"));
           if (o.btn.title) b.title = o.btn.title;
+          if (o.btn.classList.contains("caution")) b.classList.add("caution");
           b.onclick = () => { if (b.getAttribute("aria-pressed") !== "true") o.btn.click(); };
           variants.appendChild(b);
         });
