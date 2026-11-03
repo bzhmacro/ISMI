@@ -536,7 +536,30 @@
                ticktext: rows.map(r => r.label.length > 34 ? r.label.slice(0, 32) + "…" : r.label),
                range: [-0.6, rows.length - 0.4] },
       height: Math.max(320, 15 * rows.length),
-    }, { responsive: true, displayModeBar: false });
+      width: $(host).clientWidth || undefined,
+    // Not `responsive`: Plotly's auto-resize fits the plot to its box, which
+    // squashes this deliberately tall, scrolling chart (one row per category)
+    // to the box height on the first window resize — opening Settings or
+    // switching tab fires one — and it never grows back. Width is tracked
+    // by hand instead and the height is left alone.
+    }, { responsive: false, displayModeBar: false });
+    trackCrossWidth();
+  }
+
+  let crossResizeBound = false;
+  function trackCrossWidth() {
+    if (crossResizeBound) return;
+    crossResizeBound = true;
+    let t = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const el = $("t-cross");
+        if (!el || !el._fullLayout || !el.clientWidth) return;   // hidden view
+        if (Math.abs(el._fullLayout.width - el.clientWidth) < 2) return;
+        Plotly.relayout(el, { width: el.clientWidth });
+      }, 100);
+    });
   }
 
   /* The weight panel itself: what "versioned" actually buys you. Shows the
