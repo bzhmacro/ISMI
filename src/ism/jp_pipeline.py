@@ -79,6 +79,31 @@ def select_cat01_level(classes: pd.DataFrame, level: Optional[str] = None,
 JP_MAJOR_GROUPS = ["0002", "0045", "0054", "0060", "0082",
                    "0107", "0111", "0118", "0122", "0145"]
 
+# Official English names of the 10 major groups (same e-Stat Appendix 1 list).
+# Exported as each medium group's `group` so the Breakdown page can stack Japan
+# by its own top-level taxonomy.
+JP_MAJOR_GROUP_LABELS_EN = {
+    "0002": "Food", "0045": "Housing", "0054": "Fuel, light & water charges",
+    "0060": "Furniture & household utensils", "0082": "Clothes & footwear",
+    "0107": "Medical care", "0111": "Transportation & communication",
+    "0118": "Education", "0122": "Culture & recreation",
+    "0145": "Miscellaneous",
+}
+
+
+def jp_major_group(code: str) -> str:
+    """English major-group name for a medium-group cat01 code.
+
+    The cat01 codes of the major-group tree are numbered in pre-order, so a
+    medium group's parent major is the last major whose code precedes it —
+    the same parent that `select_cat01_partition` reads off the e-Stat tree.
+    """
+    code = str(code).zfill(4)
+    parents = [m for m in JP_MAJOR_GROUPS if m < code]
+    if not parents or code in JP_MAJOR_GROUPS:
+        raise KeyError(f"cat01 {code} is not a CPI medium group")
+    return JP_MAJOR_GROUP_LABELS_EN[parents[-1]]
+
 
 # Static 2020-base CPI weights (per 10000, Laspeyres) for the 47 medium groups,
 # transcribed from the e-Stat 2020-base CPI Item Information List (Annual Report

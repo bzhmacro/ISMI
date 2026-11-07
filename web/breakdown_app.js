@@ -26,16 +26,12 @@
      fr,de  Eurostat HICP COICOP leaves: "CP0116" -> division 01.
 
    pce, jp and ca do NOT encode a parent in the key — they are flat codes
-   (DNEAR, 0021, P40). Their hierarchy exists, but in the Python pipelines:
-   jp_pipeline walks the cat01 parent tree to take "the direct children of the
-   10 major groups", ca_cpi_categories.csv carries parent_id/depth, and the BEA
-   underlying-detail tables have a line/level hierarchy. None of it is exported.
-
-   So those three are shown as unavailable rather than grouped by guesswork.
-   The fix is one field in the exporter — emit `group` alongside `key`/`label`
-   from each pipeline's own hierarchy — and this file already reads
-   `category.group` when it is present, so they light up on the next export
-   with no change here.
+   (DNEAR, 0021, P40). For jp and ca the exporter ships the parent as
+   `category.group`: Japan's major group (大分類) from the e-Stat cat01 tree
+   (jp_pipeline.jp_major_group) and Canada's StatCan major component, pinned
+   in config/ca_cpi_categories.csv. pce's BEA line/level hierarchy is not
+   exported yet, so US PCE is still shown as unavailable rather than grouped
+   by guesswork; emitting `group` for it would light it up with no change here.
 
    HONESTY ABOUT THE TOTAL
    -----------------------
@@ -106,6 +102,7 @@
     { key: "au_m", label: "Australia (monthly)", names: null, from: () => null },
     { key: "nz", label: "New Zealand", names: null, from: () => null },
     { key: "pce", label: "US PCE", names: null, from: () => null },
+    // Flat codes; the exporter ships the official parent as `group`.
     { key: "jp", label: "Japan", names: null, from: () => null },
     { key: "ca", label: "Canada", names: null, from: () => null },
   ];

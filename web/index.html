@@ -167,14 +167,14 @@
           major group is the third character of the stratum code
           (<code>SEF*</code> → food &amp; beverages) and COICOP divisions come from
           <code>04.1</code> / <code>CP0116</code>.
-          <strong>US PCE</strong>, <strong>Japan</strong> and <strong>Canada</strong>
-          use flat codes — <code>DNEAR</code>, <code>0021</code>, <code>P40</code> —
-          that encode no parent. Their hierarchies exist in the pipelines (e-Stat's
-          cat01 tree, Canada's <code>parent_id</code>, BEA's line/level structure)
-          but none of it reaches <code>ism.json</code>, which ships only
-          <code>key</code> and <code>label</code>; adding a <code>group</code> field
-          to the exporter switches them on with no change to this page. Until then
-          they are shown ungrouped rather than bucketed by guesswork.
+          <strong>Japan</strong> is grouped by its 10 major groups (大分類), the
+          parents of the 47 medium groups in e-Stat's cat01 tree, and
+          <strong>Canada</strong> by Statistics Canada's 8 major components, read
+          off each leaf's position in the 18-10-0004 member tree; both are exported
+          as a <code>group</code> field with each category.
+          <strong>US PCE</strong> uses flat BEA codes (<code>DNEAR</code>) and its
+          line/level hierarchy is not exported yet, so it is shown ungrouped rather
+          than bucketed by guesswork.
         </p>
       </aside>
     </div>
