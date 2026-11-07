@@ -50,6 +50,18 @@ def monthly_weights_from_vintages(vintages: pd.DataFrame,
     return w.reindex(month_index.union(w.index)).sort_index().ffill().reindex(month_index)
 
 
+def ca_cpi_groups() -> dict:
+    """Leaf key -> StatCan major component (the 8 top-level CPI groups).
+
+    Pinned in config/ca_cpi_categories.csv (`group`), resolved from each
+    leaf's position in the 18-10-0004 member tree. The Breakdown page stacks
+    Canada by these.
+    """
+    from .statcan import load_ca_cpi_categories
+    cat = load_ca_cpi_categories()
+    return dict(zip(cat["key"], cat["group"]))
+
+
 def build_ca_cpi_panel(client: Optional[StatCanClient] = None,
                        fill_interior_gaps: bool = True, force: bool = False):
     """Build (inflation_panel, weights, labels) for Canada from StatCan CPI.

@@ -425,7 +425,9 @@ def build_backbone(name):
             from ism.estat import EstatClient
             client = EstatClient()
             infl, weights, labels = jp_pipeline.build_jp_cpi_panel(client)
-            categories = [(k, f"{labels[k]} ({k})") for k in infl.columns]
+            # group = the major group (大分類) each medium group sits under
+            categories = [(k, f"{labels[k]} ({k})", jp_pipeline.jp_major_group(k))
+                          for k in infl.columns]
             label, source_note = "JP CPI", "Statistics Bureau of Japan CPI via e-Stat (2020-base, table 0003427113, NSA; medium-group/中分類 partition)"
             head_label = "Japan CPI inflation (12m, %)"
             headline = jp_pipeline.headline_jp_cpi_yoy(client)
@@ -448,7 +450,9 @@ def build_backbone(name):
             from ism.statcan import StatCanClient
             client = StatCanClient()
             infl, weights, labels = ca_pipeline.build_ca_cpi_panel(client)
-            categories = [(k, f"{labels[k]} ({k})") for k in infl.columns]
+            # group = StatCan major component (pinned in ca_cpi_categories.csv)
+            groups = ca_pipeline.ca_cpi_groups()
+            categories = [(k, f"{labels[k]} ({k})", groups.get(k)) for k in infl.columns]
             label, source_note = "CA CPI", "Statistics Canada CPI by product (table 18-10-0004, Canada, NSA; leaf classes capped at depth 4)"
             head_label = "Canada CPI inflation (12m, %)"
             headline = ca_pipeline.headline_ca_cpi_yoy(client)
