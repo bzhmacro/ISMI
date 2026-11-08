@@ -112,7 +112,48 @@
   // it is also the only grouping a flash print can be split by.
   const AGG = { FOOD: "Food, alcohol & tobacco", NRG: "Energy",
                 IGD_NNRG: "Non-energy industrial goods", SERV: "Services" };
-  const AGG_COLOURS = ["#BE8A31", "#CE5533", "#8A85E8", "#2AA695"];
+  const AGG_COLOURS = ["#7FB069", "#F2B134", "#9FA8FF", "#2AA695"];  // food / energy / goods / services
+
+  /* ONE COLOUR PER KIND OF SPENDING, ACROSS COUNTRIES
+     -------------------------------------------------
+     Every gauge names its top-level groups its own way ("Medical care",
+     "Health", "Health & personal care"), so colours by position made the same
+     thing teal in one country and red in the next. Instead each group name is
+     matched to a shared theme and the theme owns the colour. Order matters:
+     the first match wins, which settles combined groups (JP "Transportation &
+     communication" -> transport, NZ "Housing and household utilities" ->
+     housing, CA "Recreation, education & reading" -> recreation). A name that
+     matches nothing falls back to the positional palette. */
+  const THEMES = [
+    ["alcohol",       /^alcohol|tobacco|cannabis/i,             "#9B6BB0"],
+    ["restaurants",   /restaurant|hotel/i,                      "#2E8B7A"],
+    ["food",          /food/i,                                  "#7FB069"],
+    ["clothing",      /cloth|footwear|apparel/i,                "#EFA3C8"],
+    ["housing",       /housing|shelter|rent/i,                  "#4C7FD0"],
+    ["utilities",     /fuel|light|electric|utilit|energy|water/i, "#F2B134"],
+    ["furnishings",   /furnish|furniture|household/i,           "#A68A64"],
+    ["health",        /health|medical/i,                        "#EF5B5B"],
+    ["transport",     /transport/i,                             "#E8833A"],
+    ["recreation",    /recreat|culture/i,                       "#4FD1C5"],
+    ["education",     /educat/i,                                "#D9D36A"],
+    ["communication", /communicat/i,                            "#9FA8FF"],
+    ["insurance",     /insurance|financ/i,                      "#7D8BA6"],
+    ["personal",      /personal care|social protection/i,       "#8E8778"],
+    ["misc",          /misc|other/i,                            "#B9B2A0"],
+  ];
+  const themeColour = (name) => {
+    const t = THEMES.find(([, re]) => re.test(String(name || "")));
+    return t ? t[2] : null;
+  };
+
+  /* Plotly cannot colour individual tick labels via tickfont, but tick text
+     accepts <span style="color:...">, so category axes get coloured labels by
+     passing tickvals = the categories and ticktext = the same, wrapped. */
+  const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const colouredTicks = (cats, colours) => ({
+    tickmode: "array", tickvals: cats,
+    ticktext: cats.map((c, i) => `<span style="color:${colours[i] || INK}">${esc(c)}</span>`),
+  });
 
   const PLOT_BG = "#161D2C", GRID = "#2A3448", INK = "#EDE6D6", MUTED = "#B9B2A0";
   const SURPRISE_POS = "#CE5533", SURPRISE_NEG = "#2AA695";
@@ -265,16 +306,28 @@
     });
     // Present groups in taxonomy order where we know it, else first-seen order.
     if (spec.names) {
-      const known = Object.keys(names).filter((k) => seen.has(k));
+      // JS lists integer-like keys ("10".."13") before "01".."09", so COICOP
+      // divisions are re-sorted; BLS letter codes keep their release order.
+      const keys = Object.keys(names);
+      if (keys.every((k) => /^\d+$/.test(k))) keys.sort();
+      const known = keys.filter((k) => seen.has(k));
       const rest = order.filter((k) => !names[k]);
       order.length = 0;
       order.push(...known, ...rest);
       seen.clear();
       order.forEach((id, i) => seen.set(id, i));
     }
-    const list = order.map((id, i) => [
-      id, id === "?" ? UNCLASSIFIED : (names[id] || id), colourFor(i),
-    ]);
+    // Themed colour where the name is recognised; otherwise the positional
+    // palette, skipping colours a theme has already taken in this gauge.
+    const named = order.map((id) => (id === "?" ? UNCLASSIFIED : (names[id] || id)));
+    const themed = named.map((n, i) => (order[i] === "?" ? MUTED : themeColour(n)));
+    const taken = new Set(themed.filter(Boolean));
+    let next = 0;
+    const list = order.map((id, i) => {
+      let col = themed[i];
+      while (!col) { const c = colourFor(next++); if (!taken.has(c) || next > 40) { col = c; taken.add(c); } }
+      return [id, named[i], col];
+    });
     return { list, of: codes.map((c) => seen.get(c == null ? "?" : c)) };
   }
 
@@ -618,12 +671,13 @@
     const rows = GROUP_LIST.map((g, gi) => {
       const c = groupContrib[gi][t];
       const s = groupSurprise[gi][t];
-      return { label: g[1], contrib: c, surprise: s,
+      return { label: g[1], colour: g[2], contrib: c, surprise: s,
                expected: c == null || s == null ? null : c - s };
     }).filter((r) => r.contrib != null && Math.abs(r.contrib) > 1e-9);
 
     rows.sort((a, b2) => Math.abs(b2.contrib) - Math.abs(a.contrib));
     const labels = rows.map((r) => r.label);
+    const ticks = colouredTicks(labels, rows.map((r) => r.colour));
 
     const layout = {
       paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG,
@@ -632,7 +686,7 @@
       margin: { l: 150, r: 14, t: 10, b: 34 },
       xaxis: { gridcolor: GRID, zerolinecolor: GRID,
                title: { text: "pp", font: { size: 10 } } },
-      yaxis: { gridcolor: GRID, automargin: true },
+      yaxis: { gridcolor: GRID, automargin: true, ...ticks },
       legend: { orientation: "h", y: -0.2, font: { size: 10 } },
     };
 
@@ -666,6 +720,8 @@
 
     const rows = B.categories.map((c, i) => ({
       label: c.label, s: catSurprise[i][t], c: catContrib[i][t],
+      colour: (GROUP_LIST[GROUP_OF[i]] || [])[2] || INK,
+      group: (GROUP_LIST[GROUP_OF[i]] || [])[1] || "",
     })).filter((r) => r.s != null && Number.isFinite(r.s));
 
     rows.sort((a, b2) => Math.abs(b2.s) - Math.abs(a.s));
@@ -680,12 +736,15 @@
       yaxis: { gridcolor: GRID, automargin: true },
       showlegend: false,
     };
+    const ylab = top.map((r) => (r.label.length > 34 ? r.label.slice(0, 33) + "…" : r.label));
+    Object.assign(layout.yaxis, colouredTicks(ylab, top.map((r) => r.colour)));
     Plotly.react(host, [{
       x: top.map((r) => r.s),
-      y: top.map((r) => (r.label.length > 34 ? r.label.slice(0, 33) + "…" : r.label)),
+      y: ylab,
+      customdata: top.map((r) => [r.label, r.group]),
       type: "bar", orientation: "h",
       marker: { color: top.map((r) => (r.s >= 0 ? SURPRISE_POS : SURPRISE_NEG)) },
-      hovertemplate: "%{y}<br>surprise %{x:.2f}pp<extra></extra>",
+      hovertemplate: "%{customdata[0]}<br>%{customdata[1]}<br>surprise %{x:.2f}pp<extra></extra>",
     }], layout, { responsive: true, displayModeBar: false });
 
     const d = $("b-sel-date");
