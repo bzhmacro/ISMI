@@ -157,8 +157,10 @@
         </p>
         <p class="muted">
           <strong>Coverage.</strong> US CPI uses the BLS major expenditure groups;
-          UK, France, Germany, Italy, Spain, Norway and Sweden use COICOP divisions
-          (the HICP gauges can also be grouped by food / energy / goods / services).
+          The UK uses COICOP 1999 divisions; the euro area, France, Germany, Italy,
+          Spain, Norway and Sweden use the COICOP 2018 divisions of Eurostat's HICP
+          (and can also be grouped by food / energy / goods / services, the only
+          split a flash estimate carries).
           <strong>Australia</strong> and <strong>New Zealand</strong> ship their
           official CPI group with every category and are quarterly, so horizons and
           windows switch to quarters for them; Australia's <em>monthly</em> variant
@@ -167,14 +169,14 @@
           major group is the third character of the stratum code
           (<code>SEF*</code> → food &amp; beverages) and COICOP divisions come from
           <code>04.1</code> / <code>CP0116</code>.
-          <strong>Japan</strong> is grouped by its 10 major groups (大分類), the
-          parents of the 47 medium groups in e-Stat's cat01 tree, and
-          <strong>Canada</strong> by Statistics Canada's 8 major components, read
-          off each leaf's position in the 18-10-0004 member tree; both are exported
-          as a <code>group</code> field with each category.
-          <strong>US PCE</strong> uses flat BEA codes (<code>DNEAR</code>) and its
-          line/level hierarchy is not exported yet, so it is shown ungrouped rather
-          than bucketed by guesswork.
+          <strong>US PCE</strong> is grouped by BEA's 16 major product types
+          (motor vehicles, housing &amp; utilities, health care, …, from the NIPA
+          table hierarchy), <strong>Japan</strong> by its 10 major groups (大分類),
+          the parents of the 47 medium groups in e-Stat's cat01 tree, and
+          <strong>Canada</strong> by Statistics Canada's 8 major components; all
+          three are exported as a <code>group</code> field with each category.
+          Colours follow the kind of spending, not the position, so health or
+          transport is the same hue in every country.
         </p>
       </aside>
     </div>

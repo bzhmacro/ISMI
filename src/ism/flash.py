@@ -3,7 +3,7 @@ ism.flash
 =========
 
 Preliminary ("flash") inflation prints for the euro-area gauges, published by
-the national statistics offices about two weeks before the final HICP that the
+Eurostat (euro area) and the national statistics offices about two weeks before the final HICP that the
 category panels are built from.
 
 A flash print is NOT a category panel: it is the headline plus, at best, four
@@ -22,6 +22,8 @@ merged.
 
 Sources (all keyless except none needed):
 
+  ea  Eurostat ei_cphi_m: the flash month flagged "e", headline and the four
+      HICP special aggregates, monthly and annual -- HICP basis.
   fr  INSEE BDM SDMX: provisional values (OBS_STATUS "P") are loaded into the
       regular series on flash day. CPI aggregates (food, tobacco, energy,
       manufactured products, services) as indices, so monthly AND annual
@@ -313,7 +315,69 @@ def fetch_it() -> Optional[dict]:
             "source": "Istat, preliminary estimate (press release)", "url": url}
 
 
-FETCHERS = {"fr": fetch_fr, "de": fetch_de, "es": fetch_es, "it": fetch_it}
+# ---------------------------------------------------------------------------
+# Euro area -- Eurostat flash estimate
+# ---------------------------------------------------------------------------
+# ei_cphi_m carries the flash month flagged "e" (estimate) on flash day, for the
+# headline and exactly the four HICP special aggregates (CP-HIF is "food,
+# alcohol and tobacco" = FOOD; checked equal to prc_hicp_minr FOOD).
+EUROSTAT_FLASH_URL = ("https://ec.europa.eu/eurostat/api/dissemination/statistics/"
+                      "1.0/data/ei_cphi_m")
+EA_FLASH_INDIC = {"TOTAL": None, "CP-HIF": "FOOD", "CP-HIE": "NRG",
+                  "CP-HIIGXE": "IGD_NNRG", "CP-HIS": "SERV"}
+
+
+def _eurostat_cells(js: dict) -> dict:
+    """JSON-stat 2.0 -> {(dim values...): (value, status)}."""
+    ids, size = js["id"], js["size"]
+    order = [sorted(js["dimension"][i]["category"]["index"],
+                    key=js["dimension"][i]["category"]["index"].get) for i in ids]
+    status = js.get("status") or {}
+    out = {}
+    for flat, v in js.get("value", {}).items():
+        n, key = int(flat), []
+        for sz, o in zip(reversed(size), reversed(order)):
+            key.append(o[n % sz])
+            n //= sz
+        out[tuple(reversed(key))] = (v, status.get(flat, ""))
+    return out
+
+
+def fetch_ea() -> Optional[dict]:
+    """Eurostat euro-area flash, or None when the latest month is final."""
+    since = (dt.date.today().replace(day=1) - dt.timedelta(days=100)).strftime("%Y-%m")
+    js = _request("GET", EUROSTAT_FLASH_URL, provider="Eurostat", timeout=60,
+                  params={"geo": "EA", "unit": ["RT1", "RT12"], "indic": list(EA_FLASH_INDIC),
+                          "sinceTimePeriod": since}).json()
+    ids = js["id"]
+    iu, ii, it = ids.index("unit"), ids.index("indic"), ids.index("time")
+    cells = _eurostat_cells(js)
+    est = [k[it] for k, (_, st) in cells.items() if k[ii] == "TOTAL" and st == "e"]
+    if not est:
+        return None
+    t = max(est)
+
+    def changes(indic):
+        out = {}
+        for k, (v, _) in cells.items():
+            if k[ii] == indic and k[it] == t and v is not None:
+                out["mom" if k[iu] == "RT1" else "yoy"] = float(v)
+        return out
+
+    comps = {agg: changes(ind) for ind, agg in EA_FLASH_INDIC.items() if agg}
+    return {
+        "date": t,
+        "headline": changes("TOTAL"),
+        "components": {a: c for a, c in comps.items() if c},
+        "components_basis": "Eurostat HICP special aggregates (flash estimate) -- "
+                            "same basis as the final HICP",
+        "source": "Eurostat flash estimate",
+        "url": "https://ec.europa.eu/eurostat/web/hicp",
+    }
+
+
+FETCHERS = {"fr": fetch_fr, "de": fetch_de, "es": fetch_es, "it": fetch_it,
+            "ea": fetch_ea}
 
 
 def fetch_flash(geo: str, **kw) -> Optional[dict]:

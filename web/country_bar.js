@@ -14,10 +14,11 @@
 "use strict";
 
 const CountryBar = (() => {
-  // The same twelve countries, in the same order, on every page. A country
-  // with no data on a page is still shown, greyed out and disabled.
+  // The same thirteen countries, in the same order, on every page. A country
+  // with no data on a page is still shown, greyed out and disabled. The euro
+  // area sits just before its four largest members.
   const COUNTRIES = [
-    ["us", "US"], ["ca", "Canada"], ["gb", "UK"], ["fr", "France"],
+    ["us", "US"], ["ca", "Canada"], ["gb", "UK"], ["ea", "Euro area"], ["fr", "France"],
     ["de", "Germany"], ["it", "Italy"], ["es", "Spain"], ["no", "Norway"],
     ["se", "Sweden"], ["jp", "Japan"], ["au", "Australia"], ["nz", "NZ"],
   ];

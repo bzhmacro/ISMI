@@ -23,15 +23,15 @@
             SET* transportation, SEM* medical care, SER* recreation,
             SEE* education & communication, SEG* other goods & services.
      uk     ONS MM23 COICOP classes, dotted: "04.1" -> division 04.
-     fr,de  Eurostat HICP COICOP leaves: "CP0116" -> division 01.
+     HICP   Eurostat ECOICOP v2 (COICOP 2018) leaves: "CP0116" -> division 01
+            (ea, fr, de, it, es, no, se).
 
    pce, jp and ca do NOT encode a parent in the key — they are flat codes
-   (DNEAR, 0021, P40). For jp and ca the exporter ships the parent as
-   `category.group`: Japan's major group (大分類) from the e-Stat cat01 tree
-   (jp_pipeline.jp_major_group) and Canada's StatCan major component, pinned
-   in config/ca_cpi_categories.csv. pce's BEA line/level hierarchy is not
-   exported yet, so US PCE is still shown as unavailable rather than grouped
-   by guesswork; emitting `group` for it would light it up with no change here.
+   (DNEAR, 0021, P40) — so the exporter ships the parent as `category.group`:
+   BEA's 16 major product types for PCE (NIPA Table 2.4.5, from the BEA
+   SeriesRegister parent chain, pinned in config/pce_categories.csv), Japan's
+   major group (大分類) from the e-Stat cat01 tree (jp_pipeline.jp_major_group)
+   and Canada's StatCan major component (config/ca_cpi_categories.csv).
 
    HONESTY ABOUT THE TOTAL
    -----------------------
@@ -61,17 +61,31 @@
     G: "Other goods & services",
   };
 
-  // COICOP divisions. 01-12 are COICOP-1999 (ONS MM23) and ECOICOP (Eurostat);
-  // 13 only appears under COICOP-2018, and is carried so a future re-based
-  // series does not fall into Unclassified.
+  // COICOP divisions. Two vintages are live at once:
+  //   COICOP 1999 — ONS MM23 (uk), 12 divisions, 12 = miscellaneous.
+  //   COICOP 2018 — Eurostat ECOICOP v2 (every HICP gauge since Jan 2026),
+  //                 13 divisions: 12 = insurance & financial services and
+  //                 13 = personal care & miscellaneous. Using the 1999 names on
+  //                 HICP data labelled insurance "miscellaneous".
   const COICOP = {
     "01": "Food & non-alcoholic drinks", "02": "Alcohol & tobacco",
     "03": "Clothing & footwear", "04": "Housing, water & fuels",
     "05": "Furnishings & household equipment", "06": "Health",
     "07": "Transport", "08": "Communication", "09": "Recreation & culture",
     "10": "Education", "11": "Restaurants & hotels",
-    "12": "Miscellaneous goods & services", "13": "Personal care & social protection",
+    "12": "Miscellaneous goods & services",
   };
+  const COICOP18 = {
+    "01": "Food & non-alcoholic drinks", "02": "Alcohol, tobacco & narcotics",
+    "03": "Clothing & footwear", "04": "Housing, water & fuels",
+    "05": "Furnishings & household equipment", "06": "Health",
+    "07": "Transport", "08": "Information & communication",
+    "09": "Recreation, sport & culture", "10": "Education",
+    "11": "Restaurants & accommodation", "12": "Insurance & financial services",
+    "13": "Personal care & miscellaneous",
+  };
+  const hicp = (key, label) => ({ key, label, names: COICOP18,
+    from: (k) => (/^CP\d{2}/i.test(k) && COICOP18[k.slice(2, 4)] ? k.slice(2, 4) : null) });
 
   /* Per-gauge taxonomy. `from(key)` returns a group code, or null when this
      gauge does not encode one — in which case the view falls back to the
@@ -82,18 +96,9 @@
       from: (k) => (/^SE/i.test(k) && BLS[k[2]] ? k[2] : null) },
     { key: "uk", label: "UK", names: COICOP,
       from: (k) => (/^\d{2}\./.test(k) && COICOP[k.slice(0, 2)] ? k.slice(0, 2) : null) },
-    { key: "fr", label: "France", names: COICOP,
-      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
-    { key: "de", label: "Germany", names: COICOP,
-      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
-    { key: "it", label: "Italy", names: COICOP,
-      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
-    { key: "es", label: "Spain", names: COICOP,
-      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
-    { key: "no", label: "Norway", names: COICOP,
-      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
-    { key: "se", label: "Sweden", names: COICOP,
-      from: (k) => (/^CP\d{2}/i.test(k) && COICOP[k.slice(2, 4)] ? k.slice(2, 4) : null) },
+    hicp("ea", "Euro area"),
+    hicp("fr", "France"), hicp("de", "Germany"), hicp("it", "Italy"),
+    hicp("es", "Spain"), hicp("no", "Norway"), hicp("se", "Sweden"),
     // Quarterly gauges. Their exporter ships the official top-level group with
     // each category (ABS CPI groups, Stats NZ CPI groups), so `from` is unused.
     { key: "au", label: "Australia", names: null, from: () => null },
@@ -101,8 +106,8 @@
     // models use the quarterly `au` series (see the backbone's note).
     { key: "au_m", label: "Australia (monthly)", names: null, from: () => null },
     { key: "nz", label: "New Zealand", names: null, from: () => null },
-    { key: "pce", label: "US PCE", names: null, from: () => null },
     // Flat codes; the exporter ships the official parent as `group`.
+    { key: "pce", label: "US PCE", names: null, from: () => null },
     { key: "jp", label: "Japan", names: null, from: () => null },
     { key: "ca", label: "Canada", names: null, from: () => null },
   ];
@@ -126,25 +131,36 @@
      matches nothing falls back to the positional palette. */
   const THEMES = [
     ["alcohol",       /^alcohol|tobacco|cannabis/i,             "#9B6BB0"],
-    ["restaurants",   /restaurant|hotel/i,                      "#2E8B7A"],
+    ["restaurants",   /restaurant|hotel|food services|accommodat/i,                      "#2E8B7A"],
     ["food",          /food/i,                                  "#7FB069"],
     ["clothing",      /cloth|footwear|apparel/i,                "#EFA3C8"],
     ["housing",       /housing|shelter|rent/i,                  "#4C7FD0"],
     ["utilities",     /fuel|light|electric|utilit|energy|water/i, "#F2B134"],
     ["furnishings",   /furnish|furniture|household/i,           "#A68A64"],
     ["health",        /health|medical/i,                        "#EF5B5B"],
-    ["transport",     /transport/i,                             "#E8833A"],
+    ["transport",     /transport|motor vehicle/i,                             "#E8833A"],
     ["recreation",    /recreat|culture/i,                       "#4FD1C5"],
     ["education",     /educat/i,                                "#D9D36A"],
     ["communication", /communicat/i,                            "#9FA8FF"],
     ["insurance",     /insurance|financ/i,                      "#7D8BA6"],
     ["personal",      /personal care|social protection/i,       "#8E8778"],
-    ["misc",          /misc|other/i,                            "#B9B2A0"],
+    ["misc",          /misc|other|nonprofit/i,                            "#B9B2A0"],
   ];
   const themeColour = (name) => {
     const t = THEMES.find(([, re]) => re.test(String(name || "")));
     return t ? t[2] : null;
   };
+
+  /* When one gauge has several groups on the same theme (US PCE: motor
+     vehicles AND transportation services; four "other" lines), the repeats
+     keep the hue but step lighter / darker so the stack stays readable. */
+  const shade = (hex, f) => {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = [n >> 16, (n >> 8) & 255, n & 255].map((c) =>
+      Math.round(f >= 0 ? c + (255 - c) * f : c * (1 + f)));
+    return "#" + ch.map((c) => c.toString(16).padStart(2, "0")).join("");
+  };
+  const SHADES = [0, 0.4, -0.35, 0.65, -0.55];
 
   /* Plotly cannot colour individual tick labels via tickfont, but tick text
      accepts <span style="color:...">, so category axes get coloured labels by
@@ -320,7 +336,15 @@
     // Themed colour where the name is recognised; otherwise the positional
     // palette, skipping colours a theme has already taken in this gauge.
     const named = order.map((id) => (id === "?" ? UNCLASSIFIED : (names[id] || id)));
-    const themed = named.map((n, i) => (order[i] === "?" ? MUTED : themeColour(n)));
+    const reps = new Map();
+    const themed = named.map((n, i) => {
+      if (order[i] === "?") return MUTED;
+      const base = themeColour(n);
+      if (!base) return null;
+      const k = reps.get(base) || 0;
+      reps.set(base, k + 1);
+      return shade(base, SHADES[k % SHADES.length]);
+    });
     const taken = new Set(themed.filter(Boolean));
     let next = 0;
     const list = order.map((id, i) => {

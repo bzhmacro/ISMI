@@ -1,131 +1,131 @@
-key,SeriesCode,line,level,label,gs
-DNEAR,DNEARG,6,5,New autos,G
-DNWTR,DNWTRG,9,5,New light trucks,G
-DNPUR,DNPURG,13,5,Used autos,G
-DUTRR,DUTRRG,17,5,Used light trucks,G
-DTATR,DTATRG,21,5,Tires,G
-DPAAR,DPAARG,22,5,Accessories and parts,G
-DFNRR,DFNRRG,25,5,Furniture,G
-DCLFR,DCLFRG,26,5,"Clocks, lamps, lighting fixtures, and other household decorative items",G
-DFLRR,DFLRRG,27,5,Carpets and other floor coverings,G
-DWCTR,DWCTRG,28,5,Window coverings,G
-DMHAR,DMHARG,30,5,Major household appliances,G
-DSEAR,DSEARG,31,5,Small electric household appliances,G
-DCHNR,DCHNRG,33,5,Dishes and flatware,G
-DNECR,DNECRG,34,5,Nonelectric cookware and tableware,G
-DHDWR,DHDWRG,36,5,"Tools, hardware, and supplies",G
-DLWNR,DLWNRG,37,5,Outdoor equipment and supplies,G
-DVAAR,DVAARG,40,5,Video and audio equipment,G
-DCAMR,DCAMRG,47,5,Photographic equipment,G
-DIPER,DIPERG,48,5,Information processing equipment,G
-DSPGR,DSPGRG,52,4,"Sporting equipment, supplies, guns, and ammunition (part of 80)",G
-DMCYR,DMCYRG,54,5,Motorcycles,G
-DBCYR,DBCYRG,55,5,Bicycles and accessories,G
-DBARR,DBARRG,56,5,"Pleasure boats, aircraft, and other recreational vehicles",G
-DRBKR,DRBKRG,60,4,Recreational books (part of 90),G
-DMSCR,DMSCRG,61,4,Musical instruments (part of 80),G
-DJLYR,DJLYRG,64,5,Jewelry,G
-DWTCR,DWTCRG,65,5,Watches,G
-DTMER,DTMERG,67,5,Therapeutic medical equipment,G
-DEYER,DEYERG,68,5,Corrective eyeglasses and contact lenses,G
-DEBKR,DEBKRG,69,4,Educational books (96),G
-DLUGR,DLUGRG,70,4,Luggage and similar personal items (part of 119),G
-DTCER,DTCERG,71,4,Telephone and related communication equipment,G
-DFOFR,DFOFRG,75,5,Food purchased for off-premises consumption,G
-DNBVR,DNBVRG,96,5,Nonalcoholic beverages purchased for off-premises consumption,G
-DLIQR,DLIQRG,100,5,Spirits,G
-DWINR,DWINRG,101,5,Wine,G
-DMLTR,DMLTRG,102,5,Beer,G
-DFFDR,DFFDRG,103,4,Food produced and consumed on farms (6),G
-DWGCR,DWGCRG,106,5,Women's and girls' clothing (10),G
-DMBCR,DMBCRG,107,5,Men's and boys' clothing (11),G
-DCICR,DCICRG,108,5,Children's and infants' clothing (12),G
-DCSMR,DCSMRG,110,5,Clothing materials,G
-DMICR,DMICRG,111,5,Standard clothing issued to military personnel,G
-DSHUR,DSHURG,112,5,Shoes and other footwear,G
-DGASR,DGASRG,115,5,Gasoline and other motor fuel,G
-DLUBR,DLUBRG,116,5,Lubricants and fluids,G
-DOILR,DOILRG,118,5,Fuel oil,G
-DLPFR,DLPFRG,119,5,Other fuels,G
-DPNPR,DPNPRG,122,5,Pharmaceutical products,G
-DOMPR,DOMPRG,125,5,Other medical products,G
-DDOLR,DDOLRG,127,5,"Games, toys, and hobbies",G
-DPRPR,DPRPRG,128,5,Pets and related products,G
-DFLOR,DFLORG,129,5,"Flowers, seeds, and potted plants",G
-DFLMR,DFLMRG,130,5,Film and photographic supplies,G
-DCLER,DCLERG,132,5,Household cleaning products,G
-DPAPR,DPAPRG,133,5,Household paper products,G
-DLINR,DLINRG,134,5,Household linens,G
-DSEWR,DSEWRG,135,5,Sewing items,G
-DMHPR,DMHPRG,136,5,Miscellaneous household products,G
-DOPHR,DOPHRG,138,5,"Hair, dental, shaving, and miscellaneous personal care products except electrical products",G
-DCOSR,DCOSRG,139,5,Cosmetic / perfumes / bath / nail preparations and implements,G
-DEAPR,DEAPRG,140,5,Electric appliances for personal care,G
-DTOBR,DTOBRG,141,4,Tobacco (127),G
-DMAGR,DMAGRG,143,5,Newspapers and periodicals,G
-DSTYR,DSTYRG,144,5,Stationery and miscellaneous printed materials,G
-DABDR,DABDRG,146,5,Expenditures abroad by U.S. residents,G
-DTENR,DTENRG,154,5,Rental of tenant-occupied nonfarm housing (20),S
-DOWNR,DOWNRG,160,5,Imputed rental of owner-occupied nonfarm housing (21),S
-DFARR,DFARRG,163,5,Rental value of farm dwellings (22),S
-DGRHR,DGRHRG,164,5,Group housing (23),S
-DWRSR,DWRSRG,166,5,Water supply and sanitation (25),S
-DELGR,DELGRG,169,5,Electricity and gas,S
-DPHYR,DPHYRG,174,5,Physician services (44),S
-DDENR,DDENRG,175,5,Dental services (45),S
-DPMSR,DPMSRG,176,5,Paramedical services (46),S
-DHSPR,DHSPRG,183,5,Hospitals (51),S
-DNRSR,DNRSRG,187,5,Nursing homes (52),S
-DVMRR,DVMRRG,192,5,Motor vehicle maintenance and repair (60),S
-DOVSR,DOVSRG,193,5,Other motor vehicle services (61),S
-DGRDR,DGRDRG,200,5,Ground transportation (63),S
-DAITR,DAITRG,207,5,Air transportation (64),S
-DWATR,DWATRG,208,5,Water transportation (65),S
-DMDFR,DMDFRG,211,5,Membership clubs and participant sports centers,S
-DORSR,DORSRG,212,5,"Amusement parks, campgrounds, and related recreational services",S
-DADMR,DADMRG,213,5,Admissions to specified spectator amusements,S
-DMUSR,DMUSRG,217,5,Museums and libraries,S
-DCTVR,DCTVRG,219,5,"Cable, satellite, and other live television services",S
-DFDVR,DFDVRG,220,5,Photo processing,S
-DPICR,DPICRG,221,5,Photo studios,S
-DAPIR,DAPIRG,222,5,"Repair and rental of audio-visual, photographic, and information processing equipment",S
-DVIDR,DVIDRG,223,5,Video and audio streaming and rental,S
-DCASR,DCASRG,227,5,Casino gambling,S
-DLOTR,DLOTRG,228,5,Lotteries,S
-DPARR,DPARRG,229,5,Pari-mutuel net receipts,S
-DVETR,DVETRG,231,5,Veterinary and other services for pets,S
-DHOLR,DHOLRG,232,5,Package tours,S
-DRRER,DRRERG,233,5,Maintenance and repair of recreational vehicles and sports equipment,S
-DPMBR,DPMBRG,236,5,Purchased meals and beverages (102),S
-DFOOR,DFOORG,246,5,Food furnished to employees (including military) (103),S
-DHOTR,DHOTRG,250,5,Hotels and motels,S
-DSCHR,DSCHRG,251,5,Housing at schools,S
-DIMPR,DIMPRG,254,5,Financial services furnished without payment (107),S
-DOFIR,DOFIRG,258,5,"Financial service charges, fees, and commissions (108)",S
-DLIFR,DLIFRG,271,5,Life insurance (110),S
-DFINR,DFINRG,272,5,Net household insurance (111),S
-DHINR,DHINRG,275,5,Net health insurance (112),S
-DTINR,DTINRG,279,5,Net motor vehicle and other transportation insurance (116),S
-DTCSR,DTCSRG,282,5,Telecommunication services (71),S
-DPSSR,DPSSRG,286,5,Postal and delivery services (68),S
-DINTR,DINTRG,289,5,Internet access (72),S
-DHEDR,DHEDRG,291,5,Higher education (97),S
-DNEHR,DNEHRG,294,5,"Nursery, elementary, and secondary schools (98)",S
-DVEDR,DVEDRG,297,5,Commercial and vocational schools (99),S
-DGALR,DGALRG,299,5,Legal services,S
-DPROR,DPRORG,300,5,Accounting and other business services,S
-DUNSR,DUNSRG,304,5,Labor organization dues,S
-DAXSR,DAXSRG,305,5,Professional association dues,S
-DFUNR,DFUNRG,306,5,Funeral and burial services,S
-DPCSR,DPCSRG,308,5,Personal care services,S
-DCFSR,DCFSRG,311,5,Clothing and footwear services,S
-DCHCR,DCHCRG,316,5,Child care,S
-DSCWR,DSCWRG,317,5,Social assistance,S
-DSADR,DSADRG,324,5,Social advocacy and civic and social organizations,S
-DDMSR,DDMSRG,328,5,Domestic services,S
-DMSER,DMSERG,329,5,"Moving, storage, and freight services",S
-DFRER,DFRERG,330,5,"Repair of furniture, furnishings, and floor coverings",S
-DERER,DERERG,331,5,Repair of household appliances,S
-DMHSR,DMHSRG,332,5,Other household services,S
-DFTRR,DFTRRG,334,5,Foreign travel by U.S. residents (129),S
-DSASR,DSASRG,366,4,Services of social advocacy establishments to households,S
+key,SeriesCode,line,level,label,gs,group
+DNEAR,DNEARG,6,5,New autos,G,Motor vehicles & parts
+DNWTR,DNWTRG,9,5,New light trucks,G,Motor vehicles & parts
+DNPUR,DNPURG,13,5,Used autos,G,Motor vehicles & parts
+DUTRR,DUTRRG,17,5,Used light trucks,G,Motor vehicles & parts
+DTATR,DTATRG,21,5,Tires,G,Motor vehicles & parts
+DPAAR,DPAARG,22,5,Accessories and parts,G,Motor vehicles & parts
+DFNRR,DFNRRG,25,5,Furniture,G,Furnishings & household equipment
+DCLFR,DCLFRG,26,5,"Clocks, lamps, lighting fixtures, and other household decorative items",G,Furnishings & household equipment
+DFLRR,DFLRRG,27,5,Carpets and other floor coverings,G,Furnishings & household equipment
+DWCTR,DWCTRG,28,5,Window coverings,G,Furnishings & household equipment
+DMHAR,DMHARG,30,5,Major household appliances,G,Furnishings & household equipment
+DSEAR,DSEARG,31,5,Small electric household appliances,G,Furnishings & household equipment
+DCHNR,DCHNRG,33,5,Dishes and flatware,G,Furnishings & household equipment
+DNECR,DNECRG,34,5,Nonelectric cookware and tableware,G,Furnishings & household equipment
+DHDWR,DHDWRG,36,5,"Tools, hardware, and supplies",G,Furnishings & household equipment
+DLWNR,DLWNRG,37,5,Outdoor equipment and supplies,G,Furnishings & household equipment
+DVAAR,DVAARG,40,5,Video and audio equipment,G,Recreational goods & vehicles
+DCAMR,DCAMRG,47,5,Photographic equipment,G,Recreational goods & vehicles
+DIPER,DIPERG,48,5,Information processing equipment,G,Recreational goods & vehicles
+DSPGR,DSPGRG,52,4,"Sporting equipment, supplies, guns, and ammunition (part of 80)",G,Recreational goods & vehicles
+DMCYR,DMCYRG,54,5,Motorcycles,G,Recreational goods & vehicles
+DBCYR,DBCYRG,55,5,Bicycles and accessories,G,Recreational goods & vehicles
+DBARR,DBARRG,56,5,"Pleasure boats, aircraft, and other recreational vehicles",G,Recreational goods & vehicles
+DRBKR,DRBKRG,60,4,Recreational books (part of 90),G,Recreational goods & vehicles
+DMSCR,DMSCRG,61,4,Musical instruments (part of 80),G,Recreational goods & vehicles
+DJLYR,DJLYRG,64,5,Jewelry,G,Other durable goods
+DWTCR,DWTCRG,65,5,Watches,G,Other durable goods
+DTMER,DTMERG,67,5,Therapeutic medical equipment,G,Other durable goods
+DEYER,DEYERG,68,5,Corrective eyeglasses and contact lenses,G,Other durable goods
+DEBKR,DEBKRG,69,4,Educational books (96),G,Other durable goods
+DLUGR,DLUGRG,70,4,Luggage and similar personal items (part of 119),G,Other durable goods
+DTCER,DTCERG,71,4,Telephone and related communication equipment,G,Other durable goods
+DFOFR,DFOFRG,75,5,Food purchased for off-premises consumption,G,Food & beverages (off-premises)
+DNBVR,DNBVRG,96,5,Nonalcoholic beverages purchased for off-premises consumption,G,Food & beverages (off-premises)
+DLIQR,DLIQRG,100,5,Spirits,G,Food & beverages (off-premises)
+DWINR,DWINRG,101,5,Wine,G,Food & beverages (off-premises)
+DMLTR,DMLTRG,102,5,Beer,G,Food & beverages (off-premises)
+DFFDR,DFFDRG,103,4,Food produced and consumed on farms (6),G,Food & beverages (off-premises)
+DWGCR,DWGCRG,106,5,Women's and girls' clothing (10),G,Clothing & footwear
+DMBCR,DMBCRG,107,5,Men's and boys' clothing (11),G,Clothing & footwear
+DCICR,DCICRG,108,5,Children's and infants' clothing (12),G,Clothing & footwear
+DCSMR,DCSMRG,110,5,Clothing materials,G,Clothing & footwear
+DMICR,DMICRG,111,5,Standard clothing issued to military personnel,G,Clothing & footwear
+DSHUR,DSHURG,112,5,Shoes and other footwear,G,Clothing & footwear
+DGASR,DGASRG,115,5,Gasoline and other motor fuel,G,Gasoline & other energy goods
+DLUBR,DLUBRG,116,5,Lubricants and fluids,G,Gasoline & other energy goods
+DOILR,DOILRG,118,5,Fuel oil,G,Gasoline & other energy goods
+DLPFR,DLPFRG,119,5,Other fuels,G,Gasoline & other energy goods
+DPNPR,DPNPRG,122,5,Pharmaceutical products,G,Other nondurable goods
+DOMPR,DOMPRG,125,5,Other medical products,G,Other nondurable goods
+DDOLR,DDOLRG,127,5,"Games, toys, and hobbies",G,Other nondurable goods
+DPRPR,DPRPRG,128,5,Pets and related products,G,Other nondurable goods
+DFLOR,DFLORG,129,5,"Flowers, seeds, and potted plants",G,Other nondurable goods
+DFLMR,DFLMRG,130,5,Film and photographic supplies,G,Other nondurable goods
+DCLER,DCLERG,132,5,Household cleaning products,G,Other nondurable goods
+DPAPR,DPAPRG,133,5,Household paper products,G,Other nondurable goods
+DLINR,DLINRG,134,5,Household linens,G,Other nondurable goods
+DSEWR,DSEWRG,135,5,Sewing items,G,Other nondurable goods
+DMHPR,DMHPRG,136,5,Miscellaneous household products,G,Other nondurable goods
+DOPHR,DOPHRG,138,5,"Hair, dental, shaving, and miscellaneous personal care products except electrical products",G,Other nondurable goods
+DCOSR,DCOSRG,139,5,Cosmetic / perfumes / bath / nail preparations and implements,G,Other nondurable goods
+DEAPR,DEAPRG,140,5,Electric appliances for personal care,G,Other nondurable goods
+DTOBR,DTOBRG,141,4,Tobacco (127),G,Other nondurable goods
+DMAGR,DMAGRG,143,5,Newspapers and periodicals,G,Other nondurable goods
+DSTYR,DSTYRG,144,5,Stationery and miscellaneous printed materials,G,Other nondurable goods
+DABDR,DABDRG,146,5,Expenditures abroad by U.S. residents,G,Other nondurable goods
+DTENR,DTENRG,154,5,Rental of tenant-occupied nonfarm housing (20),S,Housing & utilities
+DOWNR,DOWNRG,160,5,Imputed rental of owner-occupied nonfarm housing (21),S,Housing & utilities
+DFARR,DFARRG,163,5,Rental value of farm dwellings (22),S,Housing & utilities
+DGRHR,DGRHRG,164,5,Group housing (23),S,Housing & utilities
+DWRSR,DWRSRG,166,5,Water supply and sanitation (25),S,Housing & utilities
+DELGR,DELGRG,169,5,Electricity and gas,S,Housing & utilities
+DPHYR,DPHYRG,174,5,Physician services (44),S,Health care
+DDENR,DDENRG,175,5,Dental services (45),S,Health care
+DPMSR,DPMSRG,176,5,Paramedical services (46),S,Health care
+DHSPR,DHSPRG,183,5,Hospitals (51),S,Health care
+DNRSR,DNRSRG,187,5,Nursing homes (52),S,Health care
+DVMRR,DVMRRG,192,5,Motor vehicle maintenance and repair (60),S,Transportation services
+DOVSR,DOVSRG,193,5,Other motor vehicle services (61),S,Transportation services
+DGRDR,DGRDRG,200,5,Ground transportation (63),S,Transportation services
+DAITR,DAITRG,207,5,Air transportation (64),S,Transportation services
+DWATR,DWATRG,208,5,Water transportation (65),S,Transportation services
+DMDFR,DMDFRG,211,5,Membership clubs and participant sports centers,S,Recreation services
+DORSR,DORSRG,212,5,"Amusement parks, campgrounds, and related recreational services",S,Recreation services
+DADMR,DADMRG,213,5,Admissions to specified spectator amusements,S,Recreation services
+DMUSR,DMUSRG,217,5,Museums and libraries,S,Recreation services
+DCTVR,DCTVRG,219,5,"Cable, satellite, and other live television services",S,Recreation services
+DFDVR,DFDVRG,220,5,Photo processing,S,Recreation services
+DPICR,DPICRG,221,5,Photo studios,S,Recreation services
+DAPIR,DAPIRG,222,5,"Repair and rental of audio-visual, photographic, and information processing equipment",S,Recreation services
+DVIDR,DVIDRG,223,5,Video and audio streaming and rental,S,Recreation services
+DCASR,DCASRG,227,5,Casino gambling,S,Recreation services
+DLOTR,DLOTRG,228,5,Lotteries,S,Recreation services
+DPARR,DPARRG,229,5,Pari-mutuel net receipts,S,Recreation services
+DVETR,DVETRG,231,5,Veterinary and other services for pets,S,Recreation services
+DHOLR,DHOLRG,232,5,Package tours,S,Recreation services
+DRRER,DRRERG,233,5,Maintenance and repair of recreational vehicles and sports equipment,S,Recreation services
+DPMBR,DPMBRG,236,5,Purchased meals and beverages (102),S,Food services & accommodations
+DFOOR,DFOORG,246,5,Food furnished to employees (including military) (103),S,Food services & accommodations
+DHOTR,DHOTRG,250,5,Hotels and motels,S,Food services & accommodations
+DSCHR,DSCHRG,251,5,Housing at schools,S,Food services & accommodations
+DIMPR,DIMPRG,254,5,Financial services furnished without payment (107),S,Financial services & insurance
+DOFIR,DOFIRG,258,5,"Financial service charges, fees, and commissions (108)",S,Financial services & insurance
+DLIFR,DLIFRG,271,5,Life insurance (110),S,Financial services & insurance
+DFINR,DFINRG,272,5,Net household insurance (111),S,Financial services & insurance
+DHINR,DHINRG,275,5,Net health insurance (112),S,Financial services & insurance
+DTINR,DTINRG,279,5,Net motor vehicle and other transportation insurance (116),S,Financial services & insurance
+DTCSR,DTCSRG,282,5,Telecommunication services (71),S,Other services
+DPSSR,DPSSRG,286,5,Postal and delivery services (68),S,Other services
+DINTR,DINTRG,289,5,Internet access (72),S,Other services
+DHEDR,DHEDRG,291,5,Higher education (97),S,Other services
+DNEHR,DNEHRG,294,5,"Nursery, elementary, and secondary schools (98)",S,Other services
+DVEDR,DVEDRG,297,5,Commercial and vocational schools (99),S,Other services
+DGALR,DGALRG,299,5,Legal services,S,Other services
+DPROR,DPRORG,300,5,Accounting and other business services,S,Other services
+DUNSR,DUNSRG,304,5,Labor organization dues,S,Other services
+DAXSR,DAXSRG,305,5,Professional association dues,S,Other services
+DFUNR,DFUNRG,306,5,Funeral and burial services,S,Other services
+DPCSR,DPCSRG,308,5,Personal care services,S,Other services
+DCFSR,DCFSRG,311,5,Clothing and footwear services,S,Other services
+DCHCR,DCHCRG,316,5,Child care,S,Other services
+DSCWR,DSCWRG,317,5,Social assistance,S,Other services
+DSADR,DSADRG,324,5,Social advocacy and civic and social organizations,S,Other services
+DDMSR,DDMSRG,328,5,Domestic services,S,Other services
+DMSER,DMSERG,329,5,"Moving, storage, and freight services",S,Other services
+DFRER,DFRERG,330,5,"Repair of furniture, furnishings, and floor coverings",S,Other services
+DERER,DERERG,331,5,Repair of household appliances,S,Other services
+DMHSR,DMHSRG,332,5,Other household services,S,Other services
+DFTRR,DFTRRG,334,5,Foreign travel by U.S. residents (129),S,Other services
+DSASR,DSASRG,366,4,Services of social advocacy establishments to households,S,Nonprofit institutions (NPISH)

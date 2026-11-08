@@ -200,7 +200,11 @@ def build_pce_panel():
     infl = monthly_inflation(pw[keys])
     weights = nw[keys].div(nw[keys].sum(axis=1).replace(0, np.nan), axis=0)
     common = infl.index.intersection(weights.index)
-    cat_list = [(k, label_by_key.get(k, k)) for k in keys]
+    # group = BEA major product type (the 16 lines of NIPA Table 2.4.5 under
+    # Durable / Nondurable goods and Household services, plus NPISHs), pinned
+    # in pce_categories.csv from BEA's SeriesRegister parent chain.
+    group_by_key = dict(zip(cats["key"].astype(str), cats.get("group", pd.Series(dtype=str)).astype(str)))
+    cat_list = [(k, label_by_key.get(k, k), group_by_key.get(k)) for k in keys]
     return infl.loc[common], weights.loc[common], cat_list
 
 
@@ -311,7 +315,7 @@ def panel_payload(infl, weights):
 
 QUARTERLY = ("au", "nz")
 #: Gauges with a preliminary print (see ism.flash).
-FLASH_GAUGES = ("fr", "de", "it", "es")
+FLASH_GAUGES = ("ea", "fr", "de", "it", "es")
 BREAKDOWN_ONLY = ("au_m",)
 
 
@@ -349,9 +353,12 @@ def build_backbone(name):
                     "forward-filled monthly and renormalised. History starts "
                     "1988, so the W=120 baseline yields an index from ~1998.")
             weight_note = "weights = ONS annual CPI weights (per mille), ffilled monthly, renormalised"
-        elif name in ("fr", "de", "it", "es", "no", "se"):
+        elif name in ("ea", "fr", "de", "it", "es", "no", "se"):
+            # ea = Eurostat geo "EA": the official euro-area aggregate with
+            # evolving composition (EA11 in 1999 ... EA21 from Jan 2026, Bulgaria),
+            # i.e. the series the ECB targets -- not a fixed-membership EA20.
             geo = name.upper()
-            country = {"fr": "France", "de": "Germany", "it": "Italy",
+            country = {"ea": "Euro area", "fr": "France", "de": "Germany", "it": "Italy",
                        "es": "Spain", "no": "Norway", "se": "Sweden"}[name]
             infl, weights, categories, headline, aggs = build_euro_panel(geo)
             label = f"{geo} HICP"
@@ -536,7 +543,7 @@ def build_backbone(name):
     }
 
 
-KNOWN = ("pce", "cpi", "uk", "fr", "de", "it", "es", "jp", "ca", "au", "au_m", "nz",
+KNOWN = ("pce", "cpi", "uk", "ea", "fr", "de", "it", "es", "jp", "ca", "au", "au_m", "nz",
          "no", "se")
 
 

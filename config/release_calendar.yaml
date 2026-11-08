@@ -333,6 +333,27 @@ gauges:
       "2026-12": "2027-01-19"      # cross-checked against the ECB statistical
                                    # calendar; Eurostat's own API was rate-limited
 
+  # Euro area (geo EA, evolving composition): the same Eurostat full HICP
+  # release as France and Germany, so it reuses their calendar.
+  ea:
+    label: Euro area HICP (Eurostat, COICOP leaves)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: [ea]
+      decomp: []
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Same Eurostat full HICP release as fr/de (16th-20th of the following
+      month at 11:00 CET/CEST; January reference month around the 25th).
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    expect: *eurostat_expect
+    fallback: *eurostat_fallback
+    dates: *eurostat_hicp_full
+
   de:
     label: Germany HICP (Eurostat, COICOP leaves)
     provider: Eurostat
@@ -794,6 +815,30 @@ gauges:
   # published dates are transcribed per gauge below; past that horizon the
   # fallback (1st of the next month; Italy's December/January prints slip to
   # early in the following month) is late on purpose.
+  ea_flash:
+    label: Euro area flash HICP (Eurostat)
+    provider: Eurostat
+    frequency: monthly
+    ci: true
+    targets:
+      ism: []
+      decomp: []
+      flash: [ea]
+    release_time: "11:00"
+    timezone: Europe/Brussels
+    utc_hour_fallback: 10
+    rule: >-
+      Eurostat's euro-area flash estimate, end of the reference month or the
+      first working days of the next, 11:00 CET/CEST (December's slips into
+      early January). Read from ei_cphi_m, where the flash month carries
+      status "e": headline and the four special aggregates.
+    source: https://ec.europa.eu/eurostat/web/euro-indicators/calendar
+    fallback:
+      lag_months: 1
+      day: 3
+      month_overrides:
+        12: 8                      # December flash: early January
+
   fr_flash:
     label: France preliminary CPI/HICP (INSEE)
     provider: INSEE
