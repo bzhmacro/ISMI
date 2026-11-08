@@ -1,30 +1,43 @@
 /* chart_window.js — the main time-series chart on each model page opens on the
-   last two years; zoom out in the chart itself to see more.
+   last two years; zoom in the chart itself, on BOTH axes.
 
    Wraps Plotly.react for the registered charts only. Before each draw it sets
    the x range (the default two-year window, or whatever the reader last zoomed
    to) and fits each y axis to the data inside that window, so the default view
-   is not squashed by the full history's extremes. A range selector
-   (2y / 5y / 10y / All) sits on the x axis; drag to zoom, double-click for the
-   full history.
+   is not squashed by the full history's extremes.
+
+   ZOOM (the house model, as on the eurex-offbook explorer)
+     drag a box      zooms both axes; a drag that is thin in one direction is a
+                     one-axis zoom on purpose (Plotly's own rule), so dragging
+                     across the plot does not also crush the value axis
+     wheel           scales both axes around the pointer
+     double-click    resets to the default view (two-year window, y fitted)
+     2y/5y/10y/All   x only; y refits to what is visible
+   A line under each chart says which axes are zoomed, in words, and how to
+   reset — so a narrowed value axis is never mistaken for the data.
+
+   The VALUE half of a zoom belongs to the series it was drawn on: bounds that
+   suit one gauge are absurd for another. It is kept across redraws of the
+   same series (clicking a month, moving a lever) and dropped when the series
+   change (another country, another grouping); the dates are always kept.
 
    One timeline for every country. Each app calls ChartWindow.span(id, gauges)
    once its payload has loaded; the window then ends at the latest month held
-   by ANY gauge on that page, not the selected one, and "All" (or a
-   double-click) spans the earliest-to-latest month across all of them. A
-   country whose data stops earlier shows the gap instead of silently ending
-   its axis sooner, and a zoom is kept when switching country. */
+   by ANY gauge on that page, not the selected one, and "All" spans the
+   earliest-to-latest month across all of them. A country whose data stops
+   earlier shows the gap instead of silently ending its axis sooner. */
 "use strict";
 
 (() => {
   if (!window.Plotly) return;
   const CHARTS = new Set(["b-chart", "chart", "d-chart", "t-chart", "t-weights-chart"]);
   // Secondary charts get the two-year window but no range buttons (their
-  // legend sits where the buttons would); drag to zoom, double-click for all.
+  // legend sits where the buttons would); the same drag / wheel / double-click.
   const NO_BUTTONS = new Set(["t-weights-chart"]);
   const YEARS = 2;
   const DAY = 864e5;
-  const state = {};          // id -> { domain, range: null | "all" | [a, b] }
+  // id -> { domain, range: null | "all" | [a, b], y: null | {what, ranges} }
+  const state = {};
   const SPAN = {};           // id -> [t0, t1] shared across every gauge on the page
 
   const ms = v => {
@@ -100,16 +113,30 @@
     [].concat(ids).forEach(id => { SPAN[id] = [lo, hi]; });
   }
 
+  const stateOf = id => state[id] || (state[id] = { domain: null, range: null, y: null });
+
+  /* Identity of what the value axis measures: the visible series' names and
+     the y-axis titles. A value zoom is reused only while this is unchanged. */
+  function whatOf(data, layout) {
+    const names = (data || []).filter(isVisible).map(t => t.name || "").join("|");
+    const titles = Object.keys(layout || {}).filter(k => /^yaxis\d*$/.test(k))
+      .map(k => { const t = layout[k] && layout[k].title; return (t && t.text) || t || ""; })
+      .join("|");
+    return names + "#" + titles;
+  }
+
+  function defaultRange(dom) {
+    return [Math.max(dom[0], dom[1] - YEARS * 365.25 * DAY) - 20 * DAY, dom[1] + 20 * DAY];
+  }
+
   function windowFor(id, data) {
     const dom = SPAN[id] || domainOf(data);
     if (!dom) return null;
-    const st = state[id] || (state[id] = { domain: null, range: null });
+    const st = stateOf(id);
     const key = dom.join("|");
     if (st.domain !== key) { st.domain = key; st.range = null; }
     if (st.range === "all") return { all: true };
-    const r = st.range || [Math.max(dom[0], dom[1] - YEARS * 365.25 * DAY) - 20 * DAY,
-                           dom[1] + 20 * DAY];
-    return { range: r };
+    return { range: st.range || defaultRange(dom) };
   }
 
   const SELECTOR = {
@@ -146,6 +173,13 @@
       if (layout[ax] && layout[ax].range) return;      // the app fixed it
       L[ax] = Object.assign({}, layout[ax], { range: r, autorange: false });
     });
+    // The reader's value zoom, while it still describes the same series.
+    const st = stateOf(id);
+    if (st.y && st.y.what === whatOf(data, layout)) {
+      Object.entries(st.y.ranges).forEach(([ax, r]) => {
+        L[ax] = Object.assign({}, L[ax] || layout[ax], { range: r, autorange: false });
+      });
+    } else st.y = null;
     return L;
   }
 
@@ -154,36 +188,96 @@
     gd._cwBound = true;
     gd.on("plotly_relayout", ev => {
       if (gd._cwBusy || !ev) return;
-      const st = state[gd.id] || (state[gd.id] = { domain: null, range: null });
-      let a, b;
+      const st = stateOf(gd.id);
       if (ev["xaxis.autorange"]) {
-        st.range = "all";
+        st.range = "all"; st.y = null;
         // The "All" button only autoranges x; let y follow the full history.
         if (!Object.keys(ev).some(k => k.startsWith("yaxis"))) {
           const upd = {};
           Object.keys(gd.layout || {}).filter(k => /^yaxis\d*$/.test(k))
             .forEach(k => { upd[k + ".autorange"] = true; });
           gd._cwBusy = true;
-          Promise.resolve(Plotly.relayout(gd, upd)).finally(() => { gd._cwBusy = false; });
-        }
+          Promise.resolve(Plotly.relayout(gd, upd)).finally(() => { gd._cwBusy = false; caption(gd); });
+        } else caption(gd);
         return;
       }
+      // y ranges the reader set (box or wheel), per axis
+      const yr = {};
+      Object.keys(ev).forEach(k => {
+        let m = /^(yaxis\d*)\.range$/.exec(k);
+        if (m && Array.isArray(ev[k])) { yr[m[1]] = ev[k].slice(); return; }
+        m = /^(yaxis\d*)\.range\[(0|1)\]$/.exec(k);
+        if (m) (yr[m[1]] = yr[m[1]] || [])[+m[2]] = ev[k];
+      });
+      let a, b;
       if (ev["xaxis.range"]) [a, b] = ev["xaxis.range"];
       else if ("xaxis.range[0]" in ev) { a = ev["xaxis.range[0]"]; b = ev["xaxis.range[1]"]; }
-      else return;
-      a = ms(a); b = ms(b);
-      if (!(b > a)) return;
-      st.range = [a, b];
-      // A box zoom also sets y: respect it. An x-only change (range buttons,
-      // axis drag) refits y to what is now visible.
-      if (Object.keys(ev).some(k => k.startsWith("yaxis"))) return;
-      refit(gd, a, b);
+      if (a != null) {
+        a = ms(a); b = ms(b);
+        if (b > a) st.range = [a, b];
+      }
+      if (Object.keys(yr).length) {
+        // merge with a value zoom already in place on the other axes
+        const prev = st.y && st.y.what === whatOf(gd.data, gd.layout) ? st.y.ranges : {};
+        st.y = { what: whatOf(gd.data, gd.layout), ranges: Object.assign({}, prev, yr) };
+        caption(gd);
+        return;
+      }
+      if (a == null) return;
+      // An x-only change (range buttons, axis drag) refits y to what is now
+      // visible, which also ends any value zoom.
+      st.y = null;
+      refit(gd, st.range[0], st.range[1]);
+      caption(gd);
     });
     gd.on("plotly_restyle", () => {
       const st = state[gd.id];
-      if (gd._cwBusy || !st || !Array.isArray(st.range)) return;
+      if (gd._cwBusy || !st || !Array.isArray(st.range) || st.y) return;
       refit(gd, st.range[0], st.range[1]);
     });
+    // Double-click resets to the DEFAULT view. Plotly's own double-click
+    // action is turned off (it would autorange to the full history, which the
+    // All button already does), but it still emits the event. A DOM dblclick
+    // listener would not do: Plotly lays a cover over the page during a drag,
+    // so the native event never reaches the chart.
+    gd.on("plotly_doubleclick", () => reset(gd));
+  }
+
+  function reset(gd) {
+    const st = stateOf(gd.id);
+    st.range = null; st.y = null;
+    const w = windowFor(gd.id, gd.data || []);
+    if (!w || w.all) return;
+    const upd = { "xaxis.range": w.range.map(iso), "xaxis.autorange": false };
+    const ys = fitY(gd.data || [], gd.layout || {}, w.range[0], w.range[1]);
+    Object.entries(ys).forEach(([ax, r]) => { upd[ax + ".range"] = r; upd[ax + ".autorange"] = false; });
+    gd._cwBusy = true;
+    Promise.resolve(Plotly.relayout(gd, upd)).finally(() => { gd._cwBusy = false; caption(gd); });
+  }
+
+  /* The zoom line under the chart: what is narrowed, in words. */
+  const ym = t => iso(t).slice(0, 7);
+  function caption(gd) {
+    const wrap = gd.closest(".chart-wrap") || gd;
+    let el = wrap.nextElementSibling;
+    if (!el || !el.classList || !el.classList.contains("zoomcap")) {
+      el = document.createElement("p");
+      el.className = "zoomcap";
+      wrap.after(el);
+    }
+    const st = stateOf(gd.id);
+    const zx = Array.isArray(st.range), zy = Boolean(st.y);
+    const how = "drag a box to zoom both axes · wheel to scale · double-click to reset";
+    if (zx || zy) {
+      const on = [];
+      if (zx) on.push(`dates (${ym(st.range[0])} → ${ym(st.range[1])})`);
+      if (zy) on.push("values");
+      el.textContent = `ZOOMED on ${on.join(" and ")} · double-click to reset`;
+      el.classList.add("on");
+    } else {
+      el.textContent = (st.range === "all" ? "full history" : `last ${YEARS} years`) + " · " + how;
+      el.classList.remove("on");
+    }
   }
 
   function refit(gd, a, b) {
@@ -203,9 +297,11 @@
     if (!el || !CHARTS.has(el.id) || !Array.isArray(data) || !data.length || !layout)
       return orig.apply(this, arguments);
     const L = decorate(el.id, data, layout);
+    // wheel zoom on; Plotly's double-click off (ours resets to the default view)
+    const C = Object.assign({}, config, { scrollZoom: true, doubleClick: false });
     el._cwBusy = true;
-    const p = orig.call(this, el, data, L, config);
-    return Promise.resolve(p).then(r => { bind(el); return r; })
+    const p = orig.call(this, el, data, L, C);
+    return Promise.resolve(p).then(r => { bind(el); caption(el); return r; })
       .finally(() => { el._cwBusy = false; });
   };
 })();

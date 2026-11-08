@@ -177,24 +177,35 @@
 }
 .chart.small{height:320px;}
 
-/* Wrapper injected by chart_export.js around every registered chart. */
+/* Wrapper injected by chart_export.js around every registered chart. The
+   export toolbar — same five buttons, same order, on every figure — is always
+   visible and sits at the right end of the chart's title row; the title keeps
+   room for it. */
 .chart-wrap{position:relative;margin-bottom:var(--gap);}
 .chart-tools{
-  position:absolute;top:8px;right:10px;z-index:5;display:flex;gap:5px;
-  opacity:0;transition:opacity .15s ease;
+  position:absolute;top:-25px;right:0;z-index:5;display:flex;gap:4px;
 }
-.chart-wrap:hover .chart-tools,
-.chart-tools:focus-within{opacity:1;}
-.chart-tools button{
-  cursor:pointer;background:color-mix(in srgb,var(--panel-2) 88%,transparent);
+h2:has(+ .chart-wrap){padding-right:250px;}
+.tbtn{
+  cursor:pointer;background:var(--panel-2);
   border:var(--bw) solid var(--line);color:var(--paper-dim);
-  border-radius:var(--radius-sm);padding:3px 8px;
-  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;
-  backdrop-filter:blur(4px);
+  border-radius:var(--radius-sm);padding:3px 7px;line-height:1;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.02em;
+  transition:color .12s,border-color .12s;white-space:nowrap;
 }
-.chart-tools button:hover{color:var(--paper);border-color:var(--gold);}
-.chart-tools button:disabled{opacity:.4;cursor:default;}
-.chart-tools .done{color:var(--pos);border-color:color-mix(in srgb,var(--pos) 50%,transparent);}
+.tbtn:hover{color:var(--paper);border-color:var(--paper-dim);}
+.tbtn:disabled{opacity:.4;cursor:default;}
+.tbtn.done{color:var(--pos);border-color:var(--pos);}
+.tbtn.bad{color:var(--neg);border-color:var(--neg);}
+/* "light exports" switch, at the end of the model nav */
+.lighttog{
+  font-family:var(--font-mono);font-size:.7rem;color:var(--paper-dim);
+  display:inline-flex;align-items:center;gap:.35rem;margin-left:auto;
+  padding:0 .4rem;cursor:pointer;white-space:nowrap;
+}
+/* Zoom state line under each zoomable chart (chart_window.js). */
+.zoomcap{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin:3px 0 0;}
+.zoomcap.on{color:var(--gold);}
 
 /* Offscreen stage used to render the paper-palette copy before export.
    Kept in the layout (not display:none) because Plotly cannot measure a
@@ -364,12 +375,6 @@ h2.chart-title .status{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%;
 }
 h2.chart-title .status.warn{color:var(--gold);white-space:normal;}
-/* The hover export toolbar would sit on the range buttons (both top-right),
-   so on these pages it moves up into the chart's title row, and the title
-   keeps room for it. */
-.view-main section > h2.chart-title{padding-right:150px;}
-.view-main section > .chart-wrap > .chart-tools{top:-24px;right:0;}
-.view-main .grid2 h2.chart-title{padding-right:0;}
 /* Charts that are taller than their box by design (one row per category)
    scroll inside it rather than being cut off. */
 .view-main .chart.scroll-y{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;}

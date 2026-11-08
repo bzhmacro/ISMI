@@ -1,34 +1,34 @@
-/* chart_export.js — per-chart PNG and CSV export.
+/* chart_export.js — every chart is takeable.
    ===========================================================================
-   Adds a small hover toolbar to every Plotly chart on the page:
+   Same five buttons, same order, on every figure (the house model, as on the
+   eurex-offbook explorer):
 
-       PNG        dark palette, matches the screen
-       PNG PAPER  light palette, for notes and PDFs (house rule: never emit a
-                  dark PDF)
-       CSV        the plotted series, as rendered
+       ⧉ copy   the chart as a PNG on the clipboard, ready to paste
+       png      2x PNG download
+       svg      vector SVG — scales, and stays editable
+       csv      the numbers actually plotted
+       ⧉ data   the same numbers as TSV on the clipboard, for a spreadsheet
 
-   HOW IT AVOIDS TOUCHING THE FOUR VIEW APPS
-   -----------------------------------------
-   Plotly stores the current figure on the graph div itself — `gd.data` and
-   `gd.layout`. So this file reads what is on screen rather than asking the
-   apps to hand it over, which means app.js / decomp_app.js / trim_app.js /
-   cpipce_app.js need no changes at all. The apps call Plotly.react() freely;
-   we always read the state at click time.
+   A single "light exports" switch in the model nav decides the palette of
+   every image export: off = the dark screen palette, on = the paper palette
+   for notes and PDFs (house rule: never emit a dark PDF). Session-only and
+   deliberately not persisted — a toggle that silently remembers last week is
+   worse than one that does not remember at all.
 
-   The charts are created with `displayModeBar: false`, so Plotly's own toolbar
-   never appears and this replaces it. We deliberately do not re-enable the
-   modebar: its PNG export has no paper palette, no branding furniture, and
-   ignores the parameter combo the figure was computed with — which is the part
-   that actually gets lost once an image leaves the site.
+   EXPORT WHAT IS PLOTTED
+   ----------------------
+   Plotly stores the current figure on the graph div itself (`gd.data`,
+   `gd.layout`), so this file reads what is on screen at click time and the
+   view apps need no changes. That includes the zoom: an image is the window
+   the reader is looking at, and csv / data keep only the points inside the
+   current x range of a date axis.
 
    PAPER RENDERING
    ---------------
-   Plotly cannot restyle a figure to a different palette in place without
-   disturbing what the user is looking at, so the paper export deep-clones the
-   figure, rewrites colours against the light token set, and renders the clone
-   on an offscreen stage before calling Plotly.toImage. The stage is positioned
-   far off-canvas rather than display:none — Plotly cannot measure a zero-size
-   node and would emit a blank image.
+   The figure is deep-cloned, recoloured against the light token set when
+   "light exports" is on, and rendered on an offscreen stage before
+   Plotly.toImage. The stage is pushed off-canvas rather than display:none —
+   Plotly cannot measure a zero-size node and would emit a blank image.
    =========================================================================== */
 
 (() => {
@@ -77,6 +77,12 @@
       "#f5a623": "#956D27", "#4c9aff": "#2A5FA8",
       "#d05ce3": "#8E35A0", "#2dd4bf": "#218174",
       "#5E9CD8": "#2A5FA8", "#8A85E8": "#5450C0", "#7FB069": "#4C7A38",
+      // Breakdown spending themes (breakdown_app.js THEMES)
+      "#9B6BB0": "#7A4B90", "#2E8B7A": "#226B5E", "#EFA3C8": "#B8507F",
+      "#4C7FD0": "#2F5FA8", "#F2B134": "#A87412", "#A68A64": "#7A6240",
+      "#EF5B5B": "#C23A3A", "#E8833A": "#B85A1A", "#4FD1C5": "#1F8F86",
+      "#D9D36A": "#8A8420", "#9FA8FF": "#5A64C8", "#7D8BA6": "#55617A",
+      "#8E8778": "#66604F",
     },
   };
 
@@ -152,6 +158,10 @@
       for (const [k, v] of Object.entries(obj)) {
         if (/color$/i.test(k)) {
           out[k] = Array.isArray(v) ? v.map(toPaper) : toPaper(v);
+        } else if (k === "ticktext" && Array.isArray(v)) {
+          // coloured category labels carry their colour inside the HTML
+          out[k] = v.map((t) => (typeof t === "string"
+            ? t.replace(/color:\s*(#[0-9a-f]{6})/gi, (m, c) => "color:" + toPaper(c)) : t));
         } else out[k] = recolour(v);
       }
       return out;
@@ -182,23 +192,29 @@
     a.remove();
     if (revoke) setTimeout(() => URL.revokeObjectURL(href), 2000);
   }
+  const downloadBlob = (blob, name) => triggerDownload(URL.createObjectURL(blob), name, true);
 
-  async function exportPng(gd, stem, title, paper) {
+  /* Session-only palette switch (see header). */
+  let LIGHT = false;
+
+  const slug = (t) => String(t || "chart").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  const fileStem = (title) => `${slug(title)}_${nowStamp()}`;
+
+  /* The clone that gets rendered: the live figure, its current zoom included,
+     plus title, standfirst and source furniture. */
+  function exportFigure(gd, title, light) {
     if (!window.Plotly || !gd || !gd.data) throw new Error("chart not ready");
     const cap = captionFor(title);
+    const data = light ? recolour(gd.data) : JSON.parse(JSON.stringify(gd.data));
+    const layout = light ? recolour(gd.layout) : JSON.parse(JSON.stringify(gd.layout));
 
-    const data = paper ? recolour(gd.data) : JSON.parse(JSON.stringify(gd.data));
-    const layout = paper ? recolour(gd.layout) : JSON.parse(JSON.stringify(gd.layout));
+    const ink = light ? PAPER.ink : "#EDE6D6";
+    const dim = light ? PAPER.dim : "#B9B2A0";
+    const bg = light ? PAPER.bg : "#161D2C";
 
-    const ink = paper ? PAPER.ink : "#EDE6D6";
-    const dim = paper ? PAPER.dim : "#B9B2A0";
-    const bg = paper ? PAPER.bg : "#0E1420";
-
-    // Branding furniture. Top margin grows to fit title + standfirst; a source
-    // line is pinned under the plot. Both are paper-annotations so they sit in
-    // figure space and survive any axis range.
     layout.paper_bgcolor = bg;
-    layout.plot_bgcolor = paper ? PAPER.bg : (layout.plot_bgcolor || bg);
+    layout.plot_bgcolor = light ? PAPER.bg : (layout.plot_bgcolor || bg);
     layout.font = Object.assign({}, layout.font, { color: ink,
       family: "'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif" });
     layout.margin = Object.assign({}, layout.margin, { t: 86, b: 62 });
@@ -213,137 +229,218 @@
       x: 0, xanchor: "left", y: -0.14, yanchor: "top",
       font: { size: 10, color: dim, family: "'IBM Plex Mono', monospace" },
     }]);
+    // The on-screen range buttons are interaction, not content.
+    Object.keys(layout).filter((k) => /^xaxis\d*$/.test(k)).forEach((k) => {
+      if (layout[k] && layout[k].rangeselector) layout[k].rangeselector = { visible: false };
+    });
     layout.showlegend = layout.showlegend !== false;
     layout.width = 1200;
     layout.height = 675;
-
-    const host = stage();
-    await window.Plotly.newPlot(host, data, layout,
-      { staticPlot: true, displayModeBar: false });
-    const url = await window.Plotly.toImage(host,
-      { format: "png", width: 1200, height: 675, scale: 2 });
-    window.Plotly.purge(host);
-
-    triggerDownload(url, `${stem}${paper ? "-paper" : ""}-${nowStamp()}.png`, false);
+    return { data, layout, bg };
   }
 
-  /* CSV of exactly what is plotted. Traces are emitted as columns keyed on the
-     union of their x values, so a chart mixing series of different lengths (the
-     author overlay starts later than the index, for instance) still lines up
-     instead of silently truncating to the shortest. */
-  function exportCsv(gd, stem, title) {
-    if (!gd || !gd.data || !gd.data.length) throw new Error("chart not ready");
-    const traces = gd.data.filter((t) => t && t.x && t.y);
-    if (!traces.length) throw new Error("no x/y series on this chart");
-
-    const keys = [];
-    const seen = new Set();
-    for (const t of traces) {
-      for (const x of t.x) {
-        const k = x instanceof Date ? x.toISOString().slice(0, 10) : String(x);
-        if (!seen.has(k)) { seen.add(k); keys.push(k); }
-      }
+  async function renderImage(gd, title, format) {
+    const { data, layout } = exportFigure(gd, title, LIGHT);
+    const host = stage();
+    await window.Plotly.newPlot(host, data, layout, { staticPlot: true, displayModeBar: false });
+    try {
+      return await window.Plotly.toImage(host,
+        { format, width: 1200, height: 675, scale: format === "png" ? 2 : 1 });
+    } finally {
+      window.Plotly.purge(host);
     }
-    // Only sort when every key looks like a date/number; category axes (driver
-    // bar charts) must keep the order Plotly was given.
+  }
+
+  const dataUrlToBlob = async (url) => (await fetch(url)).blob();
+  const suffix = () => (LIGHT ? "_light" : "");
+
+  async function exportPng(gd, stem, title) {
+    const url = await renderImage(gd, title, "png");
+    triggerDownload(url, `${fileStem(title)}${suffix()}.png`, false);
+  }
+
+  async function exportSvg(gd, stem, title) {
+    const url = await renderImage(gd, title, "svg");
+    // Plotly returns a URI-encoded data URL for svg
+    const svg = decodeURIComponent(url.replace(/^data:image\/svg\+xml,/, ""));
+    downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
+      `${fileStem(title)}${suffix()}.svg`);
+  }
+
+  async function copyPng(gd, stem, title) {
+    const url = await renderImage(gd, title, "png");
+    const blob = await dataUrlToBlob(url);
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      downloadBlob(blob, `${fileStem(title)}${suffix()}.png`);
+      return "saved instead";
+    }
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      return "copied";
+    } catch (e) {
+      downloadBlob(blob, `${fileStem(title)}${suffix()}.png`);
+      return "saved instead";
+    }
+  }
+
+  /* The plotted numbers, as {head, rows}. Traces become columns keyed on the
+     union of their category values (x, or y for horizontal bars), so series of
+     different lengths still line up. On a date axis only the points inside
+     the current x range are kept: export what is on screen. */
+  function plottedRows(gd) {
+    if (!gd || !gd.data || !gd.data.length) throw new Error("chart not ready");
+    const traces = gd.data.filter((t) => t && t.x && t.y &&
+      t.visible !== false && t.visible !== "legendonly");
+    if (!traces.length) return null;
+    const horiz = traces.every((t) => t.orientation === "h");
+    const keyOf = (v) => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v));
+    const catsOf = (t) => (horiz ? t.y : t.x);
+    const valsOf = (t) => (horiz ? t.x : t.y);
+
+    let lo = -Infinity, hi = Infinity;
+    const xa = gd.layout && gd.layout.xaxis;
+    if (!horiz && xa && xa.type === "date" && Array.isArray(xa.range)) {
+      lo = Date.parse(String(xa.range[0]).slice(0, 10));
+      hi = Date.parse(String(xa.range[1]).slice(0, 10));
+    }
+    const inWindow = (k) => {
+      if (lo === -Infinity) return true;
+      const t = Date.parse(k.length === 7 ? k + "-01" : k.slice(0, 10));
+      return !Number.isFinite(t) || (t >= lo && t <= hi);
+    };
+
+    const keys = [], seen = new Set();
+    traces.forEach((t) => catsOf(t).forEach((x) => {
+      const k = keyOf(x);
+      if (!seen.has(k) && inWindow(k)) { seen.add(k); keys.push(k); }
+    }));
     const sortable = keys.every((k) => /^\d{4}-\d{2}/.test(k) || /^-?\d+(\.\d+)?$/.test(k));
     if (sortable) keys.sort();
-
     const lookup = traces.map((t) => {
-      const m = new Map();
-      t.x.forEach((x, i) => {
-        const k = x instanceof Date ? x.toISOString().slice(0, 10) : String(x);
-        m.set(k, t.y[i]);
-      });
+      const m = new Map(), v = valsOf(t);
+      catsOf(t).forEach((x, i) => m.set(keyOf(x), v[i]));
       return m;
     });
-
-    const esc = (s) => {
-      const v = s == null ? "" : String(s);
-      return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    const xTitle = horiz ? "category" : "x";
+    return {
+      head: [xTitle, ...traces.map((t, i) => t.name || `series_${i + 1}`)],
+      rows: keys.map((k) => [k, ...lookup.map((m) => (m.get(k) == null ? "" : m.get(k)))]),
     };
-    const names = traces.map((t, i) => t.name || `series_${i + 1}`);
+  }
+
+  function toDelimited(d, sep) {
+    const q = (v) => {
+      v = v == null ? "" : String(v);
+      return sep === "," && /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    };
+    return [d.head.map(q).join(sep)].concat(d.rows.map((r) => r.map(q).join(sep))).join("\n");
+  }
+
+  function exportCsv(gd, stem, title) {
+    const d = plottedRows(gd);
+    if (!d || !d.rows.length) return "no data";
     const p = provenance();
+    const meta = [`# ${title}${p.spec ? ` — ${p.spec}` : ""}`];
+    if (p.model) meta.push(`# model: ${p.model}`);
+    if (p.through) meta.push(`# data through: ${p.through}`);
+    meta.push(`# exported: ${new Date().toISOString()}`);
+    meta.push("# source: bzhmacro.com — derived from public sources. Estimates, not official publications.");
+    // BOM, or Excel mangles the UTF-8 in the labels
+    downloadBlob(new Blob(["﻿" + meta.join("\n") + "\n" + toDelimited(d, ",")],
+      { type: "text/csv;charset=utf-8" }), `${fileStem(title)}.csv`);
+    return "saved";
+  }
 
-    const lines = [];
-    lines.push(`# ${title}${p.spec ? ` — ${p.spec}` : ""}`);
-    if (p.model) lines.push(`# model: ${p.model}`);
-    if (p.through) lines.push(`# data through: ${p.through}`);
-    lines.push(`# exported: ${new Date().toISOString()}`);
-    lines.push("# source: bzhmacro.com — derived from public sources. Estimates, not official publications.");
-    lines.push(["x", ...names].map(esc).join(","));
-    for (const k of keys) {
-      lines.push([k, ...lookup.map((m) => {
-        const v = m.get(k);
-        return v == null ? "" : v;
-      })].map(esc).join(","));
-    }
-
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    triggerDownload(URL.createObjectURL(blob), `${stem}-${nowStamp()}.csv`, true);
+  async function copyData(gd) {
+    const d = plottedRows(gd);
+    if (!d || !d.rows.length) return "no data";
+    await navigator.clipboard.writeText(toDelimited(d, "\t"));
+    return "copied";
   }
 
   /* ------------------------------------------------------------------ */
   /* toolbar                                                             */
   /* ------------------------------------------------------------------ */
 
-  function flash(btn, text, ok) {
-    const original = btn.textContent;
+  function flash(btn, text, bad) {
+    const original = btn.dataset.label || btn.textContent;
+    btn.dataset.label = original;
     btn.textContent = text;
-    btn.classList.toggle("done", Boolean(ok));
-    setTimeout(() => {
+    btn.classList.toggle("done", !bad);
+    btn.classList.toggle("bad", Boolean(bad));
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => {
       btn.textContent = original;
-      btn.classList.remove("done");
-    }, 1600);
+      btn.classList.remove("done", "bad");
+    }, 1400);
   }
+
+  const TOOLS = [
+    ["copy", "⧉ copy", "Copy the chart as an image, ready to paste", copyPng],
+    ["png", "png", "Download a 2× PNG", async (...a) => { await exportPng(...a); return "saved"; }],
+    ["svg", "svg", "Download vector SVG — scales, and stays editable",
+      async (...a) => { await exportSvg(...a); return "saved"; }],
+    ["csv", "csv", "Download the numbers actually plotted (the current zoom window)", exportCsv],
+    ["data", "⧉ data", "Copy the numbers as TSV, for a spreadsheet", copyData],
+  ];
 
   function addTools(id, stem, title) {
     const gd = $(id);
     if (!gd || gd.dataset.exportReady === "1") return;
 
-    // Wrap so the toolbar can be absolutely positioned over the chart without
-    // disturbing the chart's own box (Plotly owns the graph div's children).
+    // Wrap so the toolbar sits over the chart without disturbing the chart's
+    // own box (Plotly owns the graph div's children).
     const wrap = document.createElement("div");
     wrap.className = "chart-wrap";
     gd.parentNode.insertBefore(wrap, gd);
     wrap.appendChild(gd);
 
     const tools = document.createElement("div");
-    tools.className = "chart-tools";
-
-    const mk = (label, hint, fn) => {
+    tools.className = "chart-tools fig-tools";
+    TOOLS.forEach(([key, label, hint, fn]) => {
       const b = document.createElement("button");
       b.type = "button";
+      b.className = "tbtn";
       b.textContent = label;
       b.title = hint;
+      b.dataset.x = key;
       b.addEventListener("click", async (e) => {
         e.preventDefault();
         b.disabled = true;
         try {
-          await fn();
-          flash(b, "✓", true);
+          const msg = await fn(gd, stem, title);
+          flash(b, msg || "saved", msg === "no data");
         } catch (err) {
-          flash(b, "failed", false);
+          flash(b, "failed", true);
           console.error(`[chart_export] ${id}:`, err);
         } finally {
           b.disabled = false;
         }
       });
-      return b;
-    };
+      tools.appendChild(b);
+    });
 
-    tools.appendChild(mk("PNG", "Download as PNG (dark, matches the screen)",
-      () => exportPng(gd, stem, title, false)));
-    tools.appendChild(mk("PAPER", "Download as PNG on a light background, for notes and PDFs",
-      () => exportPng(gd, stem, title, true)));
-    tools.appendChild(mk("CSV", "Download the plotted series as CSV",
-      () => exportCsv(gd, stem, title)));
-
-    wrap.appendChild(tools);
+    wrap.insertBefore(tools, gd);
     gd.dataset.exportReady = "1";
   }
 
+  /* "light exports" switch, appended to the model nav (which models.js builds
+     at load). Idempotent. */
+  function lightToggle() {
+    const nav = $("model");
+    if (!nav || $("lightToggle")) return;
+    const lab = document.createElement("label");
+    lab.className = "lighttog";
+    lab.title = "Export figures on white, for documents";
+    lab.innerHTML = '<input type="checkbox" id="lightToggle"> light exports';
+    nav.appendChild(lab);
+    const t = $("lightToggle");
+    t.checked = LIGHT;
+    t.addEventListener("change", () => { LIGHT = t.checked; });
+  }
+
   function scan() {
+    lightToggle();
     for (const [id, stem, title] of CHARTS) addTools(id, stem, title);
   }
 
@@ -365,5 +462,8 @@
     document.addEventListener("DOMContentLoaded", boot);
   } else boot();
 
-  window.ChartExport = { scan, exportPng, exportCsv };
+  window.ChartExport = {
+    scan, exportPng, exportSvg, exportCsv, plottedRows, toDelimited,
+    get light() { return LIGHT; }, set light(v) { LIGHT = Boolean(v); },
+  };
 })();
