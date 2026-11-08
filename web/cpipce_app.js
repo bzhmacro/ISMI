@@ -278,8 +278,16 @@
       margin: { l: 150, r: 10, t: 6, b: 34 },
       xaxis: { title: "contribution to the month (pp)", gridcolor: GRID,
                zeroline: true, zerolinecolor: "#3a4b5c" },
-      yaxis: { tickfont: { size: 9 } },
+      yaxis: Object.assign({ tickfont: { size: 9 } }, groupTicks(rows.map(r => r.group).reverse())),
     }, { responsive: true, displayModeBar: false });
+  }
+
+  /* Bridge groups are CPI/PCE concordance groups, not a gauge's categories,
+     so they take the spending-theme colour their name maps to. */
+  function groupTicks(names) {
+    const CC = window.CategoryColours;
+    if (!CC) return {};
+    return CC.colouredTicks(names, names.map(n => CC.themeColour(n)));
   }
 
   // ---- view 2: the inputs --------------------------------------------------

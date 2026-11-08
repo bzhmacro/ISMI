@@ -492,7 +492,7 @@
     const rows = [];
     for (let j = 0; j < s.categories.length; j++) {
       if (L.values[j] == null || L.weights[j] == null) continue;
-      rows.push({ label: s.categories[j].label, v: L.values[j],
+      rows.push({ label: s.categories[j].label, cat: s.categories[j], v: L.values[j],
                   w: 100 * L.weights[j], m: L.membership[j],
                   kept: L.retained ? 100 * L.retained[j] : null });
     }
@@ -533,7 +533,8 @@
       xaxis: { title: "annualised %", gridcolor: GRID, zeroline: true, zerolinecolor: "#3a4b5c" },
       yaxis: { automargin: false, tickfont: { size: 9 },
                tickmode: "array", tickvals: rows.map((r, i) => i),
-               ticktext: rows.map(r => r.label.length > 34 ? r.label.slice(0, 32) + "…" : r.label),
+               // labels in the category's Breakdown group colour
+               ticktext: crossTicks(rows),
                range: [-0.6, rows.length - 0.4] },
       height: Math.max(320, 15 * rows.length),
       width: $(host).clientWidth || undefined,
@@ -544,6 +545,18 @@
     // by hand instead and the height is left alone.
     }, { responsive: false, displayModeBar: false });
     trackCrossWidth();
+  }
+
+  /* Cross-section tick labels, each in its category's Breakdown group colour
+     (category_colours.js); plain text if that module is absent. */
+  function crossTicks(rows) {
+    const short = rows.map(r => r.label.length > 34 ? r.label.slice(0, 32) + "…" : r.label);
+    const CC = window.CategoryColours;
+    if (!CC) return short;
+    return short.map((t, i) => {
+      const c = CC.colourOf(D.scope, rows[i].cat);
+      return c ? `<span style="color:${c}">${CC.esc(t)}</span>` : CC.esc(t);
+    });
   }
 
   let crossResizeBound = false;
@@ -576,9 +589,19 @@
                                         d: Math.abs((lastRow[j] ?? 0) - (firstRow[j] ?? 0)) }))
                       .sort((a, b) => b.d - a.d).slice(0, 5);
     const x = sliceFrom(X);
+    // Lines in the category's Breakdown group colour; two from the same group
+    // step lighter / darker so they stay apart.
+    const CC = window.CategoryColours, used = new Map();
+    const lineColour = (j) => {
+      const c = CC && CC.colourOf(D.scope, cats[j]);
+      if (!c) return undefined;
+      const k = used.get(c) || 0; used.set(c, k + 1);
+      return k ? CC.shade(c, [0.4, -0.35, 0.65, -0.55][(k - 1) % 4]) : c;
+    };
     const traces = moved.map(m => ({
       x, y: sliceFrom(W[m.j]).map(v => v == null ? null : 100 * v),
-      name: m.label, type: "scatter", mode: "lines", line: { width: 1.4 },
+      name: m.label, type: "scatter", mode: "lines",
+      line: { width: 1.4, color: lineColour(m.j) },
     }));
     Plotly.react(host, traces, {
       paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG, font: { color: INK, size: 11 },

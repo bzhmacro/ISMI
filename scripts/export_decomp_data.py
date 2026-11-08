@@ -299,6 +299,19 @@ def compute_baseline(logp, logq, infl, w, J=12, W=120, ppy=12):
     }
 
 
+def _GROUPS(country):
+    """key -> official top-level group, where a pinned config carries one.
+    Shipped with each category so other pages colour it as the Breakdown does
+    (web/category_colours.js)."""
+    path = {"us": "pce_categories.csv", "ca": "ca_hce_categories.csv"}.get(country)
+    if not path or not (ROOT / "config" / path).exists():
+        return {}
+    c = pd.read_csv(ROOT / "config" / path)
+    if "group" not in c.columns:
+        return {}
+    return dict(zip(c["key"].astype(str), c["group"].astype(str)))
+
+
 def build_scope(scope, proxy=False):
     spec = SCOPES[scope]
     country = spec["country"]
@@ -376,7 +389,9 @@ def build_scope(scope, proxy=False):
         "n_categories": int(logp.shape[1]),
         "note": note,
         "dates": [d.strftime("%Y-%m") for d in index],
-        "categories": [{"key": k, "label": lab} for k, lab in categories],
+        "categories": [dict({"key": k, "label": lab},
+                            **({"group": _GROUPS(country)[k]} if k in _GROUPS(country) else {}))
+                       for k, lab in categories],
         # infl is derived in the browser from logp (price = exp(logp)), so the
         # payload ships only logp, logq and w.
         "panel": {"logp": _cols(logp), "logq": _cols(logq), "w": _cols(w)},

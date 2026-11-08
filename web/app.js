@@ -668,11 +668,15 @@ function renderDrivers(res) {
   });
   const vals = top.map(p => p[1]);
   const colors = vals.map(v => v >= 0 ? POS : NEG);
+  // Labels in the category's Breakdown group colour (category_colours.js).
+  const CC = window.CategoryColours;
+  const ticks = CC ? CC.colouredTicks(labels,
+    top.map(p => CC.colourOf(STATE.backbone, b.categories[p[0]]))) : {};
   const layout = {
     paper_bgcolor: PLOT_BG, plot_bgcolor: PLOT_BG, font: { color: INK, size: 11 },
     margin: { l: 180, r: 16, t: 6, b: 30 },
     xaxis: { title: "contribution to ISM", gridcolor: GRID, zeroline: true, zerolinecolor: "#3a4b5c" },
-    yaxis: { gridcolor: "transparent", automargin: true },
+    yaxis: { gridcolor: "transparent", automargin: true, ...ticks },
   };
   Plotly.react(host,
     [{ x: vals, y: labels, type: "bar", orientation: "h", marker: { color: colors },

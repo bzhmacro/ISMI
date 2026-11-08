@@ -380,6 +380,10 @@
       margin: { l: 180, r: 16, t: 6, b: 30 },
       xaxis: { title: "contribution to inflation (pp) · red = supply, blue = demand", gridcolor: GRID, zeroline: true, zerolinecolor: "#3a4b5c" },
       yaxis: { gridcolor: "transparent", automargin: true } };
+    // Labels in the category's Breakdown group colour (category_colours.js).
+    const CC = window.CategoryColours;
+    if (CC) Object.assign(layout.yaxis, CC.colouredTicks(labels,
+      top.map(p => CC.colourOf(D.scope, s.categories[p[0]]))));
     const shockName = top.map(k => (k[2] != null ? (k[2] >= 0 ? "supply" : "demand") : ""));
     Plotly.react(host, [{ x: vals, y: labels, type: "bar", orientation: "h", marker: { color: colors },
       customdata: shockName, hovertemplate: "%{y}: %{x:.4f} pp (%{customdata})<extra></extra>" }], layout, { responsive: true, displayModeBar: false });
