@@ -45,10 +45,12 @@ name: Refresh ISM web data
 #   UK CPI       -> ONS bulk CSV (no key)
 #   FR/DE HICP   -> Eurostat (no key); Germany decomp -> DESTATIS_API_TOKEN
 #   Japan        -> ESTAT_API_ID
-#   Canada       -> ci: false in the calendar. StatCan is blocked from many
-#                   runners and ~1s/chunk over ~90 chunks when it is not, so it
-#                   is refreshed LOCALLY. The monitor job below still reports
-#                   when CA has fallen behind so it does not rot unnoticed.
+#   Canada       -> StatCan (no key). The chunk caches under data/raw/statcan
+#                   are not committed; they live in the Actions cache (key per
+#                   calendar year, so January does one full re-pull that picks
+#                   up national-accounts revisions) and each run refetches only
+#                   the open-ended recent chunks. Probed 2026-11-16: hosted
+#                   runners reach www150.statcan.gc.ca fine.
 #
 # Before committing, the freshly-built JSON is validated (schema, no gauge
 # dropped, dates current and not regressing, panels non-empty) by
@@ -164,6 +166,33 @@ jobs:
           pip install -e .
           pip install --quiet tzdata
 
+      # Canada: restore the StatCan chunk caches, then refetch what a release
+      # can change. Only when a Canadian gauge is due.
+      - name: Cache year
+        id: year
+        if: contains(needs.plan.outputs.ism, 'ca') || contains(needs.plan.outputs.decomp, 'ca')
+        run: echo "y=$(date -u +%Y)" >> "$GITHUB_OUTPUT"
+
+      # Key = year + run, so every run saves its refreshed chunks; restore takes
+      # the newest of the SAME year only, so the first Canadian run of a year
+      # starts empty and re-pulls everything (national-accounts revisions).
+      - name: Restore StatCan chunk cache
+        if: contains(needs.plan.outputs.ism, 'ca') || contains(needs.plan.outputs.decomp, 'ca')
+        uses: actions/cache@v5
+        with:
+          path: data/raw/statcan/chunks*
+          key: statcan-${{ steps.year.outputs.y }}-${{ github.run_id }}
+          restore-keys: |
+            statcan-${{ steps.year.outputs.y }}-
+
+      - name: Fetch StatCan (Canada CPI)
+        if: contains(needs.plan.outputs.ism, 'ca')
+        run: python scripts/fetch_statcan.py --only cpi --recent
+
+      - name: Fetch StatCan (Canada quarterly HCE)
+        if: contains(needs.plan.outputs.decomp, 'ca')
+        run: python scripts/fetch_statcan.py --only hce --recent
+
       - name: Refreshing
         run: |
           echo "gauges due : ${{ needs.plan.outputs.gauges }}"
@@ -197,7 +226,10 @@ jobs:
       - name: Rebuild trimmed-mean + CPI->PCE data (web/data/trim.json)
         # Also when only PPI is due: its series feed the CPI->PCE bridge,
         # which lives in this file.
-        if: contains(needs.plan.outputs.ism, 'cpi') || contains(needs.plan.outputs.ism, 'pce') || needs.plan.outputs.trim != ''
+        # Every ISM rebuild, not just US CPI/PCE: the trimmed-mean scopes for
+        # the other countries are read from ism.json and would otherwise wait
+        # for the next US release (Canada sat a month behind that way).
+        if: needs.plan.outputs.ism != '' || needs.plan.outputs.trim != ''
         env:
           BLS_API_KEY:        ${{ secrets.BLS_API_KEY }}
         run: python scripts/export_trim_data.py
@@ -239,9 +271,11 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------
-  # Canada is refreshed by hand (StatCan is not reachable from CI). This job
-  # exists purely so that fact stays visible: once CA drifts more than a month
-  # behind, the run is annotated instead of the data quietly rotting.
+  # Daily housekeeping: the freshness report, and a nag when a published
+  # release calendar is about to run out. (This job used to exist to warn that
+  # the hand-refreshed Canadian gauges had gone stale; Canada is refreshed by
+  # CI since 2026-11-16, and any gauge without a CI path still shows up in the
+  # report as "local".)
   # ---------------------------------------------------------------------
   monitor-local-gauges:
     needs: plan
@@ -253,16 +287,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install --quiet pyyaml tzdata
-      - name: Warn on stale local-only gauges
-        run: |
-          set -euo pipefail
-          BEHIND=$(PYTHONPATH=src python -m ism.release_calendar due --include-local)
-          for g in ca ca_hce; do
-            if echo " $BEHIND " | grep -q " $g "; then
-              echo "::warning title=$g is stale::Canada gauge '$g' is behind its release calendar and is refreshed locally. Run the command shown by 'python -m ism.release_calendar report'."
-            fi
-          done
-          PYTHONPATH=src python -m ism.release_calendar report || true
+      - name: Freshness report (CI and local gauges)
+        run: PYTHONPATH=src python -m ism.release_calendar report || true
 
       # Nags once a quarter when a published calendar is about to run out.
       - name: Warn when the published calendar is running out

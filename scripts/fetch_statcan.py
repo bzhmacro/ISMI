@@ -18,6 +18,23 @@ caches the clients read:
 
     python scripts/fetch_statcan.py            # everything missing
     python scripts/fetch_statcan.py --force    # refetch all chunks
+    python scripts/fetch_statcan.py --only cpi --recent
+                                               # what CI runs (see below)
+
+    --only cpi|hce  restrict to the CPI cubes (18-10-0004 + 18-10-0007, the ca
+                    gauge) or the quarterly HCE cube (36-10-0124, the ca_hce
+                    decomposition scopes).
+    --recent        refetch every OPEN-ENDED chunk (endDate blank: the latest
+                    window of each batch and the weight vintages), fetch closed
+                    historical windows only when missing. With the chunk
+                    directory restored from the Actions cache this is ~15
+                    requests for the CPI instead of ~51, and the result is
+                    identical to a full pull: closed windows hold only history.
+
+REACHABILITY (2026-11-16): a GitHub-hosted ubuntu-24.04 runner reached
+www150.statcan.gc.ca without trouble (WDS metadata 0.4s, a db-loading chunk
+2.8s), so Canada is refreshed by CI again. The earlier "blocked from CI" note
+dated from the hosted analysis sandbox, which has since been opened too.
 """
 from __future__ import annotations
 
@@ -31,6 +48,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from ism.datasources import _request                                  # noqa: E402
 from ism.statcan import RAW_STATCAN, assemble_chunks, compact_db_csv  # noqa: E402
+
+ONLY = {"cpi": {"chunks18100004", "chunks18100007"}, "hce": {"chunks36100124"}}
 
 ASSEMBLE = [
     ("36100124", "36100124_ca_sa.csv"),
@@ -72,15 +91,26 @@ def _chunk_has_data(path) -> bool:
 def main(argv=None):
     argv = argv or sys.argv[1:]
     force = "--force" in argv
+    recent = "--recent" in argv
+    only = None
+    if "--only" in argv:
+        only = argv[argv.index("--only") + 1]
+        if only not in ONLY:
+            raise SystemExit(f"--only takes one of {sorted(ONLY)}, not {only!r}")
     manifest = json.loads((RAW_STATCAN / "manifest.json").read_text())
     _prune_stale_chunks(manifest)
+    if only:
+        manifest = [m for m in manifest if m["file"].split("/")[0] in ONLY[only]]
     for i, item in enumerate(manifest, 1):
         dest = RAW_STATCAN / item["file"]
         dest.parent.mkdir(parents=True, exist_ok=True)
         # Skip a cached chunk only if it actually holds data rows; an
         # empty/header-only chunk (a query that returned nothing) is re-fetched
-        # without needing --force.
-        if dest.exists() and not force and _chunk_has_data(dest):
+        # without needing --force. --recent always refetches open-ended chunks
+        # (they are the ones a new release changes).
+        open_ended = "endDate=&" in item["url"]
+        if dest.exists() and not force and not (recent and open_ended) \
+                and _chunk_has_data(dest):
             continue
         resp = _request("GET", item["url"], provider="StatCan", timeout=180)
         df = compact_db_csv(resp.text)
@@ -91,6 +121,8 @@ def main(argv=None):
         print(f"[{i}/{len(manifest)}] {item['file']}: {len(df)} rows")
         time.sleep(1.0)                      # be polite
     for pid, out in ASSEMBLE:
+        if only and f"chunks{pid}" not in ONLY[only]:
+            continue
         assemble_chunks(pid, out)
     print("done — caches rebuilt.")
 

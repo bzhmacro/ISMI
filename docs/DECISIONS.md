@@ -216,11 +216,12 @@ consumption **by type (form)**, via the existing `ism.estat.EstatClient`
 
 ## Data access
 
-`www150.statcan.gc.ca` is blocked from the hosted analysis sandbox, so the repo
-is designed to build from **assembled caches** under `data/raw/statcan/`. Rebuild
-them on a machine with open network access with `python scripts/fetch_statcan.py`
-(walks `data/raw/statcan/manifest.json`, which is generated from the pinned
-category sets). Every builder degrades gracefully — a missing cache skips only
+The repo builds from **assembled caches** under `data/raw/statcan/` (not
+committed), rebuilt with `python scripts/fetch_statcan.py` (walks
+`data/raw/statcan/manifest.json`, which is generated from the pinned category
+sets). `www150.statcan.gc.ca` was once blocked from the hosted analysis sandbox
+and assumed blocked from CI; both reach it as of 2026-11-16, so the refresh job
+rebuilds the caches itself (Actions cache + `--recent`, see the workflow). Every builder degrades gracefully — a missing cache skips only
 the Canadian gauge/scope and keeps previously committed data.
 
 ## US — trimmed mean & median (Cleveland / Dallas replication)

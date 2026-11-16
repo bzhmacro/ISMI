@@ -105,7 +105,7 @@ The decomposition website's **Scope** selector now carries these Canada scopes
 alongside US headline/core, using per-scope frequency (12 monthly / 4 quarterly).
 
 ```bash
-python scripts/fetch_statcan.py          # populate data/raw/statcan/ (run locally; www150 is blocked from CI)
+python scripts/fetch_statcan.py          # populate data/raw/statcan/ (CI does this itself: --only cpi|hce --recent)
 python scripts/build_decomp.py           # US headline+core + Canada total/goods/services, validate vs the BoC facts
 python scripts/export_decomp_data.py     # refresh the website's decomp payload (all scopes it can build)
 ```
@@ -573,11 +573,13 @@ python -m ism.release_calendar horizon    # warns when published dates are runni
 
 Two operational notes:
 
-- **Canada is local-only** (`ci: false`). StatCan is blocked from many runners
-  and ~1s/chunk over ~90 chunks when it is not, so `ca` and the quarterly
-  `ca_hce` scopes are refreshed by hand. They stay in the calendar so the
-  monitor job annotates the run when they fall behind, and `report` prints the
-  exact command to run.
+- **Canada is refreshed by CI** (since 2026-11-16; it used to be local-only
+  on the belief that StatCan blocks hosted runners — a probe showed a GitHub
+  runner reaches it in under 3s). The StatCan chunk caches are not committed;
+  the refresh job restores them from the Actions cache (one key per calendar
+  year, so January re-pulls everything) and runs
+  `fetch_statcan.py --only cpi --recent` (~15 requests, ~20s) for `ca` or
+  `--only hce --recent` for the quarterly `ca_hce` scopes.
 - **Top the calendar up each autumn.** Agencies publish the next year around
   September/October. `check` runs in CI on every poll and validates each date
   against the shape that gauge declares in its `expect:` block (weekday,

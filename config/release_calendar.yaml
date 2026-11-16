@@ -453,7 +453,11 @@ gauges:
     label: Canada CPI (StatCan 18-10-0004)
     provider: Statistics Canada
     frequency: monthly
-    ci: false
+    # CI again since 2026-11-16: a hosted runner reaches StatCan fine; the
+    # refresh job restores the chunk cache and refetches the recent chunks
+    # (scripts/fetch_statcan.py --only cpi --recent). manual_command still
+    # works for a local rebuild.
+    ci: true
     manual_command: >-
       python scripts/fetch_statcan.py && python scripts/export_web_data.py ca
     targets:
@@ -503,12 +507,12 @@ gauges:
   # The Canadian decomposition scopes are QUARTERLY (StatCan 36-10-0124,
   # household final consumption expenditure in the quarterly national accounts),
   # not monthly CPI — a different release entirely, roughly two months after the
-  # quarter ends. Local-only for the same StatCan reachability reason.
+  # quarter ends. Refreshed by CI like ca.
   ca_hce:
     label: Canada HCE quarterly (StatCan 36-10-0124) — decomposition scopes
     provider: Statistics Canada
     frequency: quarterly
-    ci: false
+    ci: true                       # see ca: fetch_statcan.py --only hce --recent
     manual_command: >-
       python scripts/fetch_statcan.py && python scripts/export_decomp_data.py ca ca_goods ca_services
     targets:
