@@ -92,7 +92,7 @@ jobs:
   # Cheap gate. No heavy deps — pyyaml only — so a no-op poll costs seconds.
   # ---------------------------------------------------------------------
   plan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       any:    ${{ steps.gate.outputs.any }}
       ism:    ${{ steps.gate.outputs.ism }}
@@ -100,9 +100,9 @@ jobs:
       trim:   ${{ steps.gate.outputs.trim }}
       gauges: ${{ steps.gate.outputs.gauges }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -149,12 +149,12 @@ jobs:
   refresh:
     needs: plan
     if: needs.plan.outputs.any == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -246,10 +246,10 @@ jobs:
   monitor-local-gauges:
     needs: plan
     if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - run: pip install --quiet pyyaml tzdata
