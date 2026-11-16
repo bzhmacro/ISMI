@@ -1,0 +1,30 @@
+# One-off probe (branch probe-statcan only): can a GitHub-hosted runner reach
+# Statistics Canada? Delete this branch after reading the run.
+name: Probe StatCan reachability
+on:
+  push:
+    branches: [probe-statcan]
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Runner egress IP
+        run: curl -sS --max-time 20 https://api.ipify.org || true
+      - name: WDS metadata (POST)
+        run: |
+          curl -sS --max-time 60 -o meta.json -w "HTTP %{http_code} in %{time_total}s\n" \
+            -X POST -H "Content-Type: application/json" \
+            -d '[{"productId":18100004}]' \
+            https://www150.statcan.gc.ca/t1/wds/rest/getCubeMetadata || echo "curl failed: $?"
+          head -c 300 meta.json || true
+      - name: db-loading CSV chunk (the endpoint fetch_statcan.py uses)
+        run: |
+          URL='https://www150.statcan.gc.ca/t1/tbl1/en/dtl!downloadDbLoadingData-nonTraduit.action?pid=1810000401&latestN=3&startDate=&endDate=&csvLocale=en&selectedMembers=%5B%5B2%5D%2C%5B2%2C6%2C10%5D%5D'
+          curl -sS --max-time 120 -o chunk.csv -w "HTTP %{http_code} in %{time_total}s\n" "$URL" || echo "curl failed: $?"
+          head -5 chunk.csv || true
+      - name: WDS latest-N by vector (a faster route)
+        run: |
+          curl -sS --max-time 60 -w "\nHTTP %{http_code} in %{time_total}s\n" \
+            -X POST -H "Content-Type: application/json" \
+            -d '[{"vectorId":41690973,"latestN":2}]' \
+            https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorsAndLatestNPeriods | head -c 400 || echo "curl failed: $?"
