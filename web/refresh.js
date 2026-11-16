@@ -74,12 +74,21 @@
         expected = r.ref; release = r;
       }
     }
+    const behind = Boolean(expected && (!g.committed || g.committed < expected));
+    /* DISPLAY ONLY (the gate above is unchanged): availableUtc carries the
+       fetch delay — the hours CI waits after publication before it tries — so
+       on release day, between publication and that buffer running out, a
+       vintage can already be loaded (fetched by hand, or by a forced run)
+       while `expected` still names the month before. Data in hand proves the
+       release is out: "available" is the newer of the two, and "next release"
+       is the first release after it, never one already loaded. */
+    const shown = g.committed && (!expected || g.committed > expected) ? g.committed : expected;
     let next = null;
     for (const r of g.releases) {
+      if (shown && r.ref <= shown) continue;
       if (new Date(r.availableUtc) > now && (!next || r.ref < next.ref)) next = r;
     }
-    const behind = Boolean(expected && (!g.committed || g.committed < expected));
-    return { ...g, expected, release, next, behind, due: behind && g.ci };
+    return { ...g, expected, shown, release, next, behind, due: behind && g.ci };
   }
 
   /* -------------------------------- styles ------------------------------- */
@@ -194,7 +203,7 @@
       const tr = el("tr");
       tr.appendChild(el("td", null, g.label.split(" (")[0]));
       tr.appendChild(el("td", g.behind ? "behind" : null, g.committed || "—"));
-      tr.appendChild(el("td", g.behind ? "behind" : "muted", g.expected || "—"));
+      tr.appendChild(el("td", g.behind ? "behind" : "muted", g.shown || "—"));
 
       const next = el("td", "muted");
       if (g.next) {
@@ -222,8 +231,8 @@
     if (localBehind.length) {
       const n = el("div", "msg muted",
         `${localBehind.map((g) => g.label.split(" (")[0]).join(", ")} cannot be ` +
-        `refreshed from the browser — the source is unreachable from CI, so it is ` +
-        `rebuilt locally.`);
+        `refreshed from the browser — it has no automatic (CI) refresh path, so it ` +
+        `is rebuilt locally.`);
       host.appendChild(n);
     }
 
