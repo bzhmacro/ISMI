@@ -453,10 +453,12 @@ gauges:
     label: Canada CPI (StatCan 18-10-0004)
     provider: Statistics Canada
     frequency: monthly
-    # CI again since 2026-11-16: a hosted runner reaches StatCan fine; the
-    # refresh job restores the chunk cache and refetches the recent chunks
-    # (scripts/fetch_statcan.py --only cpi --recent). manual_command still
-    # works for a local rebuild.
+    # CI since 2026-11-16: the refresh job restores the chunk cache and
+    # refetches the recent chunks (fetch_statcan.py --only cpi --recent).
+    # StatCan intermittently answers automated clients with a Cloudflare bot
+    # challenge (seen 2026-11-18, every endpoint); the fetch is then skipped,
+    # Canada keeps its data, and the run is annotated. If that persists past
+    # a release, run manual_command locally.
     ci: true
     manual_command: >-
       python scripts/fetch_statcan.py && python scripts/export_web_data.py ca

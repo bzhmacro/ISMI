@@ -185,13 +185,26 @@ jobs:
           restore-keys: |
             statcan-${{ steps.year.outputs.y }}-
 
+      # StatCan intermittently answers runners with a Cloudflare bot challenge
+      # (403). That must cost Canada one refresh, never the whole run: the
+      # fetch is continue-on-error, the exporters then skip Canada and keep
+      # its committed data, and the run is annotated below.
       - name: Fetch StatCan (Canada CPI)
+        id: statcan_cpi
         if: contains(needs.plan.outputs.ism, 'ca')
+        continue-on-error: true
         run: python scripts/fetch_statcan.py --only cpi --recent
 
       - name: Fetch StatCan (Canada quarterly HCE)
+        id: statcan_hce
         if: contains(needs.plan.outputs.decomp, 'ca')
+        continue-on-error: true
         run: python scripts/fetch_statcan.py --only hce --recent
+
+      - name: Note a blocked StatCan fetch
+        if: steps.statcan_cpi.outcome == 'failure' || steps.statcan_hce.outcome == 'failure'
+        run: |
+          echo "::warning title=StatCan unreachable::StatCan refused the runner (usually its Cloudflare bot challenge). Canada keeps its previously committed data; every other gauge refreshes as normal. If it persists, run 'python scripts/fetch_statcan.py && python scripts/export_web_data.py ca' locally."
 
       - name: Refreshing
         run: |

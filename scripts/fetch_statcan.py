@@ -31,10 +31,16 @@ caches the clients read:
                     requests for the CPI instead of ~51, and the result is
                     identical to a full pull: closed windows hold only history.
 
-REACHABILITY (2026-11-16): a GitHub-hosted ubuntu-24.04 runner reached
-www150.statcan.gc.ca without trouble (WDS metadata 0.4s, a db-loading chunk
-2.8s), so Canada is refreshed by CI again. The earlier "blocked from CI" note
-dated from the hosted analysis sandbox, which has since been opened too.
+REACHABILITY. StatCan sits behind Cloudflare and, intermittently, answers
+automated clients with a bot challenge (HTTP 403, "cf-mitigated: challenge",
+a "Vérification de sécurité / Security Check" page) — on every endpoint,
+including the official WDS API. 2026-11-16 a GitHub runner and the analysis
+sandbox both got straight through; 2026-11-18 both were challenged. The
+challenge is deliberate, so it is never worked around: this script stops at
+the first 403 with exit code 3, and CI treats that as "Canada keeps its last
+data" (the step is continue-on-error and annotates the run), never as a failed
+refresh of the other gauges. When it persists, run this locally from a machine
+StatCan lets through.
 """
 from __future__ import annotations
 
@@ -46,7 +52,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from ism.datasources import _request                                  # noqa: E402
+from ism.datasources import ApiError, _request                        # noqa: E402
 from ism.statcan import RAW_STATCAN, assemble_chunks, compact_db_csv  # noqa: E402
 
 ONLY = {"cpi": {"chunks18100004", "chunks18100007"}, "hce": {"chunks36100124"}}
@@ -112,7 +118,16 @@ def main(argv=None):
         if dest.exists() and not force and not (recent and open_ended) \
                 and _chunk_has_data(dest):
             continue
-        resp = _request("GET", item["url"], provider="StatCan", timeout=180)
+        try:
+            resp = _request("GET", item["url"], provider="StatCan", timeout=180)
+        except ApiError as exc:
+            if str(getattr(exc, "code", "")) == "403":
+                challenged = "Security Check" in str(exc) or "cf-" in str(exc).lower()
+                print(f"[statcan] HTTP 403 on {item['file']}"
+                      + (" — StatCan's bot challenge (Cloudflare)." if challenged else ".")
+                      + " Stopping; caches left as they were.", file=sys.stderr)
+                sys.exit(3)
+            raise
         df = compact_db_csv(resp.text)
         if len(df) > item["max_rows"]:
             raise RuntimeError(f"{item['file']}: {len(df)} rows > expected max "
