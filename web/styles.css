@@ -334,6 +334,14 @@ header.page-head.slim > .freshbar[open]{flex-basis:100%;}
 .cb-flag[aria-pressed="true"] img{opacity:1;}
 .cb-flag .cb-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 .cb-flag.caution{border-style:dashed;opacity:.6;}
+/* The carried-over country has no data on this page: flag stays marked, the
+   view shows a one-line note instead of another country's charts. */
+.cb-flag.na[aria-pressed="true"]{opacity:.75;border-style:dashed;}
+.model-view.cb-nodata .view-body{display:none;}
+.cb-nodata-msg{
+  margin:14px 0;padding:14px 16px;border:var(--bw) dashed var(--line);
+  border-radius:var(--radius);color:var(--paper-dim);font-size:.9rem;
+}
 .cb-flag.caution[aria-pressed="true"]{opacity:1;}
 /* No data for this country on this page. */
 .cb-flag.na,.cb-flag.na:hover{opacity:.32;cursor:not-allowed;filter:grayscale(1);
@@ -375,6 +383,11 @@ h2.chart-title .status{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%;
 }
 h2.chart-title .status.warn{color:var(--gold);white-space:normal;}
+/* Side-by-side pairs: one-line titles so both charts start at the same
+   height. The title itself stays whole; the grey detail after it (a date, a
+   note) is what gets cut, with an ellipsis. */
+.grid2 h2.chart-title{white-space:nowrap;overflow:hidden;}
+.grid2 h2.chart-title > .muted{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* Charts that are taller than their box by design (one row per category)
    scroll inside it rather than being cut off. */
 .view-main .chart.scroll-y{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;}
