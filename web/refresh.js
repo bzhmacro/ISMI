@@ -106,6 +106,11 @@
       .freshbar[open] .chev { transform:rotate(90deg); }
       .freshbar .pill { padding:2px 8px; border-radius:999px; font-weight:600;
         font-size:11.5px; letter-spacing:.02em; }
+      .freshbar .row-refresh { cursor:pointer; background:transparent;
+        border:1px solid #2a3448; color:#b9b2a0; border-radius:4px;
+        font-size:12px; line-height:1; padding:2px 6px; }
+      .freshbar .row-refresh:hover:not(:disabled) { border-color:#4c9aff; color:#ede6d6; }
+      .freshbar .row-refresh:disabled { opacity:.4; cursor:default; }
       .freshbar .pill.ok   { background:#16301f; color:#6ee7a8; }
       .freshbar .pill.due  { background:#3a2a10; color:#f5a623; }
       .freshbar .pill.run  { background:#132b3d; color:#4c9aff; }
@@ -182,8 +187,9 @@
       btn.textContent = `Refresh ${due.map((g) => g.name).join(", ")}`;
       btn.addEventListener("click", (e) => { e.preventDefault(); dispatch(btn); });
     } else {
-      btn.textContent = "Force refresh";
-      btn.title = "Rebuild every gauge now, regardless of the release calendar";
+      btn.textContent = "Force refresh all";
+      btn.title = "Rebuild every gauge now, regardless of the release calendar. " +
+                  "To refresh one country, use the ↻ on its row.";
       btn.addEventListener("click", (e) => { e.preventDefault(); forceRefresh(btn); });
     }
     sum.appendChild(btn);
@@ -221,6 +227,15 @@
       if (!g.ci) {
         how.textContent = g.behind ? "local — run by hand" : "local";
         if (g.manualCommand) how.title = g.manualCommand;
+      } else {
+        // Refresh just this gauge now (forced, so it works before the
+        // calendar says the print is out). Same token as Force refresh all.
+        const one = el("button", "row-refresh", "↻");
+        one.type = "button";
+        one.title = `Refresh ${g.label.split(" (")[0]} only, now`;
+        one.disabled = Boolean(active);
+        one.addEventListener("click", (e) => { e.preventDefault(); forceRefresh(one, [g.name]); });
+        how.appendChild(one);
       }
       tr.appendChild(how);
       tb.appendChild(tr);
@@ -328,19 +343,22 @@
     history.replaceState(null, "", url.pathname + url.search + url.hash);
   }
 
-  async function forceRefresh(btn) {
+  /* `gauges`: optional list of gauge names (a row's ↻ button). Without it the
+     server forces every CI gauge. */
+  async function forceRefresh(btn, gauges) {
     let token = readToken();
     if (!token && STATUS && STATUS.forceNeedsToken) {
       token = (window.prompt("Refresh token (asked once on this device):") || "").trim();
       if (!token) { say("Force cancelled — no token entered.", "err"); return; }
     }
     btn.disabled = true;
-    say("Forcing a rebuild…");
+    say(gauges ? `Refreshing ${gauges.join(", ")}…` : "Forcing a rebuild of every gauge…");
     try {
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: true, token }),
+        body: JSON.stringify(gauges ? { force: true, token, gauges: gauges.join(" ") }
+                                    : { force: true, token }),
       });
       const body = await res.json().catch(() => ({}));
       if (body && body.gauges) STATUS = body;

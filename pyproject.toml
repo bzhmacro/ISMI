@@ -21,6 +21,8 @@ dependencies = [
     "requests>=2.31",
     "python-dotenv>=1.0",
     "pyarrow>=12.0",
+    "xlrd>=2.0",        # legacy .xls reader for INSEE t_conso quarterly tables (FR port)
+    "pypdf>=4.0",       # Istat flash PDF (ism.flash.fetch_it); CI installs from here
 ]
 
 [project.optional-dependencies]

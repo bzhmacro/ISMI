@@ -584,7 +584,9 @@ def cmd_check(args) -> int:
         try:
             wf = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
             on = wf.get("on") or wf.get(True)   # bare `on:` parses as True
-            polls = sorted(int(c["cron"].split()[1]) for c in on["schedule"])
+            # (hour, minute) pairs: the per-release slots sit at release + 5 min
+            polls = sorted({(int(c["cron"].split()[1]), int(c["cron"].split()[0]))
+                            for c in on["schedule"]})
         except Exception as e:  # noqa: BLE001
             notes.append(f"could not read cron hours from the workflow ({e})")
     if polls:
@@ -601,8 +603,8 @@ def cmd_check(args) -> int:
         worst = {n: 0.0 for n in ci}
         seen = {n: 0 for n in ci}
         while day < end:
-            for hh in polls:
-                now = dt.datetime.combine(day, dt.time(hh), tzinfo=UTC)
+            for hh, mm in polls:
+                now = dt.datetime.combine(day, dt.time(hh, mm), tzinfo=UTC)
                 for n in due_gauges(evaluate(now, calendar=cal, committed=committed)):
                     e = evaluate(now, calendar=cal, committed=committed)[n].expected
                     worst[n] = max(worst[n], (now - cal[n].available_at_utc(
@@ -623,8 +625,8 @@ def cmd_check(args) -> int:
             if worst[n] >= 8:
                 errs.append(f"{n}: waits up to {worst[n]:.1f}h after its data is "
                             f"fetchable — cron hours {polls} UTC do not cover it")
-        notes.append(f"cron hours {polls} UTC; worst detection lag "
-                     f"{max(worst.values()):.1f}h")
+        notes.append(f"{len(polls)} cron slots UTC; worst detection lag "
+                     f"{max(worst.values()):.2f}h")
 
     for n in notes:
         print(f"note: {n}")

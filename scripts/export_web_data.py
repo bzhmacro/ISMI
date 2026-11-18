@@ -477,6 +477,14 @@ def build_backbone(name):
         print(f"  [{name}] skipped: {type(exc).__name__}: {exc}")
         return None
 
+    # A source that answers but returns nothing (ABS, 2026-11-18: 0 categories)
+    # must count as a failed build like any other, not ship an empty backbone
+    # that fails validation and blocks every other gauge's commit.
+    if infl.shape[1] == 0 or not np.isfinite(infl.to_numpy(dtype=float)).any():
+        print(f"  [{name}] skipped: source returned no category data "
+              f"({infl.shape[1]} categories, {infl.shape[0]} periods)")
+        return None
+
     print(f"  [{name}] {infl.shape[1]} categories, {infl.shape[0]} periods")
     # Round FIRST, then compute the baseline from the rounded panel, so the
     # precomputed combo and the browser engine see byte-identical inputs (a

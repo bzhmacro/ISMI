@@ -154,7 +154,13 @@ def cpi_codelist(force: bool = False) -> pd.DataFrame:
 def cpi_tree(force: bool = False):
     """(leaves in tree order, labels, group-of-leaf) for the All groups tree."""
     cl = cpi_codelist(force=force)
-    par = dict(zip(cl["id"], cl["parent"]))
+    # A root's missing parent arrives as None under pandas 2 but as NaN under
+    # pandas 3 (string columns), and NaN is truthy: the walk up the tree then
+    # never reaches All groups and EVERY class is dropped (2026-11-18: au and
+    # au_m built 0 categories in CI). Normalise anything that is not a real
+    # code to None.
+    par = {i: (p if isinstance(p, str) and p.strip() else None)
+           for i, p in zip(cl["id"], cl["parent"])}
     name = dict(zip(cl["id"], cl["name"]))
 
     def chain(c):

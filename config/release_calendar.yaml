@@ -46,11 +46,13 @@ version: 1
 verified: 2026-07-31
 
 defaults:
-  # How long after the press release before we trust the machine-readable
-  # endpoint (bulk CSV / API table) to carry the new month. Agencies publish the
-  # release and the data together in principle, but the API tier can lag by
-  # minutes-to-hours and CI cron itself drifts, so we wait.
-  fetch_delay_hours: 3
+  # How long after the press release before a gauge counts as fetchable (and
+  # the site's Refresh button / freshness panel treat it as out). Five minutes
+  # since 2026-11-18, on request: each release has its own cron slot at
+  # release + 5 min (see the workflow). An API tier that lags the press release
+  # just means that run finds the previous month and commits nothing; the
+  # gauge stays due and the backstop slots retry it later the same day.
+  fetch_delay_hours: 0.08333     # 5 minutes (a hair under, so the +5 min cron slot is never a fraction of a second early)
   # Reference months to look back over when resolving "newest released vintage".
   lookback_months: 24
 
@@ -73,7 +75,6 @@ gauges:
     # until 11:30 ET and made the site's Refresh button refuse a print that had
     # been public since 08:30. 30 minutes covers the few minutes the data needs
     # to appear plus GitHub cron drift.
-    fetch_delay_hours: 0.5
     rule: >-
       No derivation rule is published. CPI is a Principal Federal Economic
       Indicator under OMB Statistical Policy Directive No. 3, which requires a
@@ -123,7 +124,6 @@ gauges:
     utc_hour_fallback: 14
     # As for CPI: the BEA API carries Personal Income and Outlays at the release
     # instant. See the note on `cpi`.
-    fetch_delay_hours: 0.5
     rule: >-
       No derivation rule is published. BEA states the annual schedule is
       "promulgated several months before the start of the year and is
@@ -195,7 +195,6 @@ gauges:
     # The PPI-by-industry flat files (download.bls.gov/pub/time.series/pc/)
     # update on release morning but not always at 08:30 sharp, so allow an
     # hour rather than CPI's half-hour. The 17:00 UTC poll covers it either way.
-    fetch_delay_hours: 1
     rule: >-
       No derivation rule is published; PPI is a Principal Federal Economic
       Indicator with a pre-announced annual calendar. Usually lands within a
@@ -406,7 +405,8 @@ gauges:
       `release_*` fields exactly for every past entry, so e-Stat has the data
       the same calendar day — but the feed gives no intraday posting time, hence
       the extra buffer below.
-    fetch_delay_hours: 4           # wider than default: e-Stat intraday lag unverified
+    # (was fetch_delay_hours: 4 — e-Stat intraday lag unverified; the 04:00 UTC
+    # backstop slot now covers a late posting instead)
     rebasing:
       date: "2026-08-21"
       note: >-
