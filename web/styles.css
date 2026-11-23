@@ -421,3 +421,16 @@ h2.chart-title .status.warn{color:var(--gold);white-space:normal;}
   .view-main .chart.small{height:300px;}
   header.page-head.slim{padding:6px 16px 0;}
 }
+
+/* "Download data · all countries" (page_download.js): sits in the control bar
+   just before Settings, styled like it; pages without a bar get a small one. */
+.dl-all{
+  cursor:pointer;background:transparent;border:var(--bw) solid var(--line);
+  color:var(--paper-dim);border-radius:var(--radius-sm);padding:5px 10px;
+  font-family:var(--font-mono);font-size:11px;white-space:nowrap;
+  margin-left:auto;
+}
+.dl-all + .settings-toggle{margin-left:6px;}
+.dl-all:hover:not(:disabled){color:var(--paper);border-color:var(--gold);}
+.dl-all:disabled{opacity:.6;cursor:default;}
+.dl-bar{display:flex;justify-content:flex-end;margin:0 0 8px;}
