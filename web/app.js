@@ -583,11 +583,11 @@ function renderReadout(res) {
   const stats = [
     ["Correlation w/ author", isNaN(corr) ? "—" : corr.toFixed(3)],
     ["Latest ISM", latest == null ? "—" : latest.toFixed(3)],
-    ["Spec", spec],
     ["Sample", `${b.dates[STATE.startIdx]}–${b.dates[b.dates.length-1]}`],
+    ["Spec", spec],
   ];
   $("readout").innerHTML = stats
-    .map(([s, val]) => `<div class="stat"><b>${val}</b><span>${s}</span></div>`).join("");
+    .map(([s, val]) => `<div class="stat" title="${s}: ${val}"><b>${val}</b><span>${s}</span></div>`).join("");
 }
 
 /* ---- Bar chart of the last 22 ISM prints (always full series, not trimmed) ---- */

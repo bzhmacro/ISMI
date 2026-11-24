@@ -448,7 +448,7 @@
     const host = $("b-readout");
     if (host) {
       host.innerHTML = rows
-        .map(([v, s], i) => `<div class="stat${i === 0 ? " big" : ""}"><b>${v}</b><span>${s}</span></div>`)
+        .map(([v, s], i) => `<div class="stat${i === 0 ? " big" : ""}" title="${s}: ${v}"><b>${v}</b><span>${s}</span></div>`)
         .join("");
     }
   }

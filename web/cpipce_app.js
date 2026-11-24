@@ -180,7 +180,7 @@
                   `${c >= 0 && isMom ? "+" : ""}${c.toFixed(2)}%`, ""]);
     }
     $("x-readout").innerHTML = stats.map(([k, v, cls]) =>
-      `<div class="stat ${cls}"><b>${v}</b><span>${k}</span></div>`).join("");
+      `<div class="stat ${cls}" title="${k}: ${v}"><b>${v}</b><span>${k}</span></div>`).join("");
   }
 
   // ---- view 1: the nowcast -------------------------------------------------
@@ -382,7 +382,7 @@
       [big ? `biggest term — ${big[0].toLowerCase()}` : "biggest term",
        big ? `${big[1] >= 0 ? "+" : ""}${big[1].toFixed(2)}pp` : "—"],
       ["C-CPI-U formula proxy (diagnostic)", fmtPct(C.table.ccpi_proxy[i], true)],
-    ].map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+    ].map(([k, v]) => `<div class="stat" title="${k}: ${v}"><b>${v}</b><span>${k}</span></div>`).join("");
     $("x-notes").innerHTML = (C.notes || []).map(n => `<div>${n}</div>`).join("");
   }
 

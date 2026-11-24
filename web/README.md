@@ -15,22 +15,30 @@ instead of a precomputed grid.
 
 ```
 web/
-├── index.html        # layout + controls for all four models
-├── styles.css
-├── models.js         # the Model bar: a registry, show/hide, lazy first init
-├── app.js            # model 1 — Inflation Shock Momentum
-├── engine.js         # the ISM maths in JS — parity-tested port of src/ism/engine.py
-├── worker.js         # Web Worker wrapper; caches residual panels per (gauge, AR, W)
-├── decomp_app.js     # model 2 — Supply vs Demand
-├── decomp_engine.js / decomp_worker.js
-├── trim_app.js       # model 3 — Trimmed mean & median
-├── trim_engine.js    # parity-tested port of src/ism/trim_engine.py
-├── trim_worker.js    # caches the seasonally adjusted panel per (scope, sa, window)
-├── cpipce_app.js     # model 4 — CPI → PCE (no client-side recompute: see below)
-├── data/ism.json     # ISM panels + one precomputed baseline combo
-├── data/decomp.json  # supply/demand panels
-├── data/trim.json    # SA panels, versioned weights, the published
-│                     # overlays, and the CPI→PCE payload
+├── index.html          # layout + controls for all five models
+├── styles.css          # site styles on top of the house tokens (assets/bzh.css)
+├── models.js           # the Model bar: a registry, show/hide, lazy first init
+├── breakdown_app.js    # model 1 — Breakdown (+ breakdown_worker.js)
+├── app.js              # model 2 — Inflation Shock Momentum
+├── engine.js           # the ISM maths in JS — parity-tested port of src/ism/engine.py
+├── worker.js           # Web Worker wrapper; caches residual panels per (gauge, AR, W)
+├── decomp_app.js       # model 3 — Supply vs Demand (+ decomp_engine.js / decomp_worker.js)
+├── trim_app.js         # model 4 — Trimmed mean & median
+├── trim_engine.js      # parity-tested port of src/ism/trim_engine.py
+├── trim_worker.js      # caches the seasonally adjusted panel per (scope, sa, window)
+├── cpipce_app.js       # model 5 — CPI → PCE (no client-side recompute: see below)
+├── category_colours.js # shared category groups and colours
+├── country_bar.js      # the flag picker, shared by every page
+├── chart_window.js     # opens the main charts on the last two years
+├── chart_export.js     # per-chart copy / png / svg / csv buttons
+├── page_download.js    # the per-page "download all data" arrow
+├── refresh.js / api/refresh.js / middleware.js   # freshness panel + on-demand refresh
+├── assets/             # house CSS, logo, flags
+├── data/ism.json       # ISM + Breakdown panels and baselines
+├── data/decomp.json    # supply/demand panels
+├── data/trim.json      # SA panels, versioned weights, the published
+│                       # overlays, and the CPI→PCE payload
+├── data/release_calendar.json
 └── vercel.json
 ```
 

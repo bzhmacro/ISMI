@@ -1,4 +1,4 @@
-/* page_download.js — "Download data · all countries" on every model page.
+/* page_download.js — "Download all data" (an arrow icon) on every model page.
    ===========================================================================
    One button per page, in the page's control bar. It writes ONE CSV holding
    the page's data for EVERY country at once, in long format:
@@ -30,7 +30,6 @@
                           the official counterpart where one exists.
      CPI -> PCE           US only: the bridge table, CPI and PCE m/m, and the
                           implied-vs-actual series for both measures.
-     Wages                every series for every country.
    =========================================================================== */
 "use strict";
 
@@ -235,18 +234,6 @@
     save(R.out, "cpi_to_pce", "us");
   }
 
-  async function wages() {
-    const d = await load("wage.json");
-    const R = Rows();
-    for (const [code, c] of Object.entries(d.countries || {})) {
-      for (const [k, v] of Object.entries(c.series || {})) {
-        if (Array.isArray(v) && v.length === c.dates.length) R.series(code, c.name || code, "", c.dates, k, v);
-      }
-    }
-    R.out.forEach((r) => { r[0] = (d.countries[r[1]] || {}).name || r[1]; });
-    save(R.out, "wages");
-  }
-
   /* ------------------------------------------------------------- buttons */
   const PAGES = [
     ["breakdown-view", breakdown, "Breakdown: headline and group contributions (monthly and 12-month) for every gauge, at the default settings"],
@@ -254,7 +241,6 @@
     ["decomp-view", decomp, "Supply vs Demand: contributions, shares and headline for every scope, at the default settings"],
     ["trim-view", trim, "Trimmed mean: every preset (period rate and y/y), headline and official series, for every scope"],
     ["cpipce-view", cpipce, "CPI → PCE (US only): bridge table, m/m rates and implied vs actual series"],
-    ["wage-view", wages, "Wages: every series for every country"],
   ];
 
   function place(viewId, fn, hint) {
@@ -263,15 +249,22 @@
     const b = document.createElement("button");
     b.type = "button";
     b.className = "dl-all";
-    b.textContent = viewId === "cpipce-view" ? "⬇ Download data" : "⬇ Download data · all countries";
-    b.title = hint + ". One CSV, long format (country, dataset, group, date, measure, value).";
+    // Icon only, so the country bar stays on one line; the label lives in the
+    // hover tooltip (CSS, from data-tip) and in aria-label for screen readers.
+    const label = viewId === "cpipce-view" ? "Download all data" : "Download all data · every country";
+    b.setAttribute("aria-label", label);
+    b.dataset.tip = `${label}\n${hint}.\nOne CSV, long format.`;
+    const ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
+      '<path d="M9 3h6v8h4.5L12 19.5 4.5 11H9z" fill="currentColor"/>' +
+      '<rect x="4" y="20" width="16" height="2.4" rx="1.2" fill="currentColor"/></svg>';
+    const state = (html, cls) => { b.innerHTML = html; b.dataset.state = cls || ""; };
+    state(ICON);
     b.addEventListener("click", async () => {
-      const old = b.textContent;
       b.disabled = true;
-      b.textContent = "Preparing…";
-      try { await fn(); b.textContent = "✓ Downloaded"; }
-      catch (e) { console.error("[page_download]", e); b.textContent = "Failed — see console"; }
-      setTimeout(() => { b.textContent = old; b.disabled = false; }, 1800);
+      state("…", "busy");
+      try { await fn(); state("✓", "ok"); }
+      catch (e) { console.error("[page_download]", e); state("!", "fail"); }
+      setTimeout(() => { state(ICON); b.disabled = false; }, 1800);
     });
     // In the control bar next to Settings when the page has one; otherwise a
     // small bar at the top of the page.
@@ -291,5 +284,5 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 
-  window.PageDownload = { breakdown, ism, decomp, trim, cpipce, wages };
+  window.PageDownload = { breakdown, ism, decomp, trim, cpipce };
 })();

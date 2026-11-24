@@ -1,7 +1,7 @@
 /* The top-level Model bar.
 
-   The site now carries four models — Inflation Shock Momentum, Supply vs
-   Demand, Trimmed mean & median, and CPI -> PCE — each a self-contained
+   The site carries five models — Breakdown, Inflation Shock Momentum, Supply
+   vs Demand, Trimmed mean & median, and CPI -> PCE — each a self-contained
    controller over its own <div id="…-view">. Rather than have every app know
    about the others, each registers itself here and this file owns the bar, the
    show/hide, the subtitle, and the lazy first init.
@@ -26,8 +26,8 @@ const ModelBar = (() => {
     if (mounted) build();          // registered late: rebuild the bar
   }
 
-  /* The bar is the house `.section-nav`. Because the four models are toggled
-     views rather than four regions of one scrolling document, the links switch
+  /* The bar is the house `.section-nav`. Because the models are toggled
+     views rather than regions of one scrolling document, the links switch
      views instead of scrolling to anchors — but they keep real `href="#key"`
      so each model is deep-linkable and the browser's back button works. */
   function build() {

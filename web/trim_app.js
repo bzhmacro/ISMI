@@ -464,7 +464,7 @@
       ["Categories", String(s.categories.length - exSet().size)],
     ];
     $("t-readout").innerHTML = stats
-      .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+      .map(([k, v]) => `<div class="stat" title="${k}: ${v}"><b>${v}</b><span>${k}</span></div>`).join("");
 
     /* The specification is a sentence, not a statistic — it belongs under the
        tiles rather than stretched across one of them. */

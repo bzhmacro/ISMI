@@ -327,7 +327,7 @@
       ["Corr w/ FRBSF (supply)", isNaN(corr) ? "—" : corr.toFixed(3)],
       ["Spec", spec],
     ];
-    $("d-readout").innerHTML = stats.map(([s2, v]) => `<div class="stat"><b>${v}</b><span>${s2}</span></div>`).join("");
+    $("d-readout").innerHTML = stats.map(([s2, v]) => `<div class="stat" title="${s2}: ${v}"><b>${v}</b><span>${s2}</span></div>`).join("");
   }
 
   function driversFor(res) {

@@ -26,7 +26,8 @@ ISM_t = S⁺_t − S⁻_t          (net positive momentum share)
 ```
 
 A positive ISM means broad-based upward inflation pressure; negative means
-disinflationary pressure. See `docs/methodology.md` for the full maths→code map.
+disinflationary pressure. The maths→code map is the module docstring of
+`src/ism/engine.py` (one function per numbered equation).
 
 ## Second model: Supply/Demand decomposition (Shapiro 2022-18)
 
@@ -114,64 +115,6 @@ Canada also has an **ISM momentum** backbone (StatCan CPI by product,
 `src/ism/ca_pipeline.py`) selectable as the `ca` price gauge on the momentum page.
 Sources and conventions: `config/sources_canada.yaml`; port decisions:
 `docs/DECISIONS.md`.
-
-## Fifth model: wages, indexation and the spiral gain
-
-The other four models take an inflation print apart. The fifth asks the question
-from the other side: when prices move, what happens to what households are paid,
-and does that feed back into prices?
-
-Three things pay a household and only one of them is a wage. There is the market
-bargain; there is the statutory floor, which in France has been indexed to prices
-by formula since 1970 and in the United States has not moved since 2009; and
-there are indexed benefits and pensions, which cover about 70 million Americans
-and rose 8.7% in a single January in 2023. Since 2021 there is a fourth:
-discretionary payments and energy subsidies worth several percent of GDP across
-Europe, some of which enter the consumer price index and some of which do not.
-
-The model produces two objects.
-
-**The Effective Wage Index** adds all four sources, weighted by an income group's
-actual composition, and deflates twice — by the recorded price index, and by the
-index that would have been recorded without caps, tariff shields and fuel-duty
-cuts. The gap between the two is the part of measured real income that is a
-consequence of *how* support was delivered rather than of what households
-received: about 2.6 percentage points of French inflation in 2022.
-
-**The Spiral Gain** `G = Λ × M` is the product of two pass-throughs: how much of
-a real-wage loss gets recovered within three years (Λ), and how much of a wage
-impulse reaches prices over the same horizon (M). A spiral needs both, and the
-central estimate is that Λ runs from −0.23 with no indexation to +0.77 under
-universal indexation — without an escalator clause, a real-wage loss is simply
-not recovered. Belgium has the highest indexation intensity in the panel and
-among the lowest wage-to-price pass-through, which is why automatic indexation
-there did not produce excess inflation; Italy under the *scala mobile* had both,
-and a gain of 0.76. No country in the panel today is above 0.21.
-
-The indexation intensity λ is not a residual: it is built from a hand-assembled,
-row-by-row sourced database of who was indexed to what
-(`config/indexation_coverage.csv`), covering contractual escalators, statutory
-public pay, minimum-wage-benchmarked agreements and formal inflation references
-for seven countries from 1960 — the US COLA decline, the UK's 1974 threshold
-agreements, France's 1983 *désindexation* and the SMIC formula that survived it,
-Belgium's health-index indexation, Italy's *scala mobile* and its dismantling.
-
-```bash
-python scripts/build_wage.py        # fetch, assemble, estimate, validate
-python scripts/export_wage_data.py  # refresh the website payload
-```
-
-No API key is required: every series comes from FRED's keyless CSV endpoint, the
-ONS time-series JSON, the Eurostat dissemination API or INSEE's SDMX endpoint.
-Countries: the United States (1960–), the United Kingdom (1963–), France and
-Germany, plus Belgium, Italy and Spain as reference cases — λ barely moves inside
-any one country, so the indexation interaction is identified across the panel.
-
-Key files: `src/ism/wage_engine.py` (the maths, Eqs. W1–W12),
-`wage_pipeline.py` (the country panels and the statutory uprating rules),
-`wage_sources.py` (keyless clients), `wage_validate.py`,
-`web/wage_engine.js` (parity-tested browser twin). Full maths-to-code map:
-`docs/wage_methodology.md`. The paper is `paper/wage_inflation.md`.
 
 ## Third model: trimmed-mean & median inflation (Cleveland / Dallas / BoC / BoJ)
 
@@ -378,80 +321,45 @@ on the Breakdown page — grouped by food / energy / goods / services — a hatc
 provisional bar, replaced automatically once the final HICP arrives. Details:
 `src/ism/flash.py`, `docs/DECISIONS.md`.
 
+## Archived: wages, indexation and the spiral gain
+
+A fifth model (effective wage index and spiral gain, with its paper) was taken
+off the site in November 2026 pending a review of its data. Code, config,
+estimation data, the paper and the site page are kept, unchanged, in
+`archive/wage-model/`; its README explains what is there and how to restore it.
+
 ## Repository layout
 
 ```
 ISMI/
-├── config/
-│   ├── sources.yaml           # registry of EVERY US data source (URLs, series IDs, roles)
-│   ├── sources_europe.yaml    # FRED -> Eurostat mapping for the EU port
-│   ├── sources_uk.yaml        # FRED/BEA/BLS -> ONS mapping for the UK CPI port
-│   ├── sources_japan.yaml     # FRED/BEA/BLS -> e-Stat mapping for the Japan CPI port
-│   ├── sources_canada.yaml    # US -> StatCan mapping (CA ISM CPI + quarterly HCE decomposition)
-│   ├── ca_hce_categories.csv  # pinned StatCan 36-10-0124 HCE leaves (decomposition; G/S tags)
-│   ├── ca_cpi_categories.csv  # pinned StatCan 18-10-0004 CPI leaves (ISM; + 18-10-0007 weight ids)
-│   ├── cleveland_components.csv  # the 45-component Cleveland median-CPI cut
-│   ├── cleveland_ri_by_year.csv  # its December relative importances, 1997-
-│   ├── cpi_ri_by_year.csv     # December relative importances for the 70 strata
-│   ├── cpi_pce_concordance.csv   # CPI strata + PCE categories -> 28 common groups
-│   ├── ppi_bridge_series.csv  # the PPI series BEA prices each group from
-│   ├── pce_categories.csv     # the pinned 130 fourth-level PCE categories
-│   └── cpi_categories.csv     # the pinned ~70 BLS CPI item strata (alt. backbone)
-├── src/ism/                   # the library (the importable engine + plumbing)
-│   ├── engine.py              # the ISM maths: Eqs (3)-(8). The centerpiece.
-│   ├── transforms.py          # price index -> inflation transforms
-│   ├── datasources.py         # FRED / BEA / BLS clients (retry, caching, provenance)
-│   ├── external_data.py       # Shiller S&P, Barnichon V/U, Kanzig, Romer-Romer, STOXX
-│   ├── pipeline.py            # BEA tables -> category inflation panel + weights (PCE)
-│   ├── cpi_pipeline.py        # BLS CPI item strata -> panel + weights (alt. backbone)
-│   ├── controls.py            # control / predictor frame
-│   ├── forecasting.py         # Table 1 in-sample regressions
-│   ├── oos_lasso.py           # Table 2 out-of-sample adaptive LASSO + GW test
-│   ├── local_projection.py    # Figures 2-3 local projections
-│   ├── appendix.py            # appendix exhibits (run probs, weighted momentum, ...)
-│   ├── eurostat.py            # Eurostat JSON-stat client (EU port)
-│   ├── eu_pipeline.py         # HICP -> ISM for the euro area
-│   ├── ons.py                 # ONS client: MM23 bulk CSV + /generator (UK port)
-│   ├── uk_pipeline.py         # ONS CPI COICOP classes -> ISM for the UK
-│   ├── estat.py               # e-Stat API client (Japan port; free ESTAT_API_ID)
-│   ├── jp_pipeline.py         # Japan CPI by item -> ISM (e-Stat 2020-base table)
-│   ├── statcan.py             # Statistics Canada client (36-10-0124 HCE, 18-10-0004/07 CPI)
-│   ├── ca_pipeline.py         # StatCan CPI by product -> ISM for Canada
-│   ├── decomp_ports.py        # quarterly national-accounts ports of the decomposition (ca/uk/fr/de)
-│   ├── trim_engine.py         # trimmed-mean / median maths: Eqs (T1)-(T4)
-│   ├── trim_pipeline.py       # the trim scopes (cpi45 / cpi70 / pce / country ports)
-│   ├── cpi_ri.py              # versioned CPI weights: December anchors + price-updating
-│   ├── official_trim.py       # Cleveland/Dallas/StatCan/BoJ published files
-│   ├── trim_validate.py       # our measures vs theirs (series + cross-section)
-│   ├── cpi_pce.py             # CPI-PCE gap identity + the nowcast bridge
-│   ├── ppi.py                 # the producer-price inputs to the PCE deflator
-│   ├── figures.py / validate.py / run.py
-├── scripts/                   # runnable helpers
-│   ├── build_and_validate.py  # build the US index + convergence check
-│   ├── finalize_categories.py # pin config/pce_categories.csv from BEA hierarchy
-│   ├── fetch_statcan.py       # rebuild the Canadian data caches (data/raw/statcan/)
-│   ├── export_web_data.py     # export raw panels + baseline to web/data/ism.json
-│   ├── build_cpi_ri.py        # pin the BLS December relative-importance anchors
-│   ├── build_trim.py          # build + validate the trimmed-mean measures
-│   └── export_trim_data.py    # export web/data/trim.json (trim + CPI->PCE)
-├── notebooks/                 # guided, runnable analyses
-│   ├── ISM_replication.ipynb  # Figure 1 + Table 1 (core)
-│   ├── ISM_expand.ipynb       # Figures 2-3 + Table 2
-│   ├── ISM_appendix.ipynb     # Figures A1-A8 + Tables A1-A6
-│   └── ISM_europe.ipynb       # euro-area port (Eurostat HICP)
-├── web/                       # zero-build interactive site (deploy on Vercel)
-│   ├── index.html / app.js / styles.css / vercel.json
-│   ├── models.js              # the four-way Model bar (registry + show/hide)
-│   ├── engine.js / worker.js  # the ISM maths IN THE BROWSER (parity-tested JS port)
-│   ├── trim_engine.js / trim_worker.js / trim_app.js   # the trimmed-mean model
-│   ├── cpipce_app.js          # the CPI -> PCE page
-│   └── data/ism.json          # raw panels + baselines, all gauges: pce cpi uk fr de jp ca (regen via scripts/export_web_data.py)
-│       data/trim.json         # SA panels + versioned weights + the published
-│                              # published overlays + the CPI->PCE payload
-├── tests/                     # 25 synthetic unit tests incl. Python<->JS parity (no network)
-├── docs/                      # decomp_methodology.md, trim_methodology.md,
-│                              # cpi_pce_methodology.md, DECISIONS.md
-├── data/                      # NOT committed (gitignored); see data/README.md
+├── config/                    # source registries and pinned category lists
+│   ├── sources*.yaml          # every data source, per country (US, Europe, UK, Japan, Canada)
+│   ├── *_categories.csv       # pinned category leaves per gauge (PCE, CPI, StatCan CPI/HCE)
+│   ├── cleveland_*.csv / cpi_ri_by_year.csv   # trimmed-mean cuts and December weights
+│   ├── cpi_pce_concordance.csv / ppi_bridge_series.csv / pce_core_exclusions.csv
+│   └── release_calendar.yaml  # agency release dates (drives the refresh Action)
+├── src/ism/                   # the library
+│   ├── engine.py              # the ISM maths, Eqs (3)-(8). The centrepiece.
+│   ├── transforms.py / datasources.py / external_data.py / controls.py
+│   ├── pipeline.py / cpi_pipeline.py          # US PCE and CPI panels
+│   ├── eu_pipeline.py / uk_pipeline.py / jp_pipeline.py / ca_pipeline.py
+│   ├── eurostat.py / ons.py / estat.py / statcan.py / destatis.py / insee.py
+│   ├── abs_au.py / statsnz.py / nordic.py / flash.py   # AU, NZ, NO/SE, preliminary prints
+│   ├── decomp_*.py            # supply/demand decomposition (engine, shocks, ports, validation)
+│   ├── trim_*.py / cpi_ri.py / official_trim.py        # trimmed mean & median
+│   ├── cpi_pce.py / ppi.py    # CPI -> PCE gap identity and nowcast bridge
+│   ├── forecasting.py / oos_lasso.py / local_projection.py / appendix.py
+│   ├── release_calendar.py
+│   └── figures.py / validate.py / run.py
+├── scripts/                   # build_* (build + validate), export_* (write web/data/*.json),
+│                              # fetch_* (refresh caches), validate_web_data.py
+├── notebooks/                 # replication, expand, appendix, Europe, decomposition
+├── web/                       # zero-build static site (Vercel) — see web/README.md
+├── docs/                      # decomp / trim / cpi_pce methodology, DECISIONS.md
+├── data/                      # caches, NOT committed (except the StatCan manifest); see data/README.md
+├── archive/wage-model/        # the retired wages & indexation model — see its README
+├── extracted-skills/          # the replicate-econ-paper skill distilled from this repo
+├── .github/workflows/         # scheduled data refresh
 ├── .env.example  pyproject.toml  requirements.txt  pytest.ini  LICENSE
 ```
 
@@ -650,9 +558,15 @@ overlay to `outputs/`.
 ## Tests
 
 ```bash
-python -m pytest        # 4 tests: momentum-run logic, shares/index identity,
-                        # AR(1) residual recovery, and ISM=S⁺−S⁻ vs author file
+python -m pytest
 ```
+
+`tests/` is gitignored and kept locally (see `.gitignore`). It holds synthetic,
+no-network unit tests for the engine, external loaders (incl. the Shiller
+parser), local projections and the LASSO/GW machinery, plus the Python↔JS
+parity tests that keep `web/engine.js` and `web/trim_engine.js` in step with
+their Python originals, and `tests/web_smoke.cjs`, which boots the site
+headlessly and drives every control.
 
 ## Expand phase: Figures 2 & 3 and Table 2
 
@@ -678,12 +592,7 @@ For the full-sample control columns and Figure 3b:
 
 Everything degrades gracefully if these are absent (V/U starts 2000, S&P uses the
 short FRED series, Figure 3b is skipped). See `docs/DECISIONS.md` for the choices
-made and `docs/methodology.md` for the full method.
-
-## Tests
-
-`python -m pytest` runs 12 synthetic unit tests covering the engine, external
-loaders (incl. the Shiller parser), local projections, and the LASSO/GW machinery.
+made and `src/ism/engine.py` for the full method.
 
 ## Appendix exhibits
 

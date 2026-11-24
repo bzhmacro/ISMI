@@ -60,6 +60,6 @@ tests/
 
 # Claude
 .claude/
-# ---- paper build artefacts ----
+# ---- paper build artefacts (archived wage model) ----
 missfont.log
-paper/.header.tex
+archive/wage-model/paper/.header.tex
