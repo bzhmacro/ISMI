@@ -101,7 +101,11 @@
 
   /* `gauges` is the payload's map of series, each with a `dates` array of
      "YYYY-MM" (DATA.backbones on the ISM pages, DATA.scopes elsewhere). */
-  function span(ids, gauges) {
+  const OWN_START = new Set();   // ids whose "All" starts at the drawn data
+  /* opts.ownStart: "All" / autorange still runs to the page's shared END, but
+     starts where the drawn series starts, not at the earliest gauge's start. */
+  function span(ids, gauges, opts) {
+    if (opts && opts.ownStart) [].concat(ids).forEach(id => OWN_START.add(id));
     let lo = Infinity, hi = -Infinity;
     Object.values(gauges || {}).forEach(g => {
       const d = g && g.dates;
@@ -165,7 +169,8 @@
     L.dragmode = L.dragmode || "zoom";
     // Autorange ("All", double-click) always reaches both ends of the page's
     // shared span, whichever country is drawn.
-    if (SPAN[id]) L.xaxis.autorangeoptions = { include: SPAN[id].map(iso) };
+    if (SPAN[id]) L.xaxis.autorangeoptions = {
+      include: (OWN_START.has(id) ? SPAN[id].slice(1) : SPAN[id]).map(iso) };
     if (w.all) {
       L.xaxis.autorange = true; delete L.xaxis.range;
       return L;

@@ -216,7 +216,7 @@
           return r.json();
         });
       DATA = await window.__ismJsonPromise;
-      if (window.ChartWindow) ChartWindow.span("b-chart", DATA.backbones);
+      if (window.ChartWindow) ChartWindow.span("b-chart", DATA.backbones, { ownStart: true });
     } catch (err) {
       status(`could not load data/ism.json (${err})`);
       return;
@@ -460,7 +460,12 @@
   function renderStack() {
     const { groupContrib } = D.res;
     const n = DATES.length;
-    const from = Math.max(0, n - D.nTail);
+    // Start at the first month with any contribution: the AR benchmark needs
+    // a full rolling window first, so e.g. France (data from 1996) has none
+    // before ~2007. "All" then opens on the data, not on empty years.
+    let first = 0;
+    while (first < n && !groupContrib.some((gc) => gc[first] != null && Math.abs(gc[first]) > 1e-9)) first++;
+    const from = Math.max(first < n ? first : 0, n - D.nTail);
     const x = DATES.slice(from).map((d) => d + "-01");
 
     const traces = GROUP_LIST.map((g, gi) => {
