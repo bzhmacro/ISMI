@@ -287,7 +287,12 @@ jobs:
             # The 16:00 poll and a human push can collide on a 27 MB binary-ish
             # blob; rebase would try to merge it. Re-export is cheaper than a
             # conflict, so just retry the push once after fetching.
-            git push || (git pull --rebase=false --strategy=ours --no-edit && git push)
+            # `-X ours` (strategy OPTION), not `--strategy=ours`: the latter
+            # discards every change on the remote side, so a code commit
+            # pushed during a refresh was silently reverted (2026-11-27,
+            # f7fb178 lost to the es_flash run). `-X ours` keeps this run's
+            # data only where the two sides actually conflict.
+            git push || (git pull --rebase=false -X ours --no-edit && git push)
             echo "Refreshed and pushed."
           else
             echo "No change in web/data — nothing to commit."

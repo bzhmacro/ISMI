@@ -106,7 +106,11 @@
     Object.values(gauges || {}).forEach(g => {
       const d = g && g.dates;
       if (!d || !d.length) return;
-      const a = ms(d[0]), b = ms(d[d.length - 1]);
+      const a = ms(d[0]);
+      // A preliminary (flash) month after the last final one extends the
+      // timeline too, so its provisional bar / marker is inside the window.
+      const f = g.flash && g.flash.date;
+      const b = Math.max(ms(d[d.length - 1]), f ? ms(f) || -Infinity : -Infinity);
       if (a < lo) lo = a; if (b > hi) hi = b;
     });
     if (!Number.isFinite(lo)) return;

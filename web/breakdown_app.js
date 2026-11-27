@@ -98,7 +98,7 @@
 
   const logp = (r) => (r == null || !Number.isFinite(r) ? null : 100 * Math.log1p(r / 100));
 
-  /* Provisional bar for the flash month (special-aggregate grouping only).
+  /* Provisional bar for the flash month.
      Each aggregate's contribution = its weight in the last final month x its
      flash change (log, like the final bars). Where the flash gives no split --
      or no change at this horizon -- the headline is drawn as one unsplit bar. */
@@ -107,7 +107,9 @@
     if (!f) return null;
     const key = D.annual ? "yoy" : "mom";
     const head = logp((f.headline || {})[key]);
-    if (D.grouping !== "agg") return null;
+    // COICOP divisions: the flash has no division split, so the month gets the
+    // headline as one unsplit bar rather than an empty slot.
+    if (D.grouping !== "agg") return head == null ? null : { date: f.date, vals: null, head, split: false, f };
     const last = DATES.length - 1;
     const wg = GROUP_LIST.map(() => 0);
     B.categories.forEach((c, i) => {
@@ -150,7 +152,8 @@
                 ? " — the components come from the national CPI, which can differ from the HICP. "
                 : " (the components are the HICP's own aggregates; the gap is rounding and weights). ")
             : "")
-        : `Switch "Group by" to food / energy / goods / services to see it as a hatched bar. `) +
+        : `The grey hatched bar is the provisional headline, not split by COICOP division. ` +
+          (hasAgg(B) ? `Switch "Group by" to food / energy / goods / services to see its split. ` : "")) +
       "It is replaced by the full category detail when the final HICP is published.";
   }
 
