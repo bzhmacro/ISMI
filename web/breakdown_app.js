@@ -468,6 +468,9 @@
       if (y.every((v) => v == null || Math.abs(v) < 1e-9)) return null;
       return {
         x, y, name: g[1], type: "bar",
+        // Same legendgroup as the provisional segment below, so hiding a
+        // group in the legend hides its flash slice too.
+        legendgroup: g[1],
         marker: { color: g[2], line: { width: 0 } },
         hovertemplate: `%{x|%b %Y}<br>${g[1]}: %{y:.2f}pp<extra></extra>`,
       };
@@ -510,9 +513,9 @@
       showlegend: true,
     };
     if (prov) {
-      const top = prov.split ? prov.vals.reduce((a, v) => a + Math.max(0, v || 0), 0)
-                             : Math.max(0, prov.head || 0);
-      layout.annotations = [{ x: prov.date + "-01", y: top, yanchor: "bottom",
+      // Pinned to the top of the plot rather than the bar's height, which
+      // changes when groups are hidden in the legend.
+      layout.annotations = [{ x: prov.date + "-01", y: 1, yref: "paper", yanchor: "top", yshift: -8,
         text: "flash", showarrow: false, font: { size: 10, color: MUTED } }];
     }
     Plotly.react("b-chart", traces, layout, { responsive: true, displayModeBar: false });
