@@ -14,3 +14,6 @@ and check `git log -1 --format='%an <%ae> / %cn <%ce>'` before pushing. No
 other author, no placeholder address, no `Co-Authored-By` line. Vercel only
 deploys commits by this author; anything else builds as blocked. Never
 force-push to fix an author: re-author on a new branch.
+
+Commit and push straight to the default branch. No pull requests and no
+side branches unless asked: this is a one-person codebase.
